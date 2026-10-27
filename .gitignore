@@ -12,3 +12,5 @@ coverage/
 .local/
 apps/api/src/generated/
 /logbook-prodi.md
+/.pi/code-review-graph.json
+/.pi/code-review-graph/

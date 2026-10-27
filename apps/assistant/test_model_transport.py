@@ -76,7 +76,10 @@ class TransportTest(unittest.IsolatedAsyncioTestCase):
             transport = BudgetTransport(httpx.MockTransport(handler), RequestBudget(), MODEL)
             async with httpx.AsyncClient(transport=transport, trust_env=False) as client:
                 await client.post('https://openrouter.ai/api/v1/chat/completions', json={'model': MODEL})
-            self.assertEqual(transport.events, [{'attempt': 1, 'http_status': status, 'category': category}])
+            expected = {'attempt': 1, 'http_status': status, 'category': category}
+            if status >= 400:
+                expected['limit_scope'] = 'unknown'
+            self.assertEqual(transport.events, [expected])
             self.assertNotIn('synthetic-sensitive', json.dumps(transport.events))
 
     async def test_transport_exception_does_not_store_error_message(self):

@@ -11,3 +11,4 @@ __pycache__/
 coverage/
 .local/
 apps/api/src/generated/
+/logbook-prodi.md

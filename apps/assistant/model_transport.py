@@ -2,6 +2,7 @@
 import json
 import httpx
 from execution_gateway import RequestBudget, BudgetExceeded
+from error_metadata import safe_error_metadata
 
 
 class BudgetTransport(httpx.AsyncBaseTransport):
@@ -41,7 +42,20 @@ class BudgetTransport(httpx.AsyncBaseTransport):
         elif status >= 300:
             self.failed = True
             category = 'redirect_rejected'
-        self.events.append({'attempt': self.budget.used, 'http_status': status, 'category': category})
+        event = {'attempt': self.budget.used, 'http_status': status, 'category': category}
+        if status >= 400:
+            original_response = response
+            body = bytearray()
+            try:
+                async for chunk in response.aiter_bytes():
+                    body.extend(chunk)
+                    if len(body) > 65536:
+                        raise ValueError('Upstream error payload exceeds safe limit')
+                event.update(safe_error_metadata(status, response.headers, bytes(body)))
+                response = httpx.Response(status, headers=response.headers, content=bytes(body), request=request)
+            finally:
+                await original_response.aclose()
+        self.events.append(event)
         return response
 
     async def aclose(self):

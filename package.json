@@ -1,0 +1,19 @@
+{
+  "name": "restaurant-workspace",
+  "private": true,
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=22.22.0 <23"
+  },
+  "scripts": {
+    "dev:web": "pnpm --filter @restaurant/web dev",
+    "dev:api": "pnpm --filter @restaurant/api dev",
+    "typecheck": "pnpm -r typecheck",
+    "build": "pnpm -r build",
+    "test": "pnpm -r --if-present test"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "22.19.0"
+  }
+}

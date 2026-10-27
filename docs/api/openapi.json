@@ -1,0 +1,231 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Restaurant API",
+    "version": "0.1.0",
+    "description": "Implemented local public endpoints only. No authentication, reservation or chat endpoints yet."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:3001/api/v1",
+      "description": "Local API"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Process liveness; not database or model readiness",
+        "responses": {
+          "200": {
+            "description": "API process is alive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/tenants/{slug}/restaurant": {
+      "get": {
+        "operationId": "getPublicRestaurant",
+        "summary": "Read active tenant public profile and active outlets",
+        "description": "Slug selects public catalogue, not private authorization. No opening hours, menu prices or availability data.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            },
+            "example": "demo-padang"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current public profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestaurantResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tenant missing, inactive or invalid slug",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected internal failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database lookup unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "service"
+        ],
+        "properties": {
+          "status": {
+            "const": "ok"
+          },
+          "service": {
+            "const": "restaurant-api"
+          }
+        }
+      },
+      "OutletInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "address",
+          "contactPhone",
+          "timezone",
+          "durationMinutes",
+          "minNoticeMinutes",
+          "maxAdvanceDays",
+          "cancelCutoffMinutes",
+          "maxPartySize"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "contactPhone": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "durationMinutes": {
+            "type": "integer"
+          },
+          "minNoticeMinutes": {
+            "type": "integer"
+          },
+          "maxAdvanceDays": {
+            "type": "integer"
+          },
+          "cancelCutoffMinutes": {
+            "type": "integer"
+          },
+          "maxPartySize": {
+            "type": "integer"
+          }
+        }
+      },
+      "RestaurantResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "retrieved_at",
+          "source"
+        ],
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "slug",
+              "name",
+              "outlets"
+            ],
+            "properties": {
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "outlets": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/OutletInfo"
+                }
+              }
+            }
+          },
+          "retrieved_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source": {
+            "const": "restaurant_api"
+          }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error",
+          "request_id"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    }
+  }
+}

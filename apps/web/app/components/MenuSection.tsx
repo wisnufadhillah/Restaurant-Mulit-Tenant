@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MENU_ITEMS, MenuItem } from "../data/restaurant-data";
+import { fetchRestaurantMenu } from "../data/restaurant-api";
 
 export default function MenuSection() {
   const [selectedCategory, setSelectedCategory] = useState<string>("semua");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedDish, setSelectedDish] = useState<MenuItem | null>(null);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(MENU_ITEMS);
+
+  useEffect(() => {
+    let active = true;
+    fetchRestaurantMenu().then((items) => { if (active) setMenuItems(items); }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   const categories = [
     { key: "semua", label: "Semua Hidangan" },
@@ -17,7 +25,7 @@ export default function MenuSection() {
     { key: "kudapan", label: "Kudapan & Pelengkap" },
   ];
 
-  const filteredItems = MENU_ITEMS.filter((item) => {
+  const filteredItems = menuItems.filter((item) => {
     const matchesCategory = selectedCategory === "semua" || item.category === selectedCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           item.description.toLowerCase().includes(searchQuery.toLowerCase());

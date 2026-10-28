@@ -1,13 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MENU_ITEMS, RESTAURANT_TABLES, RESTAURANT_INFO, MenuItem, RestaurantTable } from "../data/restaurant-data";
+import { ApiOpeningHour, fetchRestaurantCatalogue, staffLogin, updateHours, updateMenu, updateTable } from "../data/restaurant-api";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<"menu" | "meja" | "jadwal" | "reservasi">("menu");
   const [menuList, setMenuList] = useState<MenuItem[]>(MENU_ITEMS);
   const [tableList, setTableList] = useState<RestaurantTable[]>(RESTAURANT_TABLES);
+  const [openingHours, setOpeningHours] = useState<ApiOpeningHour[]>([]);
+  const [authRequired, setAuthRequired] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    fetchRestaurantCatalogue().then(({ menuItems, diningTables, openingHours: hours }) => {
+      if (!active) return;
+      setMenuList(menuItems);
+      setTableList(diningTables.map((table) => ({ ...table, area: table.area as RestaurantTable["area"] })));
+      setOpeningHours(hours);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
   
   // Dummy reservations state for staff monitoring
   const [reservations, setReservations] = useState([
@@ -17,26 +34,40 @@ export default function DashboardPage() {
   ]);
 
   // Toggle availability of a menu item
-  const handleToggleMenu = (id: string) => {
-    setMenuList((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, isAvailable: !item.isAvailable } : item
-      )
-    );
+  const handleToggleMenu = async (id: string) => {
+    const item = menuList.find((candidate) => candidate.id === id);
+    if (!item) return;
+    try {
+      await updateMenu(id, { isAvailable: !item.isAvailable });
+      setMenuList((prev) => prev.map((candidate) => candidate.id === id ? { ...candidate, isAvailable: !candidate.isAvailable } : candidate));
+    } catch { setAuthRequired(true); }
   };
 
   // Toggle table status
-  const handleToggleTable = (id: string) => {
-    setTableList((prev) =>
-      prev.map((tbl) => {
-        if (tbl.id === id) {
-          const nextStatus = tbl.status === "available" ? "maintenance" : "available";
-          return { ...tbl, status: nextStatus };
-        }
-        return tbl;
-      })
-    );
+  const handleToggleTable = async (id: string) => {
+    const table = tableList.find((candidate) => candidate.id === id);
+    if (!table) return;
+    const nextStatus = table.status === "available" ? "maintenance" : "available";
+    try {
+      await updateTable(id, { status: nextStatus });
+      setTableList((prev) => prev.map((candidate) => candidate.id === id ? { ...candidate, status: nextStatus } : candidate));
+    } catch { setAuthRequired(true); }
   };
+
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLoginError("");
+    try { await staffLogin(email, password); setAuthRequired(false); setPassword(""); }
+    catch { setLoginError("Login gagal. Periksa email dan password staff."); }
+  };
+
+  const handleSaveHours = async (hour: ApiOpeningHour) => {
+    try { await updateHours(hour.dayOfWeek, hour); }
+    catch { setAuthRequired(true); }
+  };
+
+  const formatMinutes = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+  const parseMinutes = (value: string) => { const [hours, minutes] = value.split(":").map(Number); return hours * 60 + minutes; };
 
   const handleCancelReservation = (id: string) => {
     setReservations((prev) =>
@@ -94,6 +125,17 @@ export default function DashboardPage() {
 
       {/* Main Content Area */}
       <main className="dashboard-main">
+        {authRequired && (
+          <form onSubmit={handleLogin} style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: "var(--radius-lg)", padding: "18px", marginBottom: "20px" }}>
+            <strong>Login staff diperlukan untuk mengubah data.</strong>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "10px" }}>
+              <input aria-label="Email staff" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email staff" type="email" required />
+              <input aria-label="Password staff" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" type="password" required />
+              <button className="btn btn-primary" type="submit">Masuk</button>
+            </div>
+            {loginError && <p role="alert" style={{ color: "#b91c1c", marginTop: "8px" }}>{loginError}</p>}
+          </form>
+        )}
         {/* Top Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px" }}>
           <div>
@@ -254,12 +296,13 @@ export default function DashboardPage() {
           <div style={{ background: "#ffffff", borderRadius: "var(--radius-lg)", padding: "28px", border: "1px solid var(--color-gray-200)" }}>
             <h3 style={{ fontSize: "1.2rem", fontWeight: 700, marginBottom: "16px" }}>Jadwal Buka Reguler</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "600px", marginBottom: "32px" }}>
-              {RESTAURANT_INFO.operatingHours.map((h, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "var(--color-gray-50)", borderRadius: "var(--radius-md)" }}>
-                  <strong>{h.day}</strong>
+              {(openingHours.length ? openingHours : RESTAURANT_INFO.operatingHours.map((h, i) => ({ dayOfWeek: i, openMinutes: parseMinutes(h.open), closeMinutes: parseMinutes(h.close), isOpen: h.isOpen }))).map((h) => (
+                <div key={h.dayOfWeek} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "var(--color-gray-50)", borderRadius: "var(--radius-md)", gap: "10px" }}>
+                  <strong>{["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"][h.dayOfWeek]}</strong>
                   <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                    <span style={{ color: "var(--color-emerald)", fontWeight: 700 }}>{h.open} - {h.close} WIB</span>
-                    <span className="badge badge-emerald">Aktif</span>
+                    <input aria-label={`Jam buka ${h.dayOfWeek}`} type="time" value={formatMinutes(h.openMinutes)} onChange={(event) => setOpeningHours((previous) => previous.map((item) => item.dayOfWeek === h.dayOfWeek ? { ...item, openMinutes: parseMinutes(event.target.value) } : item))} />
+                    <input aria-label={`Jam tutup ${h.dayOfWeek}`} type="time" value={formatMinutes(h.closeMinutes)} onChange={(event) => setOpeningHours((previous) => previous.map((item) => item.dayOfWeek === h.dayOfWeek ? { ...item, closeMinutes: parseMinutes(event.target.value) } : item))} />
+                    <button type="button" className="btn btn-secondary" onClick={() => handleSaveHours(h)} style={{ padding: "6px 10px", fontSize: "0.78rem" }}>Simpan</button>
                   </div>
                 </div>
               ))}

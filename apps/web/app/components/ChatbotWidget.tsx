@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { MENU_ITEMS, FAQ_ITEMS, RESTAURANT_INFO } from "../data/restaurant-data";
+import { fetchRestaurantMenu } from "../data/restaurant-api";
 
 interface ChatMessage {
   id: string;
@@ -25,6 +26,7 @@ export default function ChatbotWidget() {
     }
   ]);
   const [isTyping, setIsTyping] = useState(false);
+  const [menuItems, setMenuItems] = useState(MENU_ITEMS);
 
   // Management verification state
   const [manageCode, setManageCode] = useState("");
@@ -36,6 +38,12 @@ export default function ChatbotWidget() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    let active = true;
+    fetchRestaurantMenu().then((items) => { if (active) setMenuItems(items); }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   const addBotMessage = (msg: Omit<ChatMessage, "id" | "sender" | "timestamp">) => {
     setIsTyping(true);
@@ -74,7 +82,7 @@ export default function ChatbotWidget() {
       addBotMessage({
         text: "Berikut hidangan favorit dan terlaris di Raso Minang hari ini:",
         type: "menu_cards",
-        data: MENU_ITEMS.slice(0, 3)
+        data: menuItems.slice(0, 3)
       });
       return;
     }

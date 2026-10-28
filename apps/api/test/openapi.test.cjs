@@ -2,14 +2,15 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const spec = require('../../../docs/api/openapi.json');
 
-test('OpenAPI documents only currently implemented GET routes and resolves schemas', () => {
+test('OpenAPI documents implemented routes and resolves schemas', () => {
   assert.equal(spec.openapi, '3.1.1');
-  assert.deepEqual(Object.keys(spec.paths).sort(), ['/health', '/public/tenants/{slug}/restaurant']);
+  assert.deepEqual(Object.keys(spec.paths).sort(), ['/health', '/public/tenants/{slug}/restaurant', '/staff/{slug}/hours/{dayOfWeek}', '/staff/{slug}/menu/{id}', '/staff/{slug}/tables/{id}', '/staff/login', '/staff/logout'].sort());
   const ids = new Set();
   for (const path of Object.values(spec.paths)) {
-    assert.deepEqual(Object.keys(path), ['get']);
-    assert.ok(!ids.has(path.get.operationId));
-    ids.add(path.get.operationId);
+    for (const operation of Object.values(path)) {
+      assert.ok(!ids.has(operation.operationId));
+      ids.add(operation.operationId);
+    }
   }
   function check(value) {
     if (!value || typeof value !== 'object') return;

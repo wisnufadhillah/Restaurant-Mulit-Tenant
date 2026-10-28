@@ -16,6 +16,8 @@ model Tenant {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
   outlets Outlet[]
+  staff Staff[]
+  menuItems MenuItem[]
   @@map("tenants")
 }
 
@@ -37,5 +39,97 @@ model Outlet {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
   @@unique([tenantId, id])
   @@index([tenantId])
+  tables DiningTable[]
+  weeklyHours WeeklyHours[]
+  specialHours SpecialHours[]
   @@map("outlets")
+}
+
+model SpecialHours {
+  tenantId String @map("tenant_id") @db.Uuid
+  outletId String @map("outlet_id") @db.Uuid
+  outlet Outlet @relation(fields: [tenantId, outletId], references: [tenantId, id], onDelete: Restrict)
+  date DateTime @db.Date
+  openMinute Int? @map("open_minute")
+  closeMinute Int? @map("close_minute")
+  @@id([tenantId, outletId, date])
+  @@map("special_hours")
+}
+
+model OperationalAudit {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  staffId String @map("staff_id") @db.Uuid
+  staff Staff @relation(fields: [tenantId, staffId], references: [tenantId, id], onDelete: Restrict)
+  action String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  @@index([tenantId, createdAt])
+  @@map("operational_audits")
+}
+
+model WeeklyHours {
+  tenantId String @map("tenant_id") @db.Uuid
+  outletId String @map("outlet_id") @db.Uuid
+  outlet Outlet @relation(fields: [tenantId, outletId], references: [tenantId, id], onDelete: Restrict)
+  weekday Int
+  openMinute Int? @map("open_minute")
+  closeMinute Int? @map("close_minute")
+  @@id([tenantId, outletId, weekday])
+  @@map("weekly_hours")
+}
+
+model DiningTable {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  outletId String @map("outlet_id") @db.Uuid
+  outlet Outlet @relation(fields: [tenantId, outletId], references: [tenantId, id], onDelete: Restrict)
+  name String
+  capacity Int
+  isActive Boolean @default(true) @map("is_active")
+  @@unique([tenantId, outletId, id])
+  @@unique([tenantId, outletId, name])
+  @@map("dining_tables")
+}
+
+model MenuItem {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  name String
+  description String
+  price Int
+  isActive Boolean @default(true) @map("is_active")
+  isAvailable Boolean @default(true) @map("is_available")
+  @@unique([tenantId, id])
+  @@index([tenantId])
+  @@map("menu_items")
+}
+
+model Staff {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  username String
+  passwordHash String @map("password_hash")
+  role String
+  isActive Boolean @default(true) @map("is_active")
+  sessions StaffSession[]
+  audits OperationalAudit[]
+  @@unique([tenantId, id])
+  @@unique([tenantId, username])
+  @@map("staff")
+}
+
+model StaffSession {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  staffId String @map("staff_id") @db.Uuid
+  staff Staff @relation(fields: [tenantId, staffId], references: [tenantId, id], onDelete: Restrict)
+  tokenHash String @unique @map("token_hash")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  @@index([tenantId, staffId])
+  @@index([expiresAt])
+  @@map("staff_sessions")
 }

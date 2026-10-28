@@ -8,7 +8,7 @@
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.cjs",
-    "test:database": "node --test test/database.integration.cjs test/restaurant.integration.cjs",
+    "test:database": "node --test test/database.integration.cjs test/restaurant.integration.cjs test/staff-database.integration.cjs test/menu.integration.cjs test/table.integration.cjs test/table-http.integration.cjs test/hours.integration.cjs test/hours-http.integration.cjs test/profile.integration.cjs test/special-hours.integration.cjs test/operational-audit.integration.cjs",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "node dist/database/seed.js"

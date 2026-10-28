@@ -1,6 +1,6 @@
 # Restaurant Workspace
 
-Skeleton lokal untuk website restoran, API bisnis, dan service assistant. Halaman web masih placeholder. Skema tenant/outlet dan seed sintetis tersedia pada database lokal. Profil publik tersedia di GET /api/v1/public/tenants/:slug/restaurant. Belum ada autentikasi, reservasi, retrieval, atau inference model yang diaktifkan.
+Workspace lokal untuk website restoran, API bisnis, dan service assistant. Halaman web memakai desain Senja dengan foto lokal dan contoh menu berlabel; reservasi serta asisten menampilkan status belum tersedia, tanpa hasil transaksi palsu. Skema tenant/outlet dan seed sintetis tersedia pada database lokal. Profil publik tersedia di GET /api/v1/public/tenants/:slug/restaurant. Kode API login/logout dan sesi staff tenant-scoped tersedia; migration akun/sesi telah diterapkan dan diuji pada DB lokal. UI login/logout dan dashboard terproteksi sudah terhubung serta diuji sampai DB lokal. Akun operasional belum diprovision. Menu publik dan dashboard menu sudah memakai API/DB: pemilik tambah/edit/nonaktifkan, staff mengubah tersedia/habis. Alur dijelaskan pada docs/Alur Pengelolaan Menu.md. Belum ada reservasi nyata atau retrieval terintegrasi.
 
 ## Prasyarat
 
@@ -66,7 +66,7 @@ Seed memakai ID sintetis tetap dan tidak menambah duplikat pada retry. Integrati
 
 ## Dokumentasi API
 
-Panduan endpoint tersedia di `docs/api/README.md` dan kontrak OpenAPI 3.1.1 di `docs/api/openapi.json`. Hanya route yang sudah berjalan dicantumkan; belum ada Swagger UI runtime. Alur simulasi async dijelaskan di `docs/Runner Async.md`.
+Panduan endpoint tersedia di `docs/api/README.md` dan kontrak OpenAPI 3.1.1 di `docs/api/openapi.json`. Hanya route yang sudah berjalan dicantumkan. Scalar development tersedia di http://127.0.0.1:3001/docs, JSON di /openapi.json; fitur agent, telemetry, penyimpanan auth dan Test Request dimatikan. UI Scalar memakai CDN versi terkunci dan memerlukan internet. Alur simulasi async dijelaskan di `docs/Runner Async.md`.
 
 ## Batas integrasi
 

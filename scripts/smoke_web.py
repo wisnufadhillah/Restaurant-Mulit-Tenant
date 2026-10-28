@@ -14,8 +14,17 @@ try:
             with urlopen('http://127.0.0.1:3005', timeout=1) as response:
                 body = response.read().decode()
                 assert response.status == 200
-                assert 'Website restoran' in body
-            print('PASS built web serves placeholder over loopback HTTP')
+                assert 'Ada sela,' in body
+                assert 'Dapur Sela' in body
+                assert 'Layanan reservasi belum tersedia' in body
+                assert '/images/padang-table.webp' in body
+            with urlopen('http://127.0.0.1:3005/images/padang-table.webp', timeout=5) as image:
+                assert image.status == 200
+                assert image.headers.get_content_type() == 'image/webp'
+            with urlopen('http://127.0.0.1:3005/dashboard', timeout=5) as dashboard:
+                assert '/login' in dashboard.geturl()
+                assert 'Masuk ke ruang kerja' in dashboard.read().decode()
+            print('PASS built restaurant web, local image and unauthenticated staff redirect over loopback HTTP')
             break
         except OSError:
             time.sleep(0.25)

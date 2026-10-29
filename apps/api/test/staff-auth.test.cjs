@@ -41,6 +41,7 @@ test('staff HTTP authentication binds tenant, validates origin, expires and revo
     assert.equal((await login({ ...body, role: 'owner' })).status, 400);
     assert.equal((await login({ ...body, tenantSlug: 'demo-b' })).status, 401);
     assert.equal((await login({ ...body, password: randomBytes(32).toString('base64url') })).status, 401);
+    assert.equal((await login(body, 'http://localhost:3000')).status, 200);
     const response = await login(body);
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('cache-control'), 'no-store');

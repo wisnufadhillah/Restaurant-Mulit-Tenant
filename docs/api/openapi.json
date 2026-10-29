@@ -3,6 +3,7 @@
   "info": {
     "title": "Restaurant API",
     "version": "0.1.0",
+    "description": "Implemented local public read-only restaurant catalogue endpoint. Authentication, reservation writes and chat gateway are not part of this contract."
     "description": "Local public profiles and tenant-scoped staff sessions. No reservation or chat endpoints yet."
   },
   "servers": [
@@ -2554,6 +2555,9 @@
     },
     "/staff/tenants/{slug}/special-hours/{date}": {
       "get": {
+        "operationId": "getPublicRestaurant",
+        "summary": "Read active tenant public profile and active outlets",
+        "description": "Slug selects the public tenant catalogue, not private authorization. Only active menu items and available tables are returned.",
         "operationId": "resolveSpecialHours",
         "summary": "Resolve local date: special hours precede weekly schedule",
         "security": [
@@ -2831,7 +2835,12 @@
           }
         }
       }
-    }
+    },
+    "/staff/login": { "post": { "operationId": "staffLogin", "responses": { "200": { "description": "Staff session created" } } } },
+    "/staff/logout": { "post": { "operationId": "staffLogout", "responses": { "200": { "description": "Staff session revoked" } } } },
+    "/staff/{slug}/menu/{id}": { "patch": { "operationId": "updateStaffMenu", "responses": { "200": { "description": "Menu item updated" } } } },
+    "/staff/{slug}/tables/{id}": { "patch": { "operationId": "updateStaffTable", "responses": { "200": { "description": "Dining table updated" } } } },
+    "/staff/{slug}/hours/{dayOfWeek}": { "put": { "operationId": "updateStaffHours", "responses": { "200": { "description": "Opening hours updated" } } } }
   },
   "components": {
     "securitySchemes": {
@@ -2937,7 +2946,55 @@
           },
           "maxPartySize": {
             "type": "integer"
+          },
+          "menuItems": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/MenuItemInfo" }
+          },
+          "diningTables": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/DiningTableInfo" }
+          },
+          "openingHours": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/OpeningHourInfo" }
           }
+        }
+      },
+      "MenuItemInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "category", "price", "description", "isAvailable"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "category": { "type": "string" },
+          "price": { "type": "integer", "minimum": 0 },
+          "description": { "type": "string" },
+          "isAvailable": { "type": "boolean" }
+        }
+      },
+      "DiningTableInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "tableNumber", "capacity", "area", "status"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "tableNumber": { "type": "string" },
+          "capacity": { "type": "integer", "minimum": 1 },
+          "area": { "type": "string" },
+          "status": { "enum": ["available", "reserved", "maintenance"] }
+        }
+      },
+      "OpeningHourInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dayOfWeek", "openMinutes", "closeMinutes", "isOpen"],
+        "properties": {
+          "dayOfWeek": { "type": "integer", "minimum": 0, "maximum": 6 },
+          "openMinutes": { "type": "integer", "minimum": 0, "maximum": 1439 },
+          "closeMinutes": { "type": "integer", "minimum": 1, "maximum": 1440 },
+          "isOpen": { "type": "boolean" }
         }
       },
       "RestaurantResponse": {

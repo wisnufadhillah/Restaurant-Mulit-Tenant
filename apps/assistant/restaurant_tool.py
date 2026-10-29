@@ -5,6 +5,8 @@ import re
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import urlopen
+from urllib.request import Request
+import os
 
 
 class ToolUnavailable(RuntimeError):
@@ -18,12 +20,23 @@ def make_restaurant_tool(base_url, tenant_slug, opener=urlopen):
         raise ValueError("Only a loopback API origin is supported")
     if not isinstance(tenant_slug, str) or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", tenant_slug) or len(tenant_slug) > 80:
         raise ValueError("Invalid public tenant slug")
-    endpoint = f"{base_url.rstrip('/')}/api/v1/public/tenants/{tenant_slug}/restaurant"
+    service_token = os.environ.get("RESTAURANT_INTERNAL_SERVICE_TOKEN", "")
+    context_token = os.environ.get("RESTAURANT_INTERNAL_CONTEXT", "")
+    session_id = os.environ.get("RESTAURANT_INTERNAL_SESSION_ID", "")
+    if any((service_token, context_token, session_id)) and not all((service_token, context_token, session_id)):
+        raise ValueError("Incomplete internal restaurant context")
+    internal = all((service_token, context_token, session_id))
+    endpoint = f"{base_url.rstrip('/')}/api/v1/{'internal' if internal else 'public'}/tenants/{tenant_slug}/restaurant"
 
     def get_restaurant_info() -> dict:
         """Read the current restaurant public profile and booking policies from the API."""
         try:
-            with opener(endpoint, timeout=5) as response:
+            request = Request(endpoint, headers={
+                "x-internal-service-token": service_token,
+                "x-internal-context": context_token,
+                "x-session-id": session_id,
+            }) if internal else endpoint
+            with opener(request, timeout=5) as response:
                 content = response.read(65537)
                 if len(content) > 65536:
                     raise ToolUnavailable("Restaurant information is unavailable")

@@ -18,6 +18,36 @@ class OutletInfo(StrictResponse):
     maxAdvanceDays: Annotated[int, Field(gt=0)]
     cancelCutoffMinutes: Annotated[int, Field(ge=0)]
     maxPartySize: Annotated[int, Field(gt=0)]
+    menuItems: list["MenuItemInfo"] = []
+    diningTables: list["DiningTableInfo"] = []
+    openingHours: list["OpeningHourInfo"] = []
+
+
+class MenuItemInfo(StrictResponse):
+    id: str
+    name: Annotated[str, Field(min_length=1)]
+    category: Annotated[str, Field(min_length=1)]
+    price: Annotated[int, Field(ge=0)]
+    description: str
+    isAvailable: bool
+
+
+class DiningTableInfo(StrictResponse):
+    id: str
+    tableNumber: Annotated[str, Field(min_length=1)]
+    capacity: Annotated[int, Field(gt=0)]
+    area: Annotated[str, Field(min_length=1)]
+    status: Literal["available", "reserved", "maintenance"]
+
+
+class OpeningHourInfo(StrictResponse):
+    dayOfWeek: Annotated[int, Field(ge=0, le=6)]
+    openMinutes: Annotated[int, Field(ge=0, le=1439)]
+    closeMinutes: Annotated[int, Field(ge=1, le=1440)]
+    isOpen: bool
+
+
+OutletInfo.model_rebuild()
 
 
 class RestaurantInfo(StrictResponse):

@@ -15,6 +15,11 @@ test('public profiles are scoped, read-only and return safe errors', async () =>
     assert.notEqual(first.data.name, second.data.name);
     assert.equal(first.data.outlets.length, 1);
     assert.equal(first.data.outlets[0].durationMinutes, 90);
+    assert.ok(Array.isArray(first.data.outlets[0].menuItems));
+    assert.ok(Array.isArray(first.data.outlets[0].diningTables));
+    assert.ok(Array.isArray(first.data.outlets[0].openingHours));
+    assert.equal(first.data.outlets[0].menuItems.every(item => item.isAvailable), true);
+    assert.equal(first.data.outlets[0].diningTables.every(table => table.status === 'available'), true);
     assert.equal(first.data.id, undefined);
     assert.equal(first.source, 'restaurant_api');
     assert.ok(Number.isFinite(Date.parse(first.retrieved_at)));

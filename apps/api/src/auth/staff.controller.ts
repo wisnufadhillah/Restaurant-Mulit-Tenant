@@ -8,6 +8,18 @@ export interface StaffRequest {
 export interface StaffResponse { setHeader(name: string, value: string): unknown; }
 const COOKIE = "restaurant_staff";
 
+function acceptedOrigins(allowed: string) {
+  const origins = new Set([allowed]);
+  if (process.env.NODE_ENV !== "production") {
+    const url = new URL(allowed);
+    if (url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname)) {
+      url.hostname = url.hostname === "localhost" ? "127.0.0.1" : "localhost";
+      origins.add(url.origin);
+    }
+  }
+  return origins;
+}
+
 export function cookieToken(request: StaffRequest): string | undefined {
   const cookie = request.headers.cookie;
   if (typeof cookie !== "string" || cookie.length > 8192) return undefined;
@@ -29,7 +41,7 @@ export class StaffController {
     try { origin = new URL(allowed); } catch { throw new ServiceUnavailableException(); }
     if (origin.origin !== allowed || (origin.protocol !== "https:" &&
       !(process.env.NODE_ENV !== "production" && origin.protocol === "http:" && ["127.0.0.1", "localhost"].includes(origin.hostname)))) throw new ServiceUnavailableException();
-    if (request.headers.origin !== allowed) throw new ForbiddenException();
+    if (typeof request.headers.origin !== "string" || !acceptedOrigins(allowed).has(request.headers.origin)) throw new ForbiddenException();
     if (request.headers["sec-fetch-site"] === "cross-site") throw new ForbiddenException();
   }
 

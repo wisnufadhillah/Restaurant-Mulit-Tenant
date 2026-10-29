@@ -1,367 +1,64 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { MENU_ITEMS, FAQ_ITEMS, RESTAURANT_INFO } from "../data/restaurant-data";
-import { fetchRestaurantMenu } from "../data/restaurant-api";
-
-interface ChatMessage {
-  id: string;
-  sender: "bot" | "user";
-  text: string;
-  type?: "text" | "menu_cards" | "table_proposal" | "manage_auth" | "manage_card";
-  data?: any;
-  source?: string;
-  timestamp: string;
-}
+import { useRef, useState } from "react";
+interface MenuItem { id: string; name: string; description: string; price: number; isAvailable: boolean; }
+interface Profile { name: string; outlets: { name: string; address: string; contactPhone: string }[]; }
+interface Hours { weekday: number; openMinute: number | null; closeMinute: number | null; }
+const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+const time = (n: number) => `${String(Math.floor(n / 60)).padStart(2, "0")}.${String(n % 60).padStart(2, "0")}`;
 
 export default function ChatbotWidget() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [inputVal, setInputVal] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "msg-welcome",
-      sender: "bot",
-      text: "Halo! Selamat datang di Raso Minang. Ada yang bisa saya bantu hari ini? Anda bisa mengecek rekomendasi menu, cek ketersediaan meja, atau informasi kebijakan restoran.",
-      timestamp: "Baru saja"
-    }
-  ]);
-  const [isTyping, setIsTyping] = useState(false);
-  const [menuItems, setMenuItems] = useState(MENU_ITEMS);
-
-  // Management verification state
-  const [manageCode, setManageCode] = useState("");
-  const [manageToken, setManageToken] = useState("");
-  const [manageResult, setManageResult] = useState<any>(null);
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
-
-  useEffect(() => {
-    let active = true;
-    fetchRestaurantMenu().then((items) => { if (active) setMenuItems(items); }).catch(() => undefined);
-    return () => { active = false; };
-  }, []);
-
-  const addBotMessage = (msg: Omit<ChatMessage, "id" | "sender" | "timestamp">) => {
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          ...msg,
-          id: "bot-" + Date.now(),
-          sender: "bot",
-          timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
-        }
-      ]);
-    }, 500);
-  };
-
-  const handleSend = (textToSend?: string) => {
-    const text = textToSend || inputVal;
-    if (!text.trim()) return;
-
-    const userMsg: ChatMessage = {
-      id: "usr-" + Date.now(),
-      sender: "user",
-      text: text,
-      timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    if (!textToSend) setInputVal("");
-
-    const lower = text.toLowerCase();
-
-    // Intent 1: Menu
-    if (lower.includes("menu") || lower.includes("makan") || lower.includes("rendang") || lower.includes("ayam")) {
-      addBotMessage({
-        text: "Berikut hidangan favorit dan terlaris di Raso Minang hari ini:",
-        type: "menu_cards",
-        data: menuItems.slice(0, 3)
-      });
-      return;
-    }
-
-    // Intent 2: Meja / Reservasi
-    if (lower.includes("meja") || lower.includes("booking") || lower.includes("pesan") || lower.includes("jadwal")) {
-      addBotMessage({
-        text: "Kami memiliki beberapa slot meja siap reservasi hari ini untuk Anda. Anda juga dapat menggunakan formulir reservasi langsung di halaman kami.",
-        type: "table_proposal",
-        data: {
-          table: "Meja VIP-01 (Kapasitas 8-10 orang, Ber-AC)",
-          date: "Hari Ini",
-          duration: "90 Menit"
-        }
-      });
-      return;
-    }
-
-    // Intent 3: Kelola / Cek Reservasi
-    if (lower.includes("batal") || lower.includes("kelola") || lower.includes("cek reservasi") || lower.includes("status")) {
-      addBotMessage({
-        text: "Sesuai standar privasi, silakan masukkan Kode Referensi dan Token Akses Privat Anda pada kartu aman di bawah ini (data tidak akan masuk ke prompt model):",
-        type: "manage_auth"
-      });
-      return;
-    }
-
-    // Intent 4: FAQ / Halal / Lokasi
-    if (lower.includes("halal") || lower.includes("sertifikasi")) {
-      addBotMessage({
-        text: FAQ_ITEMS[0].answer,
-        source: "Dokumen Kebijakan Restoran (MUI Certified)"
-      });
-      return;
-    }
-
-    if (lower.includes("lokasi") || lower.includes("alamat") || lower.includes("jam")) {
-      addBotMessage({
-        text: `Raso Minang berlokasi di ${RESTAURANT_INFO.address}. Jam buka hari ini: 10:00 - 22:00 WIB. Parkir luas dan musholla tersedia.`,
-        source: "Data Outlet Raso Minang"
-      });
-      return;
-    }
-
-    // Fallback general response
-    addBotMessage({
-      text: "Terima kasih atas pertanyaannya! Saya dapat memandu Anda melihat menu unggulan, memeriksa ketersediaan meja, atau memeriksa status reservasi Anda. Silakan pilih salah satu tombol opsi cepat di bawah:",
-    });
-  };
-
-  const handleVerifyBooking = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!manageCode || !manageToken) return;
-
-    setManageResult({
-      code: manageCode,
-      status: "CONFIRMED",
-      date: "Hari Ini, 19:30 WIB",
-      table: "Meja 03 (Indoor AC)",
-      guests: 4
-    });
-  };
-
-  const handleCancelBooking = () => {
-    if (manageResult) {
-      setManageResult({
-        ...manageResult,
-        status: "CANCELLED"
-      });
-    }
-  };
-
-  return (
-    <>
-      {/* Floating Action Button */}
-      <button
-        className="chat-widget-fab"
-        onClick={() => setIsOpen(!isOpen)}
-        aria-label="Buka Chat Tanya Restoran"
-        id="btn-open-chatbot"
-      >
-        <span className="chat-fab-pulse"></span>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-        </svg>
-        <span>{isOpen ? "Tutup Bantuan" : "Tanya Restoran"}</span>
-      </button>
-
-      {/* Chat Drawer Window */}
-      {isOpen && (
-        <div className="chat-drawer" id="chatbot-window" role="dialog" aria-modal="false" aria-labelledby="chatbot-title">
-          {/* Header */}
-          <div className="chat-header">
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#ffffff", color: "var(--color-primary)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.9rem" }}>
-                AI
-              </div>
-              <div>
-                <div id="chatbot-title" style={{ fontWeight: 700, fontSize: "0.95rem" }}>Asisten Raso Minang</div>
-                <div style={{ fontSize: "0.75rem", opacity: 0.9, display: "flex", alignItems: "center", gap: "5px" }}>
-                  <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#34d399", display: "inline-block" }}></span>
-                  Online • Bantuan Cepat
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              style={{ color: "#ffffff", padding: "4px 8px", fontSize: "1.2rem", cursor: "pointer" }}
-              aria-label="Tutup Chat"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Messages Area */}
-          <div className="chat-messages" role="log" aria-live="polite" aria-label="Percakapan dengan asisten">
-            {messages.map((m) => (
-              <div key={m.id} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <div className={`chat-bubble ${m.sender === "bot" ? "chat-bubble-bot" : "chat-bubble-user"}`}>
-                  <div>{m.text}</div>
-
-                  {/* Menu Cards Structured Output */}
-                  {m.type === "menu_cards" && m.data && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }}>
-                      {m.data.map((item: any) => (
-                        <div key={item.id} style={{ background: "var(--color-warm-bg)", padding: "10px", borderRadius: "var(--radius-md)", border: "1px solid rgba(155,27,27,0.1)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div>
-                            <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{item.icon} {item.name}</div>
-                            <div style={{ fontSize: "0.78rem", color: "var(--color-gray-600)" }}>
-                              Rp {item.price.toLocaleString("id-ID")} • {item.isAvailable ? "Tersedia" : "Habis"}
-                            </div>
-                          </div>
-                          <a href="#reservasi" onClick={() => setIsOpen(false)} style={{ fontSize: "0.78rem", color: "var(--color-primary)", fontWeight: 700 }}>
-                            Pesan →
-                          </a>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Table Proposal Card */}
-                  {m.type === "table_proposal" && m.data && (
-                    <div style={{ background: "var(--color-warm-bg)", padding: "12px", borderRadius: "var(--radius-md)", border: "1px solid rgba(155,27,27,0.12)", marginTop: "10px" }}>
-                      <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--color-primary)" }}>{m.data.table}</div>
-                      <div style={{ fontSize: "0.8rem", color: "var(--color-gray-600)", margin: "4px 0 10px" }}>
-                        Slot: {m.data.date} • Durasi: {m.data.duration}
-                      </div>
-                      <a href="#reservasi" onClick={() => setIsOpen(false)} className="btn btn-primary" style={{ padding: "6px 12px", fontSize: "0.8rem", width: "100%" }}>
-                        Lanjut Reservasi di Form Web
-                      </a>
-                    </div>
-                  )}
-
-                  {/* Private Manage Auth Component (Direct Backend Security Pattern) */}
-                  {m.type === "manage_auth" && (
-                    <div style={{ background: "#ffffff", padding: "12px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-gray-300)", marginTop: "10px" }}>
-                      {!manageResult ? (
-                        <form onSubmit={handleVerifyBooking} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                          <label htmlFor="manage-code" className="sr-only">Kode referensi reservasi</label>
-                          <input
-                            id="manage-code"
-                            type="text"
-                            placeholder="Kode Referensi (misal: RSV-123456)"
-                            value={manageCode}
-                            onChange={(e) => setManageCode(e.target.value)}
-                            style={{ padding: "8px 10px", borderRadius: "4px", border: "1px solid #ccc", fontSize: "0.82rem" }}
-                            required
-                          />
-                          <label htmlFor="manage-token" className="sr-only">Token akses privat</label>
-                          <input
-                            id="manage-token"
-                            type="password"
-                            placeholder="Token Akses Privat"
-                            value={manageToken}
-                            onChange={(e) => setManageToken(e.target.value)}
-                            style={{ padding: "8px 10px", borderRadius: "4px", border: "1px solid #ccc", fontSize: "0.82rem" }}
-                            required
-                          />
-                          <button type="submit" className="btn btn-primary" style={{ padding: "6px", fontSize: "0.8rem" }}>
-                            Verifikasi Tiket Reservasi
-                          </button>
-                        </form>
-                      ) : (
-                        <div style={{ fontSize: "0.85rem" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                            <strong>{manageResult.code}</strong>
-                            <span className={`badge ${manageResult.status === "CONFIRMED" ? "badge-emerald" : "badge-crimson"}`}>
-                              {manageResult.status}
-                            </span>
-                          </div>
-                          <div style={{ color: "var(--color-gray-600)", fontSize: "0.8rem", marginBottom: "8px" }}>
-                            {manageResult.date} • {manageResult.table} ({manageResult.guests} Orang)
-                          </div>
-                          {manageResult.status === "CONFIRMED" && (
-                            <button
-                              onClick={handleCancelBooking}
-                              className="btn btn-secondary"
-                              style={{ width: "100%", padding: "6px", fontSize: "0.8rem", color: "#b91c1c", borderColor: "#fca5a5" }}
-                            >
-                              Batalkan Reservasi Ini
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* RAG Source Citation */}
-                  {m.source && (
-                    <div style={{ marginTop: "6px", fontSize: "0.72rem", color: "var(--color-gray-500)", fontStyle: "italic", borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: "4px" }}>
-                      Sumber: {m.source}
-                    </div>
-                  )}
-                </div>
-                <span style={{ fontSize: "0.68rem", color: "var(--color-gray-400)", alignSelf: m.sender === "bot" ? "flex-start" : "flex-end", padding: "0 4px" }}>
-                  {m.timestamp}
-                </span>
-              </div>
-            ))}
-
-            {isTyping && (
-              <div className="chat-bubble chat-bubble-bot" style={{ display: "inline-block", width: "auto" }}>
-                <span style={{ color: "var(--color-gray-400)", fontSize: "0.85rem" }}>Asisten sedang memproses jawaban...</span>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Quick Action Pills */}
-          <div style={{ padding: "10px 16px", background: "#ffffff", borderTop: "1px solid var(--color-gray-100)" }}>
-            <div className="chat-quick-actions">
-              <button className="chat-quick-btn" onClick={() => handleSend("Lihat menu favorit")}>
-                🍲 Rekomendasi Menu
-              </button>
-              <button className="chat-quick-btn" onClick={() => handleSend("Cek meja untuk hari ini")}>
-                🪑 Cek Slot Meja
-              </button>
-              <button className="chat-quick-btn" onClick={() => handleSend("Apakah makanan halal?")}>
-                📜 Kebijakan Halal
-              </button>
-              <button className="chat-quick-btn" onClick={() => handleSend("Kelola atau cek reservasi")}>
-                🔍 Kelola Reservasi
-              </button>
-            </div>
-          </div>
-
-          {/* Input Footer */}
-          <form className="chat-footer" onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
-            <label htmlFor="chatbot-input" className="sr-only">Pesan untuk asisten</label>
-            <input
-              type="text"
-              className="chat-input"
-              placeholder="Ketik pertanyaan Anda di sini..."
-              value={inputVal}
-              onChange={(e) => setInputVal(e.target.value)}
-              id="chatbot-input"
-            />
-            <button type="submit" className="btn btn-primary" style={{ padding: "8px 16px" }} id="chatbot-submit">
-              Kirim
-            </button>
-          </form>
-        </div>
-      )}
-    </>
-  );
-import { useRef } from "react";
-
-export default function ChatbotWidget() {
-  const dialog = useRef<HTMLDialogElement>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
+  const dialog = useRef<HTMLDialogElement>(null), trigger = useRef<HTMLButtonElement>(null);
+  const [ready, setReady] = useState(false), [pending, setPending] = useState(false), [message, setMessage] = useState("");
+  const [menu, setMenu] = useState<MenuItem[] | null>(null), [profile, setProfile] = useState<Profile | null>(null), [hours, setHours] = useState<Hours[] | null>(null);
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<{ sender: string; text: string }[]>([]);
   const close = () => { dialog.current?.close(); trigger.current?.focus(); };
+  async function initialize() {
+    setPending(true); setMessage("");
+    try { const response = await fetch("/chat/session", { method: "POST" }); const body = await response.json(); if (!response.ok) throw new Error(body.message); setReady(true); }
+    catch (error) { setReady(false); setMessage(error instanceof Error ? error.message : "Chat belum tersedia. Coba lagi nanti."); }
+    finally { setPending(false); }
+  }
+  async function load(resource: "menu" | "restaurant" | "hours") {
+    setPending(true); setMessage(""); setMenu(null); setProfile(null); setHours(null);
+    try { const response = await fetch(`/chat/catalogue/${resource}`, { cache: "no-store" }); const body = await response.json(); if (!response.ok) { if (response.status === 403) setReady(false); throw new Error(body.message); } if (resource === "menu") setMenu(body.data); else if (resource === "restaurant") setProfile(body.data); else setHours(body.data); }
+    catch (error) { setMessage(error instanceof Error ? error.message : "Informasi gagal dimuat. Coba lagi."); }
+    finally { setPending(false); }
+  }
   return <>
-    <button ref={trigger} className="senja-text-button senja-assistant-trigger" type="button" onClick={() => dialog.current?.showModal()}>Tanya restoran</button>
-    <dialog className="senja-dialog" ref={dialog} onClose={() => trigger.current?.focus()} aria-labelledby="assistant-heading" aria-describedby="assistant-description">
-      <div className="senja-dialog-heading"><span>Dapur Sela / Asisten restoran</span><button className="senja-text-button" type="button" onClick={close}>Tutup <span aria-hidden="true">×</span></button></div>
-      <p className="senja-eyebrow">ASISTEN RESTORAN</p>
-      <h2 id="assistant-heading">Kembali sebentar lagi.</h2>
-      <p id="assistant-description">Asisten belum tersedia. Kamu tetap bisa menjelajahi contoh hidangan tanpa mengirim pesan atau data pribadi.</p>
-      <a className="senja-text-link" href="#menu" onClick={close}>Lihat menu</a>
+    <button ref={trigger} className="senja-text-button senja-assistant-trigger sela-chat-launcher" type="button" onClick={() => { dialog.current?.showModal(); void initialize(); }}>Tanya restoran</button>
+    <dialog className="senja-dialog sela-chat-panel" ref={dialog} onClose={() => trigger.current?.focus()} aria-labelledby="assistant-heading" aria-describedby="assistant-description">
+      <div className="senja-dialog-heading"><span>Bantuan restoran</span><button className="senja-text-button" type="button" onClick={close}>Tutup <span aria-hidden="true">×</span></button></div>
+      <h2 id="assistant-heading">Ada yang ingin dilihat?</h2>
+      <p id="assistant-description">Tanyakan menu atau info restoran. Jawaban AI memakai tools read-only; bila layanan gagal, gunakan pilihan katalog atau halaman web. Jangan masukkan data pribadi atau token akses.</p>
+      <div className="senja-hero-actions"><button className="sela-button-outline" disabled={!ready || pending} onClick={() => void load("menu")}>Lihat menu</button><button className="sela-button-outline" disabled={!ready || pending} onClick={() => void load("restaurant")}>Info restoran</button><button className="sela-button-outline" disabled={!ready || pending} onClick={() => void load("hours")}>Jam buka</button></div>
+      <div role="log" aria-live="polite" aria-label="Percakapan restoran">{messages.map((item, index) => <p key={index}><strong>{item.sender === "user" ? "Kamu" : "Asisten"}:</strong> {item.text}</p>)}</div>
+      <form className="senja-form" onSubmit={async event => {
+        event.preventDefault(); if (!ready || pending || !input.trim()) return;
+        setPending(true); setMessage("");
+        try {
+          const response = await fetch("/chat/messages", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: input }) });
+          const body = await response.json();
+          if (!response.ok) { if (response.status === 403) setReady(false); throw new Error(body.message); }
+          setMessages(previous => [...previous, { sender: "user", text: body.input }, { sender: "assistant", text: body.message }].slice(-20));
+          setMenu(null); setProfile(null); setHours(null);
+          for (const card of body.cards ?? []) { if (card.type === "menu") setMenu(card.data); else if (card.type === "restaurant") setProfile(card.data); }
+          setInput("");
+        } catch (error) { setMessage(error instanceof Error ? error.message : "Pesan gagal. Coba lagi."); }
+        finally { setPending(false); }
+      }}><label htmlFor="chat-message">Pesan untuk asisten</label><input id="chat-message" value={input} onChange={event => setInput(event.target.value)} maxLength={2000} required autoComplete="off" /><button className="senja-button" disabled={!ready || pending}>{pending ? "Memproses…" : "Kirim pesan"}</button></form>
+      <p role="status">{pending ? "Memuat informasi…" : message}</p>
+      {!ready && !pending && <button className="senja-text-button" onClick={async () => {
+        setPending(true);
+        try { const response = await fetch("/chat/session", { method: "DELETE" }); if (!response.ok) throw new Error("Sesi belum dapat diakhiri. Coba lagi nanti."); setMessages([]); setMenu(null); setProfile(null); setHours(null); setInput(""); await initialize(); }
+        catch (error) { setMessage(error instanceof Error ? error.message : "Sesi baru gagal dimulai. Coba lagi."); }
+        finally { setPending(false); }
+      }}>Mulai sesi baru</button>}
+      {menu && <section aria-label="Hasil menu dari API">{menu.length ? menu.map(item => <article key={item.id} className="senja-service-state"><h3>{item.name}</h3><p>{item.description}</p><p>{new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(item.price)} · {item.isAvailable ? "Tersedia" : "Habis"}</p></article>) : <p>Belum ada menu aktif.</p>}<p className="senja-note">Sumber: API menu restoran</p></section>}
+      {profile && <section aria-label="Profil dari API"><h3>{profile.name}</h3>{profile.outlets.map(outlet => <div key={outlet.name}><p>{outlet.name}</p><p>{outlet.address}</p>{outlet.contactPhone && <p>{outlet.contactPhone}</p>}</div>)}<p className="senja-note">Sumber: API profil restoran</p></section>}
+      {hours && <section aria-label="Jadwal mingguan dari API"><dl className="sela-hours">{[1, 2, 3, 4, 5, 6, 0].map(day => { const row = hours.find(r => r.weekday === day); return <div key={day}><dt>{days[day]}</dt><dd>{!row ? "Belum diatur" : row.openMinute === null || row.closeMinute === null ? "Tutup" : `${time(row.openMinute)}–${time(row.closeMinute)}`}</dd></div>; })}</dl><p className="senja-note">Jadwal mingguan, bukan konfirmasi jam tanggal khusus atau availability meja.</p></section>}
+      <a className="senja-text-link" href="#menu" onClick={close}>Lanjut di halaman menu</a>
     </dialog>
   </>;
 }

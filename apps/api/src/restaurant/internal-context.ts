@@ -15,8 +15,9 @@ export function signInternalContext(context: InternalContext, secret: string): s
 export function verifyInternalContext(token: string, expectedTenant: string, expectedSession: string, secret: string, now = Date.now()): boolean {
   try {
     if (!token || !secret || !expectedTenant || !expectedSession) return false;
-    const [payload, provided] = token.split(".");
-    if (!payload || !provided) return false;
+    const parts = token.split(".");
+    if (parts.length !== 2 || !parts.every(part => /^[A-Za-z0-9_-]+$/.test(part))) return false;
+    const [payload, provided] = parts;
     const expected = Buffer.from(signature(payload, secret));
     const actual = Buffer.from(provided);
     if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return false;

@@ -9,4 +9,6 @@ test('internal context is tenant and session bound and expires', () => {
   assert.equal(verifyInternalContext(token, 'demo-padang', 'session-b', 'synthetic-secret', 1000), false);
   assert.equal(verifyInternalContext(token, 'demo-padang', 'session-a', 'synthetic-secret', 2000), false);
   assert.equal(verifyInternalContext(`${token}x`, 'demo-padang', 'session-a', 'synthetic-secret', 1000), false);
+  assert.equal(verifyInternalContext(`${token}.extra`, 'demo-padang', 'session-a', 'synthetic-secret', 1000), false);
+  assert.equal(verifyInternalContext(`${token}.`, 'demo-padang', 'session-a', 'synthetic-secret', 1000), false);
 });

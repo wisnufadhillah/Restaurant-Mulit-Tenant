@@ -2,12 +2,9 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const spec = require('../../../docs/api/openapi.json');
 
-test('OpenAPI documents implemented routes and resolves schemas', () => {
-  assert.equal(spec.openapi, '3.1.1');
-  assert.deepEqual(Object.keys(spec.paths).sort(), ['/health', '/public/tenants/{slug}/restaurant', '/staff/{slug}/hours/{dayOfWeek}', '/staff/{slug}/menu/{id}', '/staff/{slug}/tables/{id}', '/staff/login', '/staff/logout'].sort());
 test('OpenAPI documents implemented routes, session security and schema references', () => {
   assert.equal(spec.openapi, '3.1.1');
-  assert.deepEqual(Object.keys(spec.paths).sort(), ['/health', '/public/tenants/{slug}/hours', '/public/tenants/{slug}/menu', '/public/tenants/{slug}/restaurant', '/staff/login', '/staff/tenants/{slug}/hours', '/staff/tenants/{slug}/logout', '/staff/tenants/{slug}/menu', '/staff/tenants/{slug}/menu/{id}', '/staff/tenants/{slug}/menu/{id}/availability', '/staff/tenants/{slug}/profile', '/staff/tenants/{slug}/session', '/staff/tenants/{slug}/special-hours', '/staff/tenants/{slug}/special-hours/{date}', '/staff/tenants/{slug}/tables', '/staff/tenants/{slug}/tables/{id}']);
+  assert.deepEqual(Object.keys(spec.paths).sort(), ['/chat/catalogue/{resource}', '/chat/messages', '/chat/session', '/health', '/internal/tenants/{slug}/menu', '/internal/tenants/{slug}/restaurant', '/public/tenants/{slug}/hours', '/public/tenants/{slug}/menu', '/public/tenants/{slug}/restaurant', '/staff/login', '/staff/tenants/{slug}/hours', '/staff/tenants/{slug}/logout', '/staff/tenants/{slug}/menu', '/staff/tenants/{slug}/menu/{id}', '/staff/tenants/{slug}/menu/{id}/availability', '/staff/tenants/{slug}/profile', '/staff/tenants/{slug}/session', '/staff/tenants/{slug}/special-hours', '/staff/tenants/{slug}/special-hours/{date}', '/staff/tenants/{slug}/tables', '/staff/tenants/{slug}/tables/{id}']);
   const ids = new Set();
   for (const path of Object.values(spec.paths)) {
     for (const operation of Object.values(path)) {

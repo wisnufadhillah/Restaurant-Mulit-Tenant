@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 import "./senja.css";
+import "./chat.css";
 
 export const metadata: Metadata = {
   title: "Dapur Sela — Ada sela, ada cerita, ada makan.",

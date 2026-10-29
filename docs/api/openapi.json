@@ -3,7 +3,6 @@
   "info": {
     "title": "Restaurant API",
     "version": "0.1.0",
-    "description": "Implemented local public read-only restaurant catalogue endpoint. Authentication, reservation writes and chat gateway are not part of this contract."
     "description": "Local public profiles and tenant-scoped staff sessions. No reservation or chat endpoints yet."
   },
   "servers": [
@@ -2555,9 +2554,6 @@
     },
     "/staff/tenants/{slug}/special-hours/{date}": {
       "get": {
-        "operationId": "getPublicRestaurant",
-        "summary": "Read active tenant public profile and active outlets",
-        "description": "Slug selects the public tenant catalogue, not private authorization. Only active menu items and available tables are returned.",
         "operationId": "resolveSpecialHours",
         "summary": "Resolve local date: special hours precede weekly schedule",
         "security": [
@@ -2836,11 +2832,915 @@
         }
       }
     },
-    "/staff/login": { "post": { "operationId": "staffLogin", "responses": { "200": { "description": "Staff session created" } } } },
-    "/staff/logout": { "post": { "operationId": "staffLogout", "responses": { "200": { "description": "Staff session revoked" } } } },
-    "/staff/{slug}/menu/{id}": { "patch": { "operationId": "updateStaffMenu", "responses": { "200": { "description": "Menu item updated" } } } },
-    "/staff/{slug}/tables/{id}": { "patch": { "operationId": "updateStaffTable", "responses": { "200": { "description": "Dining table updated" } } } },
-    "/staff/{slug}/hours/{dayOfWeek}": { "put": { "operationId": "updateStaffHours", "responses": { "200": { "description": "Opening hours updated" } } } }
+    "/chat/session": {
+      "post": {
+        "operationId": "createChatSession",
+        "summary": "Create/reuse application-bound public tenant session",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validated chat result; no bearer or internal context in JSON"
+          },
+          "400": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Akses ditolak."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "SERVICE_UNAVAILABLE",
+                    "message": "Layanan belum tersedia. Silakan coba lagi."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "readChatSession",
+        "summary": "Read active chat session public ID and expiry",
+        "security": [
+          {
+            "chatCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validated chat result; no bearer or internal context in JSON"
+          },
+          "400": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Akses ditolak."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "SERVICE_UNAVAILABLE",
+                    "message": "Layanan belum tersedia. Silakan coba lagi."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "revokeChatSession",
+        "summary": "Revoke session and clear cookie",
+        "security": [
+          {
+            "chatCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Revoked; no response body"
+          },
+          "400": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Akses ditolak."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "SERVICE_UNAVAILABLE",
+                    "message": "Layanan belum tersedia. Silakan coba lagi."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/messages": {
+      "post": {
+        "operationId": "sendChatMessage",
+        "summary": "Bounded read-only assistant turn; dependency failures return explicit unavailable status and web fallback",
+        "security": [
+          {
+            "chatCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "message"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validated chat result; no bearer or internal context in JSON"
+          },
+          "400": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Akses ditolak."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "SERVICE_UNAVAILABLE",
+                    "message": "Layanan belum tersedia. Silakan coba lagi."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/catalogue/{resource}": {
+      "get": {
+        "operationId": "readChatCatalogue",
+        "summary": "Read explicit catalogue card using active chat session; no inference",
+        "security": [
+          {
+            "chatCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "menu",
+                "restaurant",
+                "hours"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validated chat result; no bearer or internal context in JSON"
+          },
+          "400": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Akses ditolak."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "SERVICE_UNAVAILABLE",
+                    "message": "Layanan belum tersedia. Silakan coba lagi."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/tenants/{slug}/restaurant": {
+      "get": {
+        "operationId": "internalReadrestaurant",
+        "summary": "Service authentication plus signed active tenant/session context required; never call from browser",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-internal-service-token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-internal-context",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validated chat result; no bearer or internal context in JSON"
+          },
+          "400": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Akses tidak terverifikasi."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Akses ditolak."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "SERVICE_UNAVAILABLE",
+                    "message": "Layanan belum tersedia. Silakan coba lagi."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/tenants/{slug}/menu": {
+      "get": {
+        "operationId": "internalReadmenu",
+        "summary": "Service authentication plus signed active tenant/session context required; never call from browser",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-internal-service-token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-internal-context",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-session-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validated chat result; no bearer or internal context in JSON"
+          },
+          "400": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Akses tidak terverifikasi."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "Akses ditolak."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Terjadi gangguan layanan."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "error": {
+                    "code": "SERVICE_UNAVAILABLE",
+                    "message": "Layanan belum tersedia. Silakan coba lagi."
+                  },
+                  "request_id": "00000000-0000-4000-8000-000000000000"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   },
   "components": {
     "securitySchemes": {
@@ -2848,6 +3748,11 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "restaurant_staff"
+      },
+      "chatCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "restaurant_chat"
       }
     },
     "schemas": {
@@ -2946,55 +3851,7 @@
           },
           "maxPartySize": {
             "type": "integer"
-          },
-          "menuItems": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/MenuItemInfo" }
-          },
-          "diningTables": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/DiningTableInfo" }
-          },
-          "openingHours": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/OpeningHourInfo" }
           }
-        }
-      },
-      "MenuItemInfo": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["id", "name", "category", "price", "description", "isAvailable"],
-        "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "name": { "type": "string" },
-          "category": { "type": "string" },
-          "price": { "type": "integer", "minimum": 0 },
-          "description": { "type": "string" },
-          "isAvailable": { "type": "boolean" }
-        }
-      },
-      "DiningTableInfo": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["id", "tableNumber", "capacity", "area", "status"],
-        "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "tableNumber": { "type": "string" },
-          "capacity": { "type": "integer", "minimum": 1 },
-          "area": { "type": "string" },
-          "status": { "enum": ["available", "reserved", "maintenance"] }
-        }
-      },
-      "OpeningHourInfo": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["dayOfWeek", "openMinutes", "closeMinutes", "isOpen"],
-        "properties": {
-          "dayOfWeek": { "type": "integer", "minimum": 0, "maximum": 6 },
-          "openMinutes": { "type": "integer", "minimum": 0, "maximum": 1439 },
-          "closeMinutes": { "type": "integer", "minimum": 1, "maximum": 1440 },
-          "isOpen": { "type": "boolean" }
         }
       },
       "RestaurantResponse": {

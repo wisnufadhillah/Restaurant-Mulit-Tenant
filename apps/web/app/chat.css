@@ -1,0 +1,26 @@
+.sela-chat-launcher {
+  position: fixed;
+  inset-inline-end: max(24px, env(safe-area-inset-right));
+  bottom: max(24px, env(safe-area-inset-bottom));
+  z-index: 40;
+  min-height: 48px;
+  border: 1px solid #f4f1e8;
+  box-shadow: 0 3px 8px rgb(0 0 0 / .12), 0 12px 28px rgb(0 0 0 / .12);
+}
+.senja-dialog.sela-chat-panel {
+  position: fixed;
+  inset: auto max(24px, env(safe-area-inset-right)) max(88px, env(safe-area-inset-bottom)) auto;
+  margin: 0;
+  width: min(420px, calc(100% - 32px));
+  max-height: calc(100dvh - 120px);
+  padding: 24px;
+}
+.sela-chat-panel [role="log"] { margin-block: 24px; overflow-wrap: anywhere; }
+.sela-chat-panel [role="log"] p { border-inline-start: 2px solid #d7d7c9; padding-inline-start: 12px; }
+.sela-chat-panel .senja-form { margin-top: 24px; gap: 12px; }
+.sela-chat-panel .senja-hero-actions { gap: 8px; }
+.sela-chat-panel .sela-button-outline { padding: 10px 12px; }
+@media (max-width: 40rem) {
+  .sela-chat-launcher { inset-inline-end: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); }
+  .senja-dialog.sela-chat-panel { inset: 12px; width: auto; max-height: calc(100dvh - 24px); padding: 20px; }
+}

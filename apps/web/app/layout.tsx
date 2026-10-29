@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
+import "./senja.css";
 
 export const metadata: Metadata = {
-  title: "Raso Minang — Warisan Cita Rasa Autentik Minangkabau",
-  description: "Nikmati kelezatan masakan Padang autentik dengan rendang tungku kayu bakar, ayam pop khas, dan gulai kakap merah segar. Reservasi meja dan konsultasi menu online.",
-  keywords: ["Raso Minang", "Restoran Padang", "Masakan Minang", "Rendang Daging Sapi", "Ayam Pop", "Reservasi Meja Restoran", "Depok", "Jakarta"],
+  title: "Dapur Sela — Ada sela, ada cerita, ada makan.",
+  description: "Dapur Sela, rumah makan di Cikini. Konsep demo nasi Padang, lauk Minang, informasi kunjungan dan bantuan reservasi.",
+  keywords: ["Dapur Sela", "Nasi Padang", "Masakan Minang", "Cikini"],
   openGraph: {
-    title: "Raso Minang — Masakan Padang Autentik",
-    description: "Warisan Cita Rasa Autentik Minangkabau di Setiap Suapan. Buka setiap hari.",
+    title: "Dapur Sela",
+    description: "Ada sela, ada cerita, ada makan.",
     type: "website",
     locale: "id_ID"
   }
@@ -17,10 +18,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="id">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      </head>
       <body>{children}</body>
     </html>
   );

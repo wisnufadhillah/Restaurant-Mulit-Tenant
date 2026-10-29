@@ -16,6 +16,10 @@ test('chat turn binds server context, redacts input and fails safely without ret
     const controller = new ChatMessageController(sessions, transport);
     const result = await controller.send({ message: 'Alamat? Kontak synthetic@example.test' }, request, response);
     assert.equal(result.status, 'ok'); assert.equal(calls, 1); assert.ok(!result.input.includes('synthetic@example.test'));
+    transport.send = async () => ({ status: 'partial', message: 'Data API; jawaban terganggu.', cards: [{ type: 'menu', data: [{ id: 'synthetic', name: 'Rendang', description: 'Demo', price: 35000, isAvailable: false }] }] });
+    const partial = await controller.send({ message: 'Menu yang tersedia?' }, request, response);
+    assert.equal(partial.status, 'partial');
+    assert.equal(partial.cards[0].data[0].price, 35000);
     transport.send = async () => { calls++; throw new Error('Synthetic dependency failure'); };
     assert.equal((await controller.send({ message: 'Info?' }, request, response)).status, 'unavailable');
     assert.equal(calls, 2);

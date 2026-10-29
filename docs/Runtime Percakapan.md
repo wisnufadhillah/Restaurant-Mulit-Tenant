@@ -4,7 +4,7 @@ Modul conversation_runner.py menjalankan satu agent Agno dengan tools get_restau
 
 Satu turn dibatasi 30 detik, tiga inference request, tiga tool call dan output 512 token per request. Routing model hanya allowlist varian gratis yang divalidasi. Retry provider dimatikan; tidak ada fallback berbayar. Tool membaca respons maksimal 64 KiB dan memvalidasi profil/menu sebelum menyerahkan data ke model maupun kartu UI.
 
-Hasil berisi status, message, cards dan attempted_requests. Kartu berasal hasil tool tervalidasi, bukan JSON karangan model. Kegagalan tool/provider/budget mengosongkan kartu dan memberi fallback. Agent tidak mempunyai write tools, SQL, shell, booking privat atau kemampuan membatalkan reservasi.
+Hasil berisi status, message, cards dan attempted_requests. Kartu berasal hasil tool tervalidasi, bukan JSON karangan model. Kegagalan tool, otorisasi atau validasi mengosongkan kartu dan memberi fallback. Jika tool sudah selesai dan tervalidasi lalu inference lanjutan gagal sementara (429/5xx/transport/timeout), hasil menjadi partial: hanya kartu API yang valid dipertahankan, dengan pesan bahwa jawaban asisten terganggu dan informasi lain belum dipastikan. Tanpa hasil tool, 429 tetap unavailable. Partial bukan keberhasilan jawaban model dan tidak boleh dihitung sebagai normal task success. Agent tidak mempunyai write tools, SQL, shell, booking privat atau kemampuan membatalkan reservasi.
 
 ```sh
 rtk proxy uv run --project apps/assistant --locked python -m unittest discover -s apps/assistant -p test_conversation_runner.py

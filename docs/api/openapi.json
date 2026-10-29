@@ -3851,6 +3851,34 @@
           },
           "maxPartySize": {
             "type": "integer"
+          },
+          "todayHours": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["date", "timezone", "configured", "source", "openMinute", "closeMinute"],
+            "properties": {
+              "date": { "type": "string", "format": "date" },
+              "timezone": { "const": "Asia/Jakarta" },
+              "configured": { "type": "boolean" },
+              "source": { "enum": ["special", "weekly", "unconfigured"] },
+              "openMinute": { "type": ["integer", "null"], "minimum": 0, "maximum": 1439 },
+              "closeMinute": { "type": ["integer", "null"], "minimum": 1, "maximum": 1440 }
+            }
+          },
+          "weeklyHours": {
+            "type": "array",
+            "description": "Regular weekly schedule only; date exceptions are not included. Missing weekdays are unconfigured, not closed. Minutes use outlet timezone; null endpoints mean closed.",
+            "maxItems": 7,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["weekday", "openMinute", "closeMinute"],
+              "properties": {
+                "weekday": { "type": "integer", "minimum": 0, "maximum": 6 },
+                "openMinute": { "type": ["integer", "null"], "minimum": 0, "maximum": 1439 },
+                "closeMinute": { "type": ["integer", "null"], "minimum": 1, "maximum": 1440 }
+              }
+            }
           }
         }
       },

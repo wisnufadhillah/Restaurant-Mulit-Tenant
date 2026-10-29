@@ -1,7 +1,7 @@
 """Strict validation for public restaurant API responses."""
 from datetime import datetime
 from typing import Annotated, Literal
-from pydantic import BaseModel, ConfigDict, Field, AwareDatetime
+from pydantic import BaseModel, ConfigDict, Field, AwareDatetime, model_validator
 
 
 class StrictResponse(BaseModel):
@@ -21,6 +21,8 @@ class OutletInfo(StrictResponse):
     menuItems: list["MenuItemInfo"] = []
     diningTables: list["DiningTableInfo"] = []
     openingHours: list["OpeningHourInfo"] = []
+    todayHours: "TodayHourInfo | None" = None
+    weeklyHours: Annotated[list["WeeklyHourInfo"], Field(max_length=7)] = []
 
 
 class MenuItemInfo(StrictResponse):
@@ -46,6 +48,34 @@ class OpeningHourInfo(StrictResponse):
     closeMinutes: Annotated[int, Field(ge=1, le=1440)]
     isOpen: bool
 
+
+class WeeklyHourInfo(StrictResponse):
+    weekday: Annotated[int, Field(ge=0, le=6)]
+    openMinute: Annotated[int, Field(ge=0, le=1439)] | None
+    closeMinute: Annotated[int, Field(ge=1, le=1440)] | None
+
+    @model_validator(mode='after')
+    def valid_interval(self):
+        if (self.openMinute is None) != (self.closeMinute is None):
+            raise ValueError('Incomplete weekly interval')
+        if self.openMinute is not None and self.openMinute >= self.closeMinute:
+            raise ValueError('Invalid weekly interval')
+        return self
+
+class TodayHourInfo(WeeklyHourInfo):
+    weekday: Annotated[int, Field(ge=0, le=6)] = 0
+    date: Annotated[str, Field(pattern=r'^\d{4}-\d{2}-\d{2}$')]
+    timezone: Literal['Asia/Jakarta']
+    configured: bool
+    source: Literal['special', 'weekly', 'unconfigured']
+
+    @model_validator(mode='after')
+    def valid_source(self):
+        if self.configured != (self.source != 'unconfigured'):
+            raise ValueError('Inconsistent schedule source')
+        if not self.configured and self.openMinute is not None:
+            raise ValueError('Unconfigured schedule has hours')
+        return self
 
 OutletInfo.model_rebuild()
 

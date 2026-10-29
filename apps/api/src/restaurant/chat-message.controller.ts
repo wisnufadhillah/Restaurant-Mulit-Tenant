@@ -58,7 +58,7 @@ export class ChatMessageController {
       const context = this.sessions.context(token, session.slug);
       const result = await this.transport.send({ message: safeMessage, tenantSlug: session.slug, sessionId: context.sessionId, context: context.context });
       this.sessions.assertActive(session.id, session.slug);
-      return { status: result.status, message: redactChat(result.message), cards: result.status === "ok" ? validatedChatCards(result.cards) : [], input: safeMessage, attempted_requests: result.attempted_requests, diagnostics: result.diagnostics };
+      return { status: result.status, message: redactChat(result.message), cards: ["ok", "partial"].includes(result.status) ? validatedChatCards(result.cards) : [], input: safeMessage, attempted_requests: result.attempted_requests, diagnostics: result.diagnostics };
     } catch {
       return { status: "unavailable", message: "Asisten belum tersedia. Silakan gunakan halaman restoran atau coba lagi nanti.", cards: [], input: safeMessage };
     } finally { entry.busy = false; }

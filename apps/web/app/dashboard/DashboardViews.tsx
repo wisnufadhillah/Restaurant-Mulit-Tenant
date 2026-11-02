@@ -1,0 +1,52 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+interface Profile { name: string; outletName: string; address: string; contactPhone: string; }
+interface MenuItem { id: string; isActive: boolean; isAvailable: boolean; }
+interface DiningTable { id: string; isActive: boolean; }
+interface Snapshot { profile: Profile | null; menu: MenuItem[] | null; tables: DiningTable[] | null; }
+const empty: Snapshot = { profile: null, menu: null, tables: null };
+
+export default function DashboardViews({ view }: { view: "overview" | "outlets" }) {
+  const [data, setData] = useState<Snapshot>(empty);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true); setFailed(false);
+    async function read(resource: string) {
+      const response = await fetch(`/staff/${resource}`, { cache: "no-store", signal: controller.signal });
+      if (!response.ok) throw new Error("Data unavailable");
+      return (await response.json()).data;
+    }
+    void (async () => {
+      const results = await Promise.allSettled(view === "outlets" ? [read("profile")] : [read("profile"), read("menu"), read("tables")]);
+      if (controller.signal.aborted) return;
+      setData({ profile: results[0].status === "fulfilled" ? results[0].value : null, menu: results[1]?.status === "fulfilled" ? results[1].value : null, tables: results[2]?.status === "fulfilled" ? results[2].value : null });
+      setFailed(results.some(result => result.status === "rejected"));
+      setLoading(false);
+    })();
+    return () => controller.abort();
+  }, [view, refresh]);
+  const count = (value: number | undefined) => loading ? "…" : value === undefined ? "—" : value;
+  const activeMenu = data.menu?.filter(item => item.isActive);
+  return <section aria-label={view === "overview" ? "Ringkasan restoran" : "Lokasi restoran"} aria-busy={loading}>
+    <div className="sela-admin-section-toolbar"><p role="status">{loading ? "Memuat data restoran…" : failed ? "Sebagian data belum dapat dimuat. Tanda — bukan berarti jumlahnya nol." : "Informasi dari katalog restoran."}</p><button className="sela-button-outline" disabled={loading} onClick={() => setRefresh(value => value + 1)}><span aria-hidden="true">↻</span> {loading ? "Memuat…" : "Segarkan data"}</button></div>
+    {view === "outlets" ? <div className="sela-admin-outlet-grid">{data.profile ? <article className="sela-admin-location-card"><div className="sela-admin-location-body"><div className="sela-admin-card-title"><h2>{data.profile.outletName}</h2><span className="sela-status-label">Outlet restoran</span></div><p className="sela-admin-location-name">{data.profile.name}</p><dl><div><dt>Alamat</dt><dd>{data.profile.address || "Alamat belum tercantum."}</dd></div><div><dt>Kontak publik</dt><dd>{data.profile.contactPhone || "Kontak belum tercantum."}</dd></div></dl></div><div className="sela-admin-location-actions"><Link href="/dashboard?tab=hours">Atur jam & hari khusus <span aria-hidden="true">→</span></Link><Link href="/dashboard?tab=tables">Kelola meja <span aria-hidden="true">→</span></Link></div></article> : !loading && <div className="sela-admin-empty"><h2>Lokasi belum dapat dimuat</h2><p>Segarkan data untuk mencoba kembali.</p></div>}</div> : <>
+      <div className="sela-admin-stats">
+        <article><p>Menu aktif</p><strong>{count(activeMenu?.length)}</strong><span>Ditampilkan di website</span></article>
+        <article><p>Siap disajikan</p><strong>{count(activeMenu?.filter(item => item.isAvailable).length)}</strong><span>Menu aktif berstatus tersedia</span></article>
+        <article><p>Meja aktif</p><strong>{count(data.tables?.filter(item => item.isActive).length)}</strong><span>Bukan jumlah slot tersedia</span></article>
+        <article><p>Reservasi</p><strong>—</strong><span>Pengelolaan belum terhubung</span></article>
+      </div>
+      <div className="sela-admin-overview-grid">
+        <article className="sela-admin-surface"><header><div><h2>Reservasi meja terkini</h2><p>Jadwal kedatangan dan penempatan tamu</p></div><Link href="/dashboard?tab=reservations">Lihat daftar <span aria-hidden="true">→</span></Link></header><div className="sela-admin-empty"><span className="sela-status-label">Belum terhubung</span><h3>Daftar reservasi belum tersedia</h3><p>Booking belum dapat dilihat atau diproses melalui dashboard ini.</p></div></article>
+        <article className="sela-admin-surface"><header><div><h2>Aktivitas terakhir</h2><p>Jejak perubahan operasional</p></div><Link href="/dashboard?tab=audit">Lihat audit <span aria-hidden="true">→</span></Link></header><div className="sela-admin-empty"><h3>Riwayat belum ditampilkan</h3><p>Pembacaan audit belum terhubung. Tidak ada aktivitas contoh yang ditampilkan.</p></div></article>
+      </div>
+      <section className="sela-admin-quick-actions" aria-labelledby="quick-actions-heading"><h2 id="quick-actions-heading">Akses cepat operasional</h2><div>{[["menu", "Atur ketersediaan menu", "Perbarui harga dan tandai menu tersedia atau habis."], ["tables", "Konfigurasi meja", "Kelola nama, kapasitas dan status meja."], ["hours", "Atur jam pelayanan", "Jadwal mingguan dan pengecualian hari khusus."], ["profile", "Perbarui profil restoran", "Pastikan nama, alamat dan kontak tetap sesuai."]].map(([tab, title, description]) => <Link key={tab} href={`/dashboard?tab=${tab}`}><strong>{title} <span aria-hidden="true">→</span></strong><span>{description}</span></Link>)}</div></section>
+    </>}
+  </section>;
+}

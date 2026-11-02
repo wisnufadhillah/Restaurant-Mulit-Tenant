@@ -23,14 +23,22 @@ export default function ChatbotWidget() {
   const busy = useRef(false);
   const [ready, setReady] = useState(false), [pending, setPending] = useState(false), [error, setError] = useState("");
   const [input, setInput] = useState("");
+  const [open, setOpen] = useState(false);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !open) trigger.current?.focus();
+    wasOpen.current = open;
+  }, [open]);
   const [messages, setMessages] = useState<Message[]>([]);
   useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [messages, pending]);
   useEffect(() => {
     if (!composer.current) return;
     composer.current.style.height = "auto";
-    composer.current.style.height = `${Math.min(composer.current.scrollHeight, 112)}px`;
-  }, [input]);
-  const close = () => { dialog.current?.close(); trigger.current?.focus(); };
+    const height = composer.current.scrollHeight;
+    composer.current.style.height = `${Math.min(height, 112)}px`;
+    composer.current.style.overflowY = height > 112 ? "auto" : "hidden";
+  }, [input, open]);
+  const close = () => { dialog.current?.close(); };
   async function initialize() {
     if (busy.current || ready) return;
     busy.current = true; setPending(true); setError("");
@@ -69,16 +77,16 @@ export default function ChatbotWidget() {
     finally { busy.current = false; setPending(false); }
   }
   return <>
-    <button ref={trigger} className="senja-text-button senja-assistant-trigger sela-chat-launcher" type="button" aria-haspopup="dialog" onClick={() => { dialog.current?.showModal(); void initialize(); }}>Tanya restoran</button>
-    <dialog className="senja-dialog sela-chat-panel" ref={dialog} onClose={() => trigger.current?.focus()} aria-labelledby="assistant-heading" aria-describedby="assistant-description">
-      <header className="sela-chat-header"><div><h2 id="assistant-heading">Asisten restoran</h2><p>Menu, jam buka, dan info kunjungan</p></div><button type="button" className="sela-chat-close" aria-label="Tutup chat" onClick={close}>×</button></header>
+    <button ref={trigger} className="senja-text-button senja-assistant-trigger sela-chat-launcher" type="button" hidden={open} aria-haspopup="dialog" aria-expanded={open} aria-controls="restaurant-chat" onClick={() => { dialog.current?.showModal(); setOpen(true); void initialize(); }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2V11.5A8.5 8.5 0 0 1 10.5 3h2a8.5 8.5 0 0 1 8.5 8.5Z" /><path d="M7 11h10M7 15h6" /></svg>Tanya restoran</button>
+    <dialog id="restaurant-chat" className="senja-dialog sela-chat-panel" ref={dialog} onClose={() => setOpen(false)} aria-labelledby="assistant-heading" aria-describedby="assistant-description">
+      <header className="sela-chat-header"><span className="sela-chat-avatar" aria-hidden="true">DS</span><div><h2 id="assistant-heading">Asisten Dapur Sela</h2><p>Menu, jam buka, dan info kunjungan</p></div><button type="button" className="sela-chat-close" aria-label="Tutup chat" onClick={close}>×</button></header>
       <div className="sela-chat-log" ref={log} role="log" aria-live="polite" aria-label="Percakapan restoran" aria-busy={pending}>
-        {messages.length === 0 && <div className="sela-chat-welcome"><p>Ada yang ingin ditanyakan?</p><span>Cari menu, jam buka, atau info kunjungan.</span></div>}
+        {messages.length === 0 && <div className="sela-chat-bubble sela-chat-assistant sela-chat-welcome"><p>Halo! Mau lihat menu atau cek jam buka Dapur Sela? Tanyakan di sini.</p></div>}
         {messages.map((item, index) => <div key={index} className={`sela-chat-bubble sela-chat-${item.sender}`}><span className="sela-chat-sr-only">{item.sender === "user" ? "Kamu" : "Asisten"}:</span><p>{item.text}</p>{item.cards?.map((card, cardIndex) => <ChatCard key={cardIndex} card={card} />)}</div>)}
+        <div id="chat-shortcuts" className="sela-chat-shortcuts" hidden={messages.length > 0} role="group" aria-label="Pilihan informasi"><button type="button" disabled={!ready || pending} onClick={() => void load("menu")}>Menu</button><button type="button" disabled={!ready || pending} onClick={() => void load("restaurant")}>Info restoran</button><button type="button" disabled={!ready || pending} onClick={() => void load("hours")}>Jam buka</button></div>
         {pending && <div className="sela-chat-bubble sela-chat-assistant sela-chat-loading"><span>{ready ? "Sedang mengetik…" : "Menyambungkan chat…"}</span></div>}
       </div>
       <footer className="sela-chat-footer">
-        {messages.length === 0 && <div className="sela-chat-shortcuts" aria-label="Pilihan informasi"><button disabled={!ready || pending} onClick={() => void load("menu")}>Menu</button><button disabled={!ready || pending} onClick={() => void load("restaurant")}>Info restoran</button><button disabled={!ready || pending} onClick={() => void load("hours")}>Jam buka</button></div>}
         <p className="sela-chat-error" role="status">{error}</p>
         {!ready && !pending && <button className="senja-text-button" onClick={async () => {
           if (busy.current) return;
@@ -89,8 +97,8 @@ export default function ChatbotWidget() {
         }}>Mulai sesi baru</button>}
         <form className="sela-chat-composer" onSubmit={event => { event.preventDefault(); void send(); }}>
           <label className="sela-chat-sr-only" htmlFor="chat-message">Pesan untuk asisten</label>
-          <textarea disabled={pending} ref={composer} id="chat-message" value={input} onChange={event => setInput(event.target.value)} maxLength={2000} required autoComplete="off" rows={1} placeholder="Tulis pertanyaanmu…" aria-describedby="assistant-description" onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-          <button type="submit" disabled={!ready || pending} aria-label="Kirim pesan"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6" /></svg></button>
+          <textarea disabled={pending} ref={composer} id="chat-message" value={input} onChange={event => setInput(event.target.value)} maxLength={2000} required autoComplete="off" rows={1} placeholder="Tulis pertanyaan…" aria-describedby="assistant-description" onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
+          <button type="submit" disabled={!ready || pending}>Kirim</button>
         </form>
         <p id="assistant-description" className="sela-chat-privacy">Jangan kirim kontak atau kode akses. <a href="#menu" onClick={close}>Buka halaman menu</a></p>
       </footer>

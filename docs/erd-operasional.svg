@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2460" height="2360" viewBox="0 0 2460 2360" role="img" aria-labelledby="title desc"><title id="title">ERD Operasional</title><desc id="desc">Relasi PK ke FK per atribut. Referensi parent diulang agar garis tidak melintasi tabel lain.</desc><rect width="100%" height="100%" fill="white"/><g font-family="Arial, sans-serif" fill="#0f172a"><text x="40" y="45" font-size="28">ERD Operasional</text>
+<text x="40" y="88" font-size="17">PK = identitas utama | UK = nilai unik | FK = referensi. Garis menghubungkan baris PK ke baris FK.</text>
+<text x="40" y="123" font-size="17">Kotak referensi berulang = tabel yang sama, bukan tabel baru. Setiap panel menampilkan seluruh atribut tabel tujuan.</text>
+<text x="40" y="158" font-size="17">1 — 0..N: satu parent dapat memiliki nol atau banyak child. Relasi proposal–reservasi: 0..1 — 0..1.</text>
+<rect x="380" y="220" width="420" height="40" fill="#dbeafe" stroke="#334155"/><text x="392" y="245" font-size="15" font-weight="700">TENANT</text>
+<rect x="380" y="260" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="392" y="279.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<rect x="380" y="289" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="392" y="308.5" font-size="15">UK     slug : string</text>
+<rect x="380" y="318" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="392" y="337.5" font-size="15">       name : string</text>
+<rect x="380" y="347" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="392" y="366.5" font-size="15">       status : string</text>
+<rect x="1190" y="220" width="420" height="40" fill="#dbeafe" stroke="#334155"/><text x="1202" y="245" font-size="15" font-weight="700">OUTLET</text>
+<rect x="1190" y="260" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="279.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<rect x="1190" y="289" width="420" height="29" fill="#f0fdfa" stroke="#334155"/><text x="1202" y="308.5" font-size="15">FK     tenant_id : uuid</text>
+<rect x="1190" y="318" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="337.5" font-size="15">       name : string</text>
+<rect x="1190" y="347" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="366.5" font-size="15">       address : string</text>
+<rect x="1190" y="376" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="395.5" font-size="15">       contact_phone : string</text>
+<rect x="1190" y="405" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="424.5" font-size="15">       timezone : string</text>
+<rect x="1190" y="434" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="453.5" font-size="15">       duration_minutes : int</text>
+<rect x="1190" y="463" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="482.5" font-size="15">       min_notice_minutes : int</text>
+<rect x="1190" y="492" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="511.5" font-size="15">       max_advance_days : int</text>
+<rect x="1190" y="521" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="540.5" font-size="15">       cancel_cutoff_minutes : int</text>
+<rect x="1190" y="550" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="569.5" font-size="15">       max_party_size : int</text>
+<rect x="1190" y="579" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="598.5" font-size="15">       is_active : boolean</text>
+<rect x="850" y="220" width="220" height="34" fill="#f1f5f9" stroke="#334155"/><text x="862" y="242" font-size="15" font-weight="700">TENANT · referensi</text>
+<rect x="850" y="254" width="220" height="29" fill="#ffffff" stroke="#334155"/><text x="862" y="273.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<path d="M 1070 268.5 H 1110 V 303.5 H 1190" fill="none" stroke="#0f766e" stroke-width="2"/><rect x="1072" y="249.5" width="106" height="18" fill="white"/><text x="1075" y="263.5" font-size="13" fill="#115e59">1 — 0..N</text>
+<rect x="2000" y="220" width="420" height="40" fill="#dbeafe" stroke="#334155"/><text x="2012" y="245" font-size="15" font-weight="700">STAFF_USER</text>
+<rect x="2000" y="260" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="279.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<rect x="2000" y="289" width="420" height="29" fill="#f0fdfa" stroke="#334155"/><text x="2012" y="308.5" font-size="15">FK     tenant_id : uuid</text>
+<rect x="2000" y="318" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="337.5" font-size="15">       email : string</text>
+<rect x="2000" y="347" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="366.5" font-size="15">       password_hash : string</text>
+<rect x="2000" y="376" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="395.5" font-size="15">       role : string</text>
+<rect x="2000" y="405" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="424.5" font-size="15">       is_active : boolean</text>
+<rect x="1660" y="220" width="220" height="34" fill="#f1f5f9" stroke="#334155"/><text x="1672" y="242" font-size="15" font-weight="700">TENANT · referensi</text>
+<rect x="1660" y="254" width="220" height="29" fill="#ffffff" stroke="#334155"/><text x="1672" y="273.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<path d="M 1880 268.5 H 1920 V 303.5 H 2000" fill="none" stroke="#0f766e" stroke-width="2"/><rect x="1882" y="249.5" width="106" height="18" fill="white"/><text x="1885" y="263.5" font-size="13" fill="#115e59">1 — 0..N</text>
+<rect x="380" y="870" width="420" height="40" fill="#dbeafe" stroke="#334155"/><text x="392" y="895" font-size="15" font-weight="700">MENU_ITEM</text>
+<rect x="380" y="910" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="392" y="929.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<rect x="380" y="939" width="420" height="29" fill="#f0fdfa" stroke="#334155"/><text x="392" y="958.5" font-size="15">FK     tenant_id : uuid</text>
+<rect x="380" y="968" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="392" y="987.5" font-size="15">       name : string</text>
+<rect x="380" y="997" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="392" y="1016.5" font-size="15">       category : string</text>
+<rect x="380" y="1026" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="392" y="1045.5" font-size="15">       description : string</text>
+<rect x="380" y="1055" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="392" y="1074.5" font-size="15">       price_idr : int</text>
+<rect x="380" y="1084" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="392" y="1103.5" font-size="15">       is_available : boolean</text>
+<rect x="380" y="1113" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="392" y="1132.5" font-size="15">       is_active : boolean</text>
+<rect x="40" y="870" width="220" height="34" fill="#f1f5f9" stroke="#334155"/><text x="52" y="892" font-size="15" font-weight="700">TENANT · referensi</text>
+<rect x="40" y="904" width="220" height="29" fill="#ffffff" stroke="#334155"/><text x="52" y="923.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<path d="M 260 918.5 H 300 V 953.5 H 380" fill="none" stroke="#0f766e" stroke-width="2"/><rect x="262" y="899.5" width="106" height="18" fill="white"/><text x="265" y="913.5" font-size="13" fill="#115e59">1 — 0..N</text>
+<rect x="1190" y="870" width="420" height="40" fill="#dbeafe" stroke="#334155"/><text x="1202" y="895" font-size="15" font-weight="700">OPENING_HOUR</text>
+<rect x="1190" y="910" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="929.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<rect x="1190" y="939" width="420" height="29" fill="#f0fdfa" stroke="#334155"/><text x="1202" y="958.5" font-size="15">FK     tenant_id : uuid</text>
+<rect x="1190" y="968" width="420" height="29" fill="#f0fdfa" stroke="#334155"/><text x="1202" y="987.5" font-size="15">FK     outlet_id : uuid</text>
+<rect x="1190" y="997" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1016.5" font-size="15">       weekday : int</text>
+<rect x="1190" y="1026" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1045.5" font-size="15">       open_time : time</text>
+<rect x="1190" y="1055" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1074.5" font-size="15">       close_time : time</text>
+<rect x="1190" y="1084" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1103.5" font-size="15">       is_closed : boolean</text>
+<rect x="850" y="870" width="220" height="34" fill="#f1f5f9" stroke="#334155"/><text x="862" y="892" font-size="15" font-weight="700">TENANT · referensi</text>
+<rect x="850" y="904" width="220" height="29" fill="#ffffff" stroke="#334155"/><text x="862" y="923.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<path d="M 1070 918.5 H 1110 V 953.5 H 1190" fill="none" stroke="#0f766e" stroke-width="2"/><rect x="1072" y="899.5" width="106" height="18" fill="white"/><text x="1075" y="913.5" font-size="13" fill="#115e59">1 — 0..N</text>
+<rect x="850" y="985" width="220" height="34" fill="#f1f5f9" stroke="#334155"/><text x="862" y="1007" font-size="15" font-weight="700">OUTLET · referensi</text>
+<rect x="850" y="1019" width="220" height="29" fill="#ffffff" stroke="#334155"/><text x="862" y="1038.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<path d="M 1070 1033.5 H 1122 V 982.5 H 1190" fill="none" stroke="#0f766e" stroke-width="2"/><rect x="1072" y="1014.5" width="106" height="18" fill="white"/><text x="1075" y="1028.5" font-size="13" fill="#115e59">1 — 0..N</text>
+<rect x="2000" y="870" width="420" height="40" fill="#dbeafe" stroke="#334155"/><text x="2012" y="895" font-size="15" font-weight="700">SPECIAL_DAY</text>
+<rect x="2000" y="910" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="929.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<rect x="2000" y="939" width="420" height="29" fill="#f0fdfa" stroke="#334155"/><text x="2012" y="958.5" font-size="15">FK     tenant_id : uuid</text>
+<rect x="2000" y="968" width="420" height="29" fill="#f0fdfa" stroke="#334155"/><text x="2012" y="987.5" font-size="15">FK     outlet_id : uuid</text>
+<rect x="2000" y="997" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="1016.5" font-size="15">       local_date : date</text>
+<rect x="2000" y="1026" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="1045.5" font-size="15">       open_time : time</text>
+<rect x="2000" y="1055" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="1074.5" font-size="15">       close_time : time</text>
+<rect x="2000" y="1084" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="1103.5" font-size="15">       is_closed : boolean</text>
+<rect x="1660" y="870" width="220" height="34" fill="#f1f5f9" stroke="#334155"/><text x="1672" y="892" font-size="15" font-weight="700">TENANT · referensi</text>
+<rect x="1660" y="904" width="220" height="29" fill="#ffffff" stroke="#334155"/><text x="1672" y="923.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<path d="M 1880 918.5 H 1920 V 953.5 H 2000" fill="none" stroke="#0f766e" stroke-width="2"/><rect x="1882" y="899.5" width="106" height="18" fill="white"/><text x="1885" y="913.5" font-size="13" fill="#115e59">1 — 0..N</text>
+<rect x="1660" y="985" width="220" height="34" fill="#f1f5f9" stroke="#334155"/><text x="1672" y="1007" font-size="15" font-weight="700">OUTLET · referensi</text>
+<rect x="1660" y="1019" width="220" height="29" fill="#ffffff" stroke="#334155"/><text x="1672" y="1038.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<path d="M 1880 1033.5 H 1932 V 982.5 H 2000" fill="none" stroke="#0f766e" stroke-width="2"/><rect x="1882" y="1014.5" width="106" height="18" fill="white"/><text x="1885" y="1028.5" font-size="13" fill="#115e59">1 — 0..N</text>
+<rect x="380" y="1520" width="420" height="40" fill="#dbeafe" stroke="#334155"/><text x="392" y="1545" font-size="15" font-weight="700">DINING_TABLE</text>
+<rect x="380" y="1560" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="392" y="1579.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<rect x="380" y="1589" width="420" height="29" fill="#f0fdfa" stroke="#334155"/><text x="392" y="1608.5" font-size="15">FK     tenant_id : uuid</text>
+<rect x="380" y="1618" width="420" height="29" fill="#f0fdfa" stroke="#334155"/><text x="392" y="1637.5" font-size="15">FK     outlet_id : uuid</text>
+<rect x="380" y="1647" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="392" y="1666.5" font-size="15">       table_number : string</text>
+<rect x="380" y="1676" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="392" y="1695.5" font-size="15">       capacity : int</text>
+<rect x="380" y="1705" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="392" y="1724.5" font-size="15">       is_active : boolean</text>
+<rect x="40" y="1520" width="220" height="34" fill="#f1f5f9" stroke="#334155"/><text x="52" y="1542" font-size="15" font-weight="700">TENANT · referensi</text>
+<rect x="40" y="1554" width="220" height="29" fill="#ffffff" stroke="#334155"/><text x="52" y="1573.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<path d="M 260 1568.5 H 300 V 1603.5 H 380" fill="none" stroke="#0f766e" stroke-width="2"/><rect x="262" y="1549.5" width="106" height="18" fill="white"/><text x="265" y="1563.5" font-size="13" fill="#115e59">1 — 0..N</text>
+<rect x="40" y="1635" width="220" height="34" fill="#f1f5f9" stroke="#334155"/><text x="52" y="1657" font-size="15" font-weight="700">OUTLET · referensi</text>
+<rect x="40" y="1669" width="220" height="29" fill="#ffffff" stroke="#334155"/><text x="52" y="1688.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<path d="M 260 1683.5 H 312 V 1632.5 H 380" fill="none" stroke="#0f766e" stroke-width="2"/><rect x="262" y="1664.5" width="106" height="18" fill="white"/><text x="265" y="1678.5" font-size="13" fill="#115e59">1 — 0..N</text>
+<rect x="1190" y="1520" width="420" height="40" fill="#dbeafe" stroke="#334155"/><text x="1202" y="1545" font-size="15" font-weight="700">RESERVATION</text>
+<rect x="1190" y="1560" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1579.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<rect x="1190" y="1589" width="420" height="29" fill="#f0fdfa" stroke="#334155"/><text x="1202" y="1608.5" font-size="15">FK     tenant_id : uuid</text>
+<rect x="1190" y="1618" width="420" height="29" fill="#f0fdfa" stroke="#334155"/><text x="1202" y="1637.5" font-size="15">FK     outlet_id : uuid</text>
+<rect x="1190" y="1647" width="420" height="29" fill="#f0fdfa" stroke="#334155"/><text x="1202" y="1666.5" font-size="15">FK     table_id : uuid</text>
+<rect x="1190" y="1676" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1695.5" font-size="15">       reference_code : string</text>
+<rect x="1190" y="1705" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1724.5" font-size="15">       management_token_hash : string</text>
+<rect x="1190" y="1734" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1753.5" font-size="15">       management_expires_at : timestamptz</text>
+<rect x="1190" y="1763" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1782.5" font-size="15">       guest_name : string</text>
+<rect x="1190" y="1792" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1811.5" font-size="15">       guest_phone : string</text>
+<rect x="1190" y="1821" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1840.5" font-size="15">       start_at : timestamptz</text>
+<rect x="1190" y="1850" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1869.5" font-size="15">       end_at : timestamptz</text>
+<rect x="1190" y="1879" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1898.5" font-size="15">       party_size : int</text>
+<rect x="1190" y="1908" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1927.5" font-size="15">       status : string</text>
+<rect x="1190" y="1937" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1956.5" font-size="15">       source : string</text>
+<rect x="1190" y="1966" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="1985.5" font-size="15">       idempotency_key : string</text>
+<rect x="1190" y="1995" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="1202" y="2014.5" font-size="15">       request_hash : string</text>
+<rect x="850" y="1520" width="220" height="34" fill="#f1f5f9" stroke="#334155"/><text x="862" y="1542" font-size="15" font-weight="700">TENANT · referensi</text>
+<rect x="850" y="1554" width="220" height="29" fill="#ffffff" stroke="#334155"/><text x="862" y="1573.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<path d="M 1070 1568.5 H 1110 V 1603.5 H 1190" fill="none" stroke="#0f766e" stroke-width="2"/><rect x="1072" y="1549.5" width="106" height="18" fill="white"/><text x="1075" y="1563.5" font-size="13" fill="#115e59">1 — 0..N</text>
+<rect x="850" y="1635" width="220" height="34" fill="#f1f5f9" stroke="#334155"/><text x="862" y="1657" font-size="15" font-weight="700">OUTLET · referensi</text>
+<rect x="850" y="1669" width="220" height="29" fill="#ffffff" stroke="#334155"/><text x="862" y="1688.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<path d="M 1070 1683.5 H 1122 V 1632.5 H 1190" fill="none" stroke="#0f766e" stroke-width="2"/><rect x="1072" y="1664.5" width="106" height="18" fill="white"/><text x="1075" y="1678.5" font-size="13" fill="#115e59">1 — 0..N</text>
+<rect x="850" y="1750" width="220" height="34" fill="#f1f5f9" stroke="#334155"/><text x="862" y="1772" font-size="15" font-weight="700">DINING_TABLE · referensi</text>
+<rect x="850" y="1784" width="220" height="29" fill="#ffffff" stroke="#334155"/><text x="862" y="1803.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<path d="M 1070 1798.5 H 1134 V 1661.5 H 1190" fill="none" stroke="#0f766e" stroke-width="2"/><rect x="1072" y="1779.5" width="106" height="18" fill="white"/><text x="1075" y="1793.5" font-size="13" fill="#115e59">1 — 0..N</text>
+<rect x="2000" y="1520" width="420" height="40" fill="#dbeafe" stroke="#334155"/><text x="2012" y="1545" font-size="15" font-weight="700">RESERVATION_EVENT</text>
+<rect x="2000" y="1560" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="1579.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<rect x="2000" y="1589" width="420" height="29" fill="#f0fdfa" stroke="#334155"/><text x="2012" y="1608.5" font-size="15">FK     tenant_id : uuid</text>
+<rect x="2000" y="1618" width="420" height="29" fill="#f0fdfa" stroke="#334155"/><text x="2012" y="1637.5" font-size="15">FK     reservation_id : uuid</text>
+<rect x="2000" y="1647" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="1666.5" font-size="15">       from_status : string</text>
+<rect x="2000" y="1676" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="1695.5" font-size="15">       to_status : string</text>
+<rect x="2000" y="1705" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="1724.5" font-size="15">       actor_type : string</text>
+<rect x="2000" y="1734" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="1753.5" font-size="15">       actor_id : uuid</text>
+<rect x="2000" y="1763" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="1782.5" font-size="15">       reason : string</text>
+<rect x="2000" y="1792" width="420" height="29" fill="#ffffff" stroke="#334155"/><text x="2012" y="1811.5" font-size="15">       created_at : timestamptz</text>
+<rect x="1660" y="1520" width="220" height="34" fill="#f1f5f9" stroke="#334155"/><text x="1672" y="1542" font-size="15" font-weight="700">TENANT · referensi</text>
+<rect x="1660" y="1554" width="220" height="29" fill="#ffffff" stroke="#334155"/><text x="1672" y="1573.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<path d="M 1880 1568.5 H 1920 V 1603.5 H 2000" fill="none" stroke="#0f766e" stroke-width="2"/><rect x="1882" y="1549.5" width="106" height="18" fill="white"/><text x="1885" y="1563.5" font-size="13" fill="#115e59">1 — 0..N</text>
+<rect x="1660" y="1635" width="220" height="34" fill="#f1f5f9" stroke="#334155"/><text x="1672" y="1657" font-size="15" font-weight="700">RESERVATION · referensi</text>
+<rect x="1660" y="1669" width="220" height="29" fill="#ffffff" stroke="#334155"/><text x="1672" y="1688.5" font-size="15" font-weight="700">PK     id : uuid</text>
+<path d="M 1880 1683.5 H 1932 V 1632.5 H 2000" fill="none" stroke="#0f766e" stroke-width="2"/><rect x="1882" y="1664.5" width="106" height="18" fill="white"/><text x="1885" y="1678.5" font-size="13" fill="#115e59">1 — 0..N</text>
+<text x="40" y="2233" font-size="17">Relasi komposit tetap wajib: tenant_id + outlet_id/session_id/document_id harus cocok dengan parent yang sama.</text>
+<text x="40" y="2267" font-size="17">Reservasi → meja memakai (tenant_id, outlet_id, table_id). actor_id bersifat polimorfik, bukan FK staff universal.</text>
+<text x="40" y="2301" font-size="17">Diagram rancangan domain; bukan pernyataan seluruh tabel dan fitur sudah diimplementasikan.</text></g></svg>

@@ -470,40 +470,94 @@ Keluaran agent dapat berisi data usulan booking berskema. Chat gateway memvalida
 
 ### Sequence diagram
 
+Diagram berikut adalah rancangan alur reservasi, bukan klaim fitur sudah aktif. Alur dipisah agar pencarian informasi tidak tercampur dengan transaksi. Panah penuh adalah permintaan, panah putus-putus adalah balasan.
+
+#### Pencarian slot dan pembuatan proposal
+
 ```mermaid
 sequenceDiagram
+    autonumber
     actor C as Customer
-    participant W as Chatbot website dan komponen privat
-    participant B as NestJS API
-    participant A as Agno agent
-    participant L as OpenRouter
+    participant W as Website
+    participant B as API NestJS
+    participant A as Agent Agno
+    participant L as Model OpenRouter
     participant D as PostgreSQL
-    C->>W: Minta meja untuk waktu dan jumlah tamu
-    W->>B: Pesan dengan sesi chat
-    B->>A: Pesan tersamarkan + konteks sesi terikat tenant
+    C->>W: Masukkan waktu dan jumlah tamu
+    W->>B: Kirim pesan dengan sesi chat
+    B->>B: Validasi sesi, ikat tenant, samarkan pesan
+    B->>A: Pesan aman dan konteks sesi
     A->>L: Inference dengan schema tools
-    L-->>A: Permintaan check_availability
-    A->>B: Tool read-only + konteks sesi
-    B->>D: Cari meja valid dalam tenant dan outlet
-    D-->>B: Opsi tersedia
-    B-->>A: Hasil faktual
-    A->>L: Hasil tool untuk menyusun respons
-    L-->>A: Respons + usulan berskema
-    A-->>B: Usulan belum dieksekusi
-    B->>D: Simpan proposal valid, expiry dan hash
-    B-->>W: Kartu dengan detail absolut dan proposal ID
-    C->>W: Isi kontak privat + klik konfirmasi
-    W->>B: Konfirmasi proposal + idempotency key
-    B->>D: Transaksi: cek sesi, expiry, payload, aturan dan slot; insert + event
-    alt Commit berhasil
-        D-->>B: Reservasi confirmed
-        B-->>W: Receipt + akses privat sekali melalui jalur aman
-        W-->>C: Kode, status dan detail terkonfirmasi
-    else Slot konflik atau proposal invalid
-        D-->>B: Tolak tanpa reservasi baru
-        B-->>W: Konflik / perlu konfirmasi ulang
-        W-->>C: Pilih slot lain / perbarui detail
+    L-->>A: Minta check_availability
+    A->>B: Tool read-only dengan konteks sesi
+    B->>B: Verifikasi service, sesi dan argumen
+    B->>D: Cari slot pada tenant dan outlet yang sama
+    D-->>B: Hasil pencarian slot
+    B-->>A: Data availability tervalidasi
+    A->>L: Hasil tool untuk menyusun jawaban
+    L-->>A: Jawaban dan usulan terstruktur
+    A-->>B: Usulan yang belum dieksekusi
+    alt Ada opsi dan usulan valid
+        B->>B: Validasi detail absolut dan binding sesi
+        B->>D: Simpan proposal, hash, nonce dan expiry
+        D-->>B: Proposal tersimpan
+        B-->>W: Kartu proposal dari data backend
+        W-->>C: Tampilkan detail untuk diperiksa
+    else Slot tidak ada atau detail belum valid
+        B-->>W: Hasil kosong atau permintaan koreksi
+        W-->>C: Pilih waktu lain atau lengkapi detail
     end
+    Note over W,D: Proposal bukan booking dan tidak menahan meja
+```
+
+Model atau tool gagal menghasilkan pesan gangguan, bukan proposal atau klaim booking sukses. Customer tetap dapat memakai jalur web ketika layanan reservasi web sudah tersedia.
+
+#### Konfirmasi customer dan transaksi reservasi
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor C as Customer
+    participant W as Komponen privat website
+    participant B as API NestJS
+    participant D as PostgreSQL
+    Note over C,D: Tidak ada panggilan model pada alur konfirmasi
+    C->>W: Periksa ringkasan dan isi kontak privat
+    C->>W: Tekan tombol konfirmasi
+    W->>B: Proposal, nonce, kontak dan idempotency key
+    B->>B: Validasi sesi, Origin atau CSRF, dan format input
+    B->>D: Mulai transaksi dan periksa idempotency
+    alt Key sama dan payload sama sudah berhasil
+        D-->>B: Hasil tersimpan untuk sesi yang berhak
+        B-->>W: Receipt lama tanpa booking baru
+        W-->>C: Tampilkan hasil yang sama
+    else Key sama tetapi payload berbeda
+        B->>D: Akhiri transaksi tanpa perubahan
+        B-->>W: Tolak konflik idempotency
+        W-->>C: Minta pemeriksaan ulang detail
+    else Permintaan baru
+        B->>D: Kunci dan validasi proposal, sesi, hash, nonce, expiry
+        B->>D: Validasi ulang waktu, jadwal, kapasitas dan meja
+        alt Proposal valid dan slot masih tersedia
+            B->>D: Insert reservasi dan event, konsumsi proposal, simpan hasil lalu commit
+            Note over B,D: Seluruh write atomic dengan FK komposit dan constraint overlap
+            alt Seluruh write dan commit berhasil
+                D-->>B: Reservasi confirmed
+                B-->>W: Receipt dan akses kelola melalui jalur privat
+                W-->>C: Tampilkan kode, status dan detail terkonfirmasi
+            else Constraint overlap menolak transaksi
+                B->>D: Rollback tanpa write parsial
+                B-->>W: Konflik slot
+                W-->>C: Pilih slot lain
+            end
+        else Proposal invalid atau aturan tidak terpenuhi
+            B->>D: Rollback tanpa reservasi baru
+            B-->>W: Tolak dan minta koreksi atau proposal baru
+            W-->>C: Periksa ulang detail
+        end
+    end
+    Note over W,B: Respons terputus setelah commit: retry key dan payload yang sama
+    Note over C,B: Kontak dan akses kelola tidak masuk model atau transcript chat
 ```
 
 ### Aturan proposal

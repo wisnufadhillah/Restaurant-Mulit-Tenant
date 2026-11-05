@@ -1,7 +1,10 @@
 import "server-only";
 import { cookies } from "next/headers";
 
-export const API_ORIGIN = "http://127.0.0.1:3001";
+const configuredApiOrigin = process.env.API_ORIGIN ?? "http://127.0.0.1:3001";
+const apiUrl = new URL(configuredApiOrigin);
+if (apiUrl.origin !== configuredApiOrigin || apiUrl.username || apiUrl.password || !["http:", "https:"].includes(apiUrl.protocol)) throw new Error("Invalid API origin configuration");
+export const API_ORIGIN = configuredApiOrigin;
 export const SESSION_COOKIE = "senja_staff";
 export const TENANT_COOKIE = "senja_staff_tenant";
 export const cookieOptions = { httpOnly: true, sameSite: "strict" as const, secure: process.env.NODE_ENV === "production", path: "/", maxAge: 28800 };

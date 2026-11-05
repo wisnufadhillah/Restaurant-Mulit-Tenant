@@ -1,5 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException, OnModuleDestroy, ServiceUnavailableException } from "@nestjs/common";
 import { createDatabaseClient } from "../database/client";
+import { lockReservationTenant } from "./reservation-lock";
+import { protectReservationSchedule } from "./reservation-config";
 
 export function hoursInput(input: unknown) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new BadRequestException();
@@ -34,8 +36,12 @@ export class HoursService implements OnModuleDestroy {
   async save(tenantId: string, input: unknown, staffId?: string) {
     const data = hoursInput(input);
     try {
-      const outlet = await this.outlet(tenantId);
       await this.db.$transaction(async tx => {
+        await lockReservationTenant(tx, tenantId);
+        const outlets = await tx.outlet.findMany({ where: { tenantId, isActive: true }, select: { id: true, timezone: true }, take: 2 });
+        if (outlets.length !== 1 || outlets[0].timezone !== "Asia/Jakarta") throw new ConflictException();
+        const outlet = outlets[0];
+        await protectReservationSchedule(tx, tenantId, outlet.id, { weekday: data.weekday, hours: data });
         await tx.weeklyHours.upsert({ where: { tenantId_outletId_weekday: { tenantId, outletId: outlet.id, weekday: data.weekday } }, create: { tenantId, outletId: outlet.id, ...data }, update: { openMinute: data.openMinute, closeMinute: data.closeMinute } });
         if (staffId) await tx.operationalAudit.create({ data: { tenantId, staffId, action: "weekly_hours.saved" } });
       });

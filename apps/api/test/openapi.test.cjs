@@ -4,7 +4,13 @@ const spec = require('../../../docs/api/openapi.json');
 
 test('OpenAPI documents implemented routes, session security and schema references', () => {
   assert.equal(spec.openapi, '3.1.1');
-  assert.deepEqual(Object.keys(spec.paths).sort(), ['/chat/catalogue/{resource}', '/chat/messages', '/chat/session', '/health', '/internal/tenants/{slug}/menu', '/internal/tenants/{slug}/restaurant', '/public/tenants/{slug}/hours', '/public/tenants/{slug}/menu', '/public/tenants/{slug}/restaurant', '/staff/login', '/staff/tenants/{slug}/hours', '/staff/tenants/{slug}/logout', '/staff/tenants/{slug}/menu', '/staff/tenants/{slug}/menu/{id}', '/staff/tenants/{slug}/menu/{id}/availability', '/staff/tenants/{slug}/profile', '/staff/tenants/{slug}/session', '/staff/tenants/{slug}/special-hours', '/staff/tenants/{slug}/special-hours/{date}', '/staff/tenants/{slug}/tables', '/staff/tenants/{slug}/tables/{id}']);
+  assert.deepEqual(Object.keys(spec.paths).filter(path => !path.startsWith('/public/tenants/{slug}/reservations')).sort(), ['/chat/catalogue/{resource}', '/chat/messages', '/chat/session', '/health', '/internal/tenants/{slug}/menu', '/internal/tenants/{slug}/restaurant', '/public/tenants/{slug}/availability', '/public/tenants/{slug}/hours', '/public/tenants/{slug}/menu', '/public/tenants/{slug}/restaurant', '/staff/login', '/staff/tenants/{slug}/hours', '/staff/tenants/{slug}/logout', '/staff/tenants/{slug}/menu', '/staff/tenants/{slug}/menu/{id}', '/staff/tenants/{slug}/menu/{id}/availability', '/staff/tenants/{slug}/profile', '/staff/tenants/{slug}/session', '/staff/tenants/{slug}/special-hours', '/staff/tenants/{slug}/special-hours/{date}', '/staff/tenants/{slug}/tables', '/staff/tenants/{slug}/tables/{id}']);
+  for (const suffix of ['', '/session', '/confirmations', '/management-session', '/receipt', '/cancel', '/management-session/logout']) assert.ok(spec.paths['/public/tenants/{slug}/reservations' + suffix].post);
+  const availability = spec.paths['/public/tenants/{slug}/availability'].get;
+  assert.deepEqual(availability.parameters.map(parameter => parameter.name), ['slug', 'date', 'time', 'partySize']);
+  assert.equal(availability.responses['200'].headers['Cache-Control'].schema.const, 'no-store');
+  assert.equal(availability.responses['200'].content['application/json'].schema.properties.data.oneOf[0].properties.held.const, false);
+  for (const status of ['400', '404', '409', '500', '503']) assert.ok(availability.responses[status]);
   const ids = new Set();
   for (const path of Object.values(spec.paths)) {
     for (const operation of Object.values(path)) {

@@ -18,6 +18,7 @@ model Tenant {
   outlets Outlet[]
   staff Staff[]
   menuItems MenuItem[]
+  reservationCreatorSessions ReservationCreatorSession[]
   @@map("tenants")
 }
 
@@ -42,6 +43,7 @@ model Outlet {
   tables DiningTable[]
   weeklyHours WeeklyHours[]
   specialHours SpecialHours[]
+  reservations Reservation[]
   @@map("outlets")
 }
 
@@ -86,6 +88,7 @@ model DiningTable {
   name String
   capacity Int
   isActive Boolean @default(true) @map("is_active")
+  reservations Reservation[]
   @@unique([tenantId, outletId, id])
   @@unique([tenantId, outletId, name])
   @@map("dining_tables")
@@ -115,9 +118,105 @@ model Staff {
   isActive Boolean @default(true) @map("is_active")
   sessions StaffSession[]
   audits OperationalAudit[]
+  reservationEvents ReservationEvent[]
   @@unique([tenantId, id])
   @@unique([tenantId, username])
   @@map("staff")
+}
+
+model Reservation {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  outletId String @map("outlet_id") @db.Uuid
+  tableId String @map("table_id") @db.Uuid
+  outlet Outlet @relation(fields: [tenantId, outletId], references: [tenantId, id], onDelete: Restrict)
+  table DiningTable @relation(fields: [tenantId, outletId, tableId], references: [tenantId, outletId, id], onDelete: Restrict)
+  referenceCode String @map("reference_code")
+  managementTokenHash String @map("management_token_hash")
+  managementExpiresAt DateTime @map("management_expires_at") @db.Timestamptz(3)
+  guestName String @map("guest_name")
+  guestPhone String @map("guest_phone")
+  startAt DateTime @map("start_at") @db.Timestamptz(3)
+  endAt DateTime @map("end_at") @db.Timestamptz(3)
+  partySize Int @map("party_size")
+  status String @default("confirmed")
+  source String
+  idempotencyKey String @map("idempotency_key")
+  requestHash String @map("request_hash")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  events ReservationEvent[]
+  creatorSessionId String? @map("creator_session_id") @db.Uuid
+  creatorSession ReservationCreatorSession? @relation(fields: [tenantId, creatorSessionId], references: [tenantId, id], onDelete: Restrict)
+  confirmation ReservationConfirmation?
+  managementSessions ReservationManagementSession[]
+  @@unique([tenantId, creatorSessionId, id])
+  @@unique([tenantId, id])
+  @@unique([tenantId, referenceCode])
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, outletId, startAt])
+  @@map("reservations")
+}
+
+model ReservationEvent {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  reservationId String @map("reservation_id") @db.Uuid
+  reservation Reservation @relation(fields: [tenantId, reservationId], references: [tenantId, id], onDelete: Restrict)
+  fromStatus String? @map("from_status")
+  toStatus String @map("to_status")
+  actorType String @map("actor_type")
+  staffId String? @map("staff_id") @db.Uuid
+  staff Staff? @relation(fields: [tenantId, staffId], references: [tenantId, id], onDelete: Restrict)
+  reason String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  @@index([tenantId, reservationId, createdAt])
+  @@map("reservation_events")
+}
+
+model ReservationCreatorSession {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  tokenHash String @unique @map("token_hash")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  reservations Reservation[]
+  confirmations ReservationConfirmation[]
+  @@unique([tenantId, id])
+  @@index([expiresAt])
+  @@map("reservation_creator_sessions")
+}
+
+model ReservationConfirmation {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  creatorSessionId String @map("creator_session_id") @db.Uuid
+  creatorSession ReservationCreatorSession @relation(fields: [tenantId, creatorSessionId], references: [tenantId, id], onDelete: Restrict)
+  nonceHash String @unique @map("nonce_hash")
+  requestHash String @map("request_hash")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  consumedAt DateTime? @map("consumed_at") @db.Timestamptz(3)
+  invalidatedAt DateTime? @map("invalidated_at") @db.Timestamptz(3)
+  reservationId String? @map("reservation_id") @db.Uuid
+  reservation Reservation? @relation(fields: [tenantId, creatorSessionId, reservationId], references: [tenantId, creatorSessionId, id], onDelete: Restrict)
+  @@unique([tenantId, creatorSessionId, reservationId])
+  @@index([tenantId, creatorSessionId, expiresAt])
+  @@map("reservation_confirmations")
+}
+
+model ReservationManagementSession {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  reservationId String @map("reservation_id") @db.Uuid
+  reservation Reservation @relation(fields: [tenantId, reservationId], references: [tenantId, id], onDelete: Restrict)
+  tokenHash String @unique @map("token_hash")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  @@index([tenantId, reservationId])
+  @@map("reservation_management_sessions")
 }
 
 model StaffSession {

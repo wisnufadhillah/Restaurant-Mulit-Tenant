@@ -4,7 +4,7 @@
 
 Dokumen OpenAPI 3.1.1 ada di `openapi.json` dalam folder ini. File dapat dibuka menggunakan viewer OpenAPI lokal atau diimpor ke client API yang mendukung versi tersebut. Scalar tersedia pada http://127.0.0.1:3001/docs saat development; spesifikasi JSON pada /openapi.json. Keduanya dimatikan saat NODE_ENV=production. Scalar memakai browser bundle CDN versi 1.76.0, sehingga tampilan memerlukan internet; spesifikasi tetap dilayani lokal. Agent, telemetry, persistAuth dan Test Request dinonaktifkan; tidak menggunakan proxy Scalar atau credential bawaan. Jangan mengunggah credential/file .env ke viewer publik.
 
-Kontrak hanya memuat endpoint NestJS yang sudah tersedia. Service Python health dijelaskan terpisah pada panduan setup, bukan dianggap bagian API bisnis. Login/logout dan pembacaan sesi staff tersedia pada kode API; migration akun/sesi sudah diterapkan dan diuji pada DB lokal; provisioning akun operasional belum dijalankan. Menu publik dan pengelolaan menu tenant-scoped tersedia. Availability reservasi, booking dan chat belum tersedia sebagai endpoint.
+Kontrak hanya memuat endpoint NestJS yang sudah tersedia. Service Python health dijelaskan terpisah pada panduan setup, bukan dianggap bagian API bisnis. Login/logout dan pembacaan sesi staff tersedia pada kode API; migration akun/sesi sudah diterapkan dan diuji pada DB lokal; provisioning akun operasional belum dijalankan. Menu publik dan pengelolaan menu tenant-scoped tersedia. Availability reservasi read-only dan endpoint chat tersedia. Create, lihat privat dan batal booking belum tersedia sebagai endpoint.
 
 Base URL lokal: http://127.0.0.1:3001/api/v1
 
@@ -21,6 +21,7 @@ rtk proxy npx --yes pnpm@12.15.0 dev:api
 
 | Metode | Path | Akses | Hasil |
 | --- | --- | --- | --- |
+| GET | /public/tenants/{slug}/availability | Publik | Availability satu kunjungan; tanpa hold atau data customer |
 | GET | /public/tenants/{slug}/hours | Publik | Jadwal mingguan, bukan status buka tanggal tertentu |
 | GET | /staff/tenants/{slug}/hours | Owner/staff | Jadwal outlet tenant sesi |
 | PUT | /staff/tenants/{slug}/hours | Owner + Origin | Simpan satu hari mingguan |
@@ -54,6 +55,14 @@ Profil sukses memiliki data (slug, name, outlets), retrieved_at timestamp berzon
 
 Jam buka, harga, slot meja, dan status reservasi tidak ada dalam profil ini. Jangan menyimpulkan available/open dari isActive. Respons belum memiliki pagination/cache headers atau jaminan SLA produksi. Slug memilih katalog dan bukan bukti akses data privat.
 
+## Availability reservasi
+
+`GET /public/tenants/{slug}/availability?date=2026-12-01&time=19%3A00&partySize=4` menerima tepat tiga query parameter, masing-masing satu kali: `date` tanggal kalender `YYYY-MM-DD`, `time` lokal `HH:MM`, dan `partySize` desimal 1–12 tanpa nol awal. Tanggal contoh harus diganti agar memenuhi notice 60 menit dan maksimum 30 hari dari jam server. Field tambahan, duplikasi parameter, pecahan, eksponen dan tanggal mustahil ditolak dengan 400.
+
+Server memilih tenant aktif dari slug dan satu outlet aktif; outlet tidak aktif/tidak ada menghasilkan 404, lebih dari satu outlet aktif menghasilkan 409. Snapshot jadwal, meja dan interval confirmed dibaca dalam transaksi RepeatableRead. Tanggal khusus mengalahkan jadwal mingguan. Kegagalan DB/konfigurasi menghasilkan 503, bukan hasil tersedia palsu.
+
+Respons berisi `data.startAt`, `endAt`, `timezone`, `held=false`, `available`, `source=restaurant_api` dan `retrieved_at`. Jika tidak tersedia, `data.reason` membedakan `hours_unconfigured`, `closed`, `outside_hours`, atau `no_table`. Tidak ada ID meja, ID tenant/outlet, nama customer, kontak, atau token privat. Respons menggunakan `Cache-Control: no-store`. Availability bukan jaminan booking: tidak ada write, hold atau transaksi create pada endpoint ini. Form reservasi dan tool availability chatbot belum diaktifkan.
+
 ## Status HTTP
 
 Scalar mencantumkan sukses dan error per operasi, bukan semua status pada semua route:
@@ -63,7 +72,7 @@ Scalar mencantumkan sukses dan error per operasi, bukan semua status pada semua 
 | 200 | Pembacaan, login, edit menu/meja/profil/jadwal |
 | 201 | Menu atau meja berhasil dibuat |
 | 204 | Logout berhasil, tanpa body |
-| 400 | Payload/validasi invalid pada mutasi |
+| 400 | Payload mutasi atau query availability invalid |
 | 401 | Sesi hilang, invalid, expired/revoked, atau tenant tidak cocok |
 | 403 | Role tidak berhak atau Origin mutasi ditolak |
 | 404 | Katalog tenant tidak ada/nonaktif, atau ID data tidak dalam scope |
@@ -93,7 +102,7 @@ request_id contoh bukan ID aktual. Server menghasilkan UUID baru pada setiap err
 - 503 SERVICE_UNAVAILABLE: query DB gagal.
 - 500 INTERNAL_ERROR: exception tak terduga.
 
-404 dan hasil GET diuji lewat integration HTTP. 500/503 sudah dipetakan tetapi fault injection khusus belum ditambahkan; jangan menganggap seluruh failure path sudah diuji. Pesan internal bukan bahan diagnosis untuk customer; gunakan bukti tes/log aman saat mengembangkan observability.
+404 dan hasil GET diuji lewat integration HTTP. Availability memiliki fault injection repository pada tes HTTP yang memeriksa respons 503 aman. Ini bukan simulasi kegagalan PostgreSQL nyata; 500 dan seluruh failure path endpoint lain belum diuji dengan fault injection khusus. Pesan internal bukan bahan diagnosis untuk customer; gunakan bukti tes/log aman saat mengembangkan observability.
 
 ## Pemeliharaan kontrak
 

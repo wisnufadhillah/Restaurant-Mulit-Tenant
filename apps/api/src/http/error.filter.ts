@@ -1,5 +1,6 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { ReservationRateLimitException } from "../restaurant/reservation-limiter";
 
 const errors: Record<number, [string, string]> = {
   400: ["INVALID_REQUEST", "Permintaan tidak valid."],
@@ -19,6 +20,10 @@ export class ApiErrorFilter implements ExceptionFilter {
     const status = exception instanceof HttpException ? exception.getStatus() : 500;
     const [code, message] = errors[status] ?? ["INTERNAL_ERROR", "Terjadi gangguan layanan."];
     const response = host.switchToHttp().getResponse();
+    if (exception instanceof ReservationRateLimitException) {
+      response.setHeader("Retry-After", String(exception.retryAfterSeconds));
+      response.setHeader("Cache-Control", "no-store");
+    }
     response.status(status).json({ error: { code, message }, request_id: randomUUID() });
   }
 }

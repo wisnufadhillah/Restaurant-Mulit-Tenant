@@ -22,6 +22,12 @@
 .senja-button { background: var(--senja-rust); color: #fffdf5; }
 .sela-button-outline { background: transparent; color: var(--senja-ink); }
 .senja-button:disabled { opacity: .65; }
+.senja-reservation fieldset { border: 0; padding: 0; display: grid; gap: 16px; min-width: 0; }
+.senja-reservation label { display: grid; gap: 6px; }
+.senja-reservation input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 10px; font: inherit; border: 1px solid var(--senja-muted); border-radius: 3px; background: var(--senja-paper); color: var(--senja-ink); }
+.senja-reservation button { min-height: 44px; padding: 10px 16px; margin: 8px 8px 8px 0; white-space: normal; }
+.senja-reservation :focus-visible { outline: 2px solid var(--senja-ink); outline-offset: 3px; }
+.senja-reservation strong { overflow-wrap: anywhere; }
 .senja-note { font-size: 12px; line-height: 1.65; color: var(--senja-muted); max-width: 75ch; }
 .senja-hero-copy .sela-hero-note { font-size: 12px; margin-top: 20px; }
 .senja-text-link,.senja-text-button { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; font-size: 13px; }

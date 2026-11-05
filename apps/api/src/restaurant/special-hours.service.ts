@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, OnModuleDestroy, ServiceUnavailableException } from "@nestjs/common";
 import { createDatabaseClient } from "../database/client";
 import { hoursInput } from "./hours.service";
+import { lockReservationTenant } from "./reservation-lock";
+import { protectReservationSchedule } from "./reservation-config";
 
 export function specialInput(input: unknown) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new BadRequestException();
@@ -18,9 +20,11 @@ export class SpecialHoursService implements OnModuleDestroy {
     const data = specialInput(input);
     try {
       await this.db.$transaction(async tx => {
+        await lockReservationTenant(tx, tenantId);
         const outlets = await tx.outlet.findMany({ where: { tenantId, isActive: true }, take: 2, select: { id: true } });
         if (outlets.length !== 1) throw new ConflictException();
         const key = { tenantId, outletId: outlets[0].id, date: data.date };
+        await protectReservationSchedule(tx, tenantId, key.outletId, { date: data.date, hours: data });
         await tx.specialHours.upsert({ where: { tenantId_outletId_date: key }, create: { ...key, openMinute: data.openMinute, closeMinute: data.closeMinute }, update: { openMinute: data.openMinute, closeMinute: data.closeMinute } });
         await tx.operationalAudit.create({ data: { tenantId, staffId, action: "special_hours.saved" } });
       }); return { ok: true };
@@ -40,8 +44,10 @@ export class SpecialHoursService implements OnModuleDestroy {
     const { date } = specialInput({ date: dateText, openMinute: null, closeMinute: null });
     try {
       await this.db.$transaction(async tx => {
+        await lockReservationTenant(tx, tenantId);
         const outlets = await tx.outlet.findMany({ where: { tenantId, isActive: true }, take: 2, select: { id: true } });
         if (outlets.length !== 1) throw new ConflictException();
+        await protectReservationSchedule(tx, tenantId, outlets[0].id, { date, hours: null });
         const result = await tx.specialHours.deleteMany({ where: { tenantId, outletId: outlets[0].id, date } });
         if (result.count) await tx.operationalAudit.create({ data: { tenantId, staffId, action: "special_hours.removed" } });
       }); return { ok: true };

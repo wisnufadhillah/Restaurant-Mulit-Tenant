@@ -12,9 +12,9 @@
 | Tim dan tenggat | Dua pengembang; target fitur inti 13 Desember, demo stabil 20 Desember 2026, buffer sampai 31 Desember |
 | Model | OpenRouter, hanya model gratis yang lulus uji tool calling; tidak ada fallback berbayar |
 | AI | Satu agent Agno; tanpa Hermes atau orchestrator tambahan |
-| Pengetahuan | RAG kecil dari dokumen kebijakan yang diterbitkan owner; fakta operasional lewat API |
+| Pengetahuan | FAQ/kebijakan disiapkan developer dan dipublikasikan terkontrol; fakta operasional lewat API; tanpa editor FAQ dashboard |
 | Reservasi | Satu meja per reservasi; langsung confirmed setelah persetujuan customer dan validasi server |
-| Aksi AI | AI menyusun usulan, bukan memberi izin; tombol konfirmasi di web memicu eksekusi backend |
+| Aksi AI | Chatbot hanya informasi restoran, menu dan FAQ; reservasi melalui form web privat tanpa model |
 | Ekstensi | MCP read-only setelah inti stabil; A2A dan fine-tuning bukan syarat MVP |
 
 Keputusan teknis dan batas produk di atas merupakan baseline usulan. Uji awal harus membuktikan kelayakan model gratis dan kapasitas tim sebelum fitur diperluas. Biaya inferensi nol bukan jaminan hosting, database terkelola, domain, atau komputasi juga nol; demo lokal diperbolehkan.
@@ -27,23 +27,23 @@ Customer sulit menemukan informasi restoran dan memastikan meja tersedia tanpa b
 
 ### Nilai produk
 
-Customer mengunjungi website rumah makan seperti biasa: melihat identitas restoran, profil, menu, lokasi, jam buka, dan akses reservasi. Chatbot tersedia sebagai widget bantuan percakapan yang mudah ditemukan, bukan pengganti halaman website. Fokus pengembangan AI tetap pada chatbot: mencari menu, menjawab kebijakan, mengecek meja, serta memandu buat/lihat/batal reservasi. Kartu, pilihan waktu, form kontak privat, dan tombol konfirmasi dapat tampil dalam panel chat. Customer bebas memilih halaman/form biasa atau chatbot; staff mengelola sumber data melalui dashboard. Kedua jalur memakai API bisnis yang sama dan layanan web tetap bekerja saat model gagal.
+Customer mengunjungi website rumah makan seperti biasa: beranda, profil, menu, lokasi/jam buka, serta form reservasi. Chatbot adalah widget bantuan opsional untuk informasi restoran, menu dan FAQ bersumber. Cek meja, ringkasan, kontak, buat/lihat/batal booking hanya melalui komponen web privat terpisah tanpa inference. Customer tidak wajib membuka chat. Staff mengelola operasional melalui dashboard; developer menyiapkan FAQ terkontrol tanpa editor dokumen dashboard. Kegagalan model tidak menghalangi reservasi web.
 
 ### Pengguna dan haknya
 
 | Pengguna | Aktivitas | Batas |
 | --- | --- | --- |
 | Customer tanpa akun | Lihat menu, cek meja, buat reservasi, lihat/batalkan reservasinya | Tidak dapat membaca data customer lain |
-| Owner | Kelola profil, outlet, jam buka, menu, meja, dokumen, dan reservasi | Hanya tenant miliknya |
+| Owner | Kelola profil, jam buka, menu, meja dan reservasi; menyetujui isi kebijakan | Hanya tenant miliknya; publikasi FAQ dibantu developer |
 | Staff | Kelola ketersediaan menu dan operasional reservasi | Tidak mengubah akun/konfigurasi owner atau menerbitkan dokumen |
-| Assistant | Menjawab, memakai tools read-only, menyusun usulan reservasi | Tidak punya hak admin atau koneksi database bisnis |
+| Assistant | Menjawab informasi restoran, menu dan FAQ melalui tools read-only | Tidak mengecek meja, membuat proposal atau mengakses reservasi privat |
 
 Provisioning tenant, outlet, owner, dan staff dilakukan melalui seed terkontrol untuk demo. Tidak ada UI super-admin, pendaftaran staff mandiri, atau aturan “tidak punya baris izin berarti boleh mengakses semua”.
 
 ### Ukuran keberhasilan
 
-- Customer menyelesaikan buat, lihat, dan batal reservasi dari chatbot website melalui komponen terstruktur, tanpa berpindah ke halaman reservasi mandiri pada kondisi normal.
-- Chatbot mencapai minimal 90% keberhasilan skenario normal pencarian menu, FAQ, cek meja, dan alur reservasi dalam set evaluasi tetap; keberhasilan berarti tugas selesai, bukan sekadar respons terkirim.
+- Customer menyelesaikan buat, lihat, dan batal reservasi melalui form serta receipt privat website, terpisah dari chatbot.
+- Chatbot mencapai minimal 90% keberhasilan skenario normal informasi restoran, menu dan FAQ dalam set evaluasi tetap; keberhasilan berarti jawaban sesuai sumber, bukan sekadar respons terkirim.
 - Halaman dan form biasa menyelesaikan buat/lihat/batal tanpa membuka chatbot, termasuk saat model tidak tersedia; keberhasilannya dilaporkan terpisah dari keberhasilan chatbot.
 - Tidak ada booking bertabrakan pada pengujian konkurensi untuk satu meja dan rentang waktu yang sama.
 - Tidak ada aksi tulis tanpa konfirmasi server-side, termasuk saat model meminta tool yang tidak diizinkan.
@@ -61,16 +61,17 @@ Angka tersebut adalah target pengujian, bukan klaim bahwa seluruh kemungkinan se
 - Buat reservasi, lihat status, batalkan memakai bukti akses privat.
 - Dashboard owner/staff untuk menu, meja, jam operasional, dan reservasi.
 - Website publik dengan navigasi beranda, tentang restoran, menu, lokasi/jam buka, serta reservasi; dapat berupa halaman terpisah atau section beranda sesuai kebutuhan konten.
-- Widget chatbot sebagai fokus fitur AI: satu assistant Agno, tools read-only, kartu menu, pilihan waktu, form privat, kartu status, dan tombol konfirmasi. Tidak memaksa customer membuka chat untuk memakai website.
-- Lihat/batal booking dapat dimulai dari chat; UI memverifikasi akses dan mengeksekusi tindakan melalui backend tanpa memberi model akses data privat.
-- RAG untuk FAQ/kebijakan dengan sumber yang terlihat.
+- Widget chatbot sebagai fokus fitur AI: satu assistant Agno, tools read-only untuk informasi restoran, menu dan FAQ, kartu menu serta sumber jawaban. Tidak menyediakan availability, proposal atau kartu reservasi privat dalam chat.
+- Lihat/batal booking melalui receipt privat web; sesi manajemen dibatasi satu reservasi. Chat hanya boleh mengarahkan ke form, tanpa menerima detail atau credential booking.
+- RAG untuk FAQ/kebijakan dengan sumber yang terlihat; developer menyiapkan dan menerbitkan dokumen terkontrol, tanpa editor FAQ di dashboard.
 - Isolasi tenant, validasi backend, anti double booking, idempotency, audit, pembatasan penggunaan.
 - Pengujian fungsional, evaluasi AI, red teaming pada lingkungan milik sendiri.
 
 ### Ditunda
 
 - Billing SaaS, paket, custom domain, onboarding mandiri, tema per tenant.
-- Banyak outlet dalam UI, stok dan harga berbeda per outlet.
+- Banyak outlet dalam UI, stok dan harga berbeda per outlet; migrasi ke entitas Restaurant tunggal menunggu arahan dan otorisasi terpisah.
+- Availability/proposal/transaksi reservasi dalam chatbot dan editor FAQ dashboard.
 - Ubah jadwal booking, gabung meja, waitlist, pembayaran/deposit.
 - Chatbot WhatsApp/Telegram atau kanal eksternal lain, email/SMS OTP, notifikasi produksi, pemesanan makanan, kasir.
 - Analitik lanjutan, personalisasi, long-term memory customer.
@@ -95,7 +96,7 @@ MCP read-only boleh ditambahkan setelah semua alur inti dan pengujian keamanan l
 | Knowledge document | Dokumen FAQ/kebijakan yang disetujui owner | Harga, stok, atau status booking real-time |
 | Tool | Fungsi terkontrol yang bisa diminta agent | Izin melewati aturan backend |
 
-Satu tenant dapat memiliki banyak outlet pada model data, tetapi aplikasi MVP hanya mengoperasikan satu outlet per tenant. Customer guest tidak memiliki identitas global antar-brand. Nama dan nomor telepon disimpan pada reservasi; CRM dan tabel customer tersendiri belum diperlukan.
+Restoran adalah istilah produk/UI untuk satu brand dan satu lokasi operasional. Model internal tetap Tenant → Outlet dengan composite FK dan scope tenant/outlet yang sudah ada. Tidak mengganti tabel/kolom menjadi Restaurant atau restaurant_id; migrasi model menunggu arahan serta persetujuan terpisah. Satu tenant dapat memiliki banyak outlet pada model data, tetapi aplikasi MVP hanya mengoperasikan satu outlet aktif per tenant. Customer guest tidak memiliki identitas global antar-brand. Nama dan nomor telepon disimpan pada reservasi; CRM dan tabel customer tersendiri belum diperlukan.
 
 ## Perjalanan pengguna dan penerimaan fitur
 
@@ -104,68 +105,46 @@ Satu tenant dapat memiliki banyak outlet pada model data, tetapi aplikasi MVP ha
 | Lihat menu | Hanya menu aktif tenant yang dipilih, harga Rupiah, label tersedia/habis | Data tenant lain dan menu nonaktif tidak muncul |
 | Cek meja | Input tanggal, waktu, jumlah tamu; hasil valid menurut jam dan kapasitas | Jam tutup, tanggal lampau, jumlah invalid ditolak |
 | Buat booking web | Ringkasan terlihat, customer menyetujui, backend memeriksa ulang | Kode, waktu, meja, dan status hanya tampil sukses setelah commit |
-| Buat booking dibantu AI | Chat mengumpulkan kebutuhan dan menampilkan kartu konfirmasi; form meminta kontak | Tanpa klik konfirmasi tidak ada reservasi; detail berubah harus dikonfirmasi ulang |
-| Lihat booking dari chat | Komponen privat memverifikasi token dan menampilkan kartu dari backend, tidak melalui LLM | Kode referensi atau ID chat saja tidak cukup; detail privat tidak masuk transcript |
-| Batal booking dari chat | Customer memilih batal pada kartu privat dan menyetujui; backend memeriksa izin/cutoff | Status berubah sekali; retry tidak membuat efek tambahan; model tidak mengeksekusi batal |
+| Konfirmasi booking web | Form menampilkan detail dan meminta persetujuan eksplisit | Tanpa klik konfirmasi tidak ada reservasi; detail berubah harus dikonfirmasi ulang |
+| Lihat booking web | Komponen privat memverifikasi sesi dan menampilkan receipt dari backend | Kode referensi atau ID chat saja tidak cukup; detail privat tidak masuk transcript |
+| Batal booking web | Customer memilih batal pada receipt privat dan menyetujui; backend memeriksa izin/cutoff dan referensi tampilan | Status berubah sekali; retry tidak membuat efek tambahan; model tidak terlibat |
 | Dashboard | Owner/staff login; daftar dan perubahan dibatasi tenant | Request tanpa peran atau lintas tenant ditolak |
 | Jawab kebijakan | Retrieval mengambil dokumen published yang relevan | Jawaban menyertakan judul/sumber; tanpa bukti assistant menyatakan belum tahu |
 | Gangguan AI | Ada pesan gangguan dan tautan/form untuk melanjutkan | Layanan web tetap dapat memesan tanpa model |
 
 ### Pengalaman chatbot website
 
-Website mempertahankan pola rumah makan pada umumnya: navigasi, hero dengan identitas dan foto restoran, ringkasan profil, menu unggulan, lokasi/jam buka, kontak, serta CTA reservasi. Gunakan konten faktual; jangan membuat testimoni, sertifikasi, atau klaim fasilitas yang belum tersedia. Profil, lokasi, dan menu dapat dilihat tanpa chatbot; pemesanan makanan, pembayaran, dan integrasi peta berbayar tidak termasuk MVP.
-
-Chat dibuka melalui tombol widget berlabel **Tanya restoran** yang konsisten di halaman publik. Panel tidak terbuka paksa, tidak menutup navigasi/CTA, dan dapat ditutup tanpa kehilangan konteks sesi yang masih berlaku. Pada mobile, panel boleh menjadi tampilan layar penuh setelah dibuka customer. Sediakan pemicu awal **Lihat menu**, **Cari meja**, **Kebijakan restoran**, dan **Kelola reservasi**. Customer boleh mengetik bebas atau memilih aksi; hasil tools dirender sebagai kartu yang nilainya berasal dari backend. Fokus AI pada chatbot tidak berarti seluruh tampilan website harus berbentuk chat.
-
-- Percakapan mempertahankan konteks kebutuhan aktif seperti tanggal, jumlah tamu dan pilihan waktu selama sesi berlaku. Koreksi customer memperbarui draft dan membatalkan proposal lama yang tidak sesuai.
-- Tanggal/jam ambigu diklarifikasi. Ringkasan memakai tanggal absolut dan zona waktu outlet sebelum persetujuan.
-- Nama/telepon dan token akses diisi dalam form privat di dalam permukaan chat; nilainya tidak disalin menjadi pesan, konteks model, atau history percakapan.
-- Untuk **Kelola reservasi**, intent dari chat atau tombol membuka komponen verifikasi. Backend menukar bukti akses menjadi management session; detail reservasi dirender langsung sebagai kartu privat, tidak diteruskan ke LLM atau disimpan di transcript.
-- Untuk pembatalan, customer memilih tindakan pada kartu privat, memeriksa detail dan cutoff, lalu menekan konfirmasi. Backend memverifikasi izin dan status kembali. Model tidak memiliki tool baca reservasi privat atau tool batal.
-- Saat mengetik pertanyaan status/batal setelah verifikasi, gateway mengarahkan ke komponen privat; tidak menyuntikkan detail customer ke prompt. Pengetahuan akses privat tidak otomatis melekat pada sesi model.
-- Loading, gagal, retry, kedaluwarsa sesi dan fallback terlihat jelas. Refresh mempertahankan hanya state yang masih diotorisasi; perangkat lain tidak mewarisi akses hanya dari ID chat.
+Widget **Tanya restoran** dibuka atas tindakan customer, tidak menutup navigasi/CTA, mendukung keyboard dan mobile. Pemicu awal meliputi **Lihat menu**, **Informasi restoran**, dan **Kebijakan restoran**. Menu/profil berasal dari API; FAQ dari dokumen published dengan sumber. Tidak ada pengumpulan kontak, cek meja, proposal atau kartu booking privat di chat. Permintaan reservasi diarahkan ke form web; chatbot tidak menyatakan slot tersedia atau booking berhasil.
 
 ### Alur pengalaman customer
 
 ```mermaid
 flowchart TD
-    Start[Website rumah makan - beranda dan navigasi] --> Pages[Profil - menu - lokasi - jam buka]
-    Start --> Direct[Reservasi lewat form biasa]
-    Start --> Widget[Customer membuka widget Tanya restoran]
-    Widget --> Intent{Kebutuhan customer}
-    Intent --> Menu[Menu atau informasi operasional via tools]
-    Intent --> FAQ[FAQ melalui RAG dengan sumber]
-    Intent --> Book[Cek meja dan siapkan proposal]
-    Book --> Form[Form kontak privat dalam chat]
-    Form --> Confirm[Customer konfirmasi ringkasan]
-    Confirm --> API[Backend validasi dan transaksi]
-    API --> Receipt[Kartu hasil resmi dalam chat]
-    Intent --> Manage[Kelola reservasi - verifikasi privat]
-    Manage --> Card[Kartu status dari backend tanpa melalui model]
-    Card --> Cancel[Konfirmasi batal jika memenuhi aturan]
-    Cancel --> API
-    Widget --> Failure[Model gagal atau kuota habis]
-    Failure --> Fallback[Form web mandiri - aturan backend sama]
-    Direct --> API
+    Start[Website restoran] --> Pages[Profil - menu - lokasi - jam buka]
+    Start --> Chat[Widget informasi opsional]
+    Chat --> Tools[Informasi dan menu via API]
+    Chat --> FAQ[FAQ published dengan sumber]
+    Chat --> Fallback[Keterbatasan atau arahkan ke form web]
+    Start --> Form[Form reservasi privat]
+    Form --> Summary[Periksa detail - belum menahan meja]
+    Summary --> Confirm[Customer konfirmasi eksplisit]
+    Confirm --> API[Validasi ulang dan transaksi backend]
+    API --> Receipt[Receipt dan sesi privat satu booking]
+    Receipt --> Manage[Lihat status atau konfirmasi batal]
+    Manage --> API
 ```
 
-### Contoh percakapan
+### Contoh interaksi
 
-> Customer: Mau meja empat orang besok jam tujuh malam.
+> Customer: Harga rendang berapa?
 >
-> Assistant: Untuk besok, 28 Oktober 2026, pukul 19.00 WIB, empat orang. Saya cek ketersediaannya.
+> Assistant mengambil menu dari API tenant yang terikat server dan menjawab berdasarkan hasil tersebut. Jika API gagal, harga tidak ditebak.
 >
-> Tool: Meja untuk empat orang tersedia, durasi 90 menit.
+> Customer: Mau reservasi empat orang.
 >
-> Assistant: Ada meja pukul 19.00–20.30 WIB. Periksa kartu reservasi, isi kontak, lalu tekan **Konfirmasi reservasi**.
->
-> Customer mengisi nama/telepon dalam form privat dan menekan tombol.
->
-> Backend: Commit berhasil.
->
-> UI: Reservasi dikonfirmasi. Tampilkan kode referensi, detail, dan cara menyimpan akses privat.
+> Assistant: Gunakan form reservasi untuk memilih waktu, memeriksa detail dan mengonfirmasi. Saya tidak memeriksa meja atau membuat booking melalui chat.
 
-Tanggal contoh hanya ilustrasi. Di runtime, server menentukan tanggal absolut dari jam saat itu dan zona waktu outlet. Jika frasa “Jumat ini” ambigu, tanyakan tanggal; jangan menerka.
+Customer mengisi kontak pada form privat, memeriksa tanggal absolut dan WIB, lalu menekan konfirmasi. Receipt hanya menyatakan sukses setelah backend commit. Detail dan credential tidak masuk model atau transcript chat.
 
 ## Aturan reservasi
 
@@ -230,7 +209,7 @@ flowchart TB
     API --> Retrieval[Retrieval chunks - tenant scoped]
     Retrieval --> DB
     API --> Audit[Audit dan telemetry tersamarkan]
-    Web --> Confirm[Komponen privat dalam chat - kontak dan konfirmasi]
+    Web --> Confirm[Form reservasi privat terpisah - kontak dan konfirmasi]
     Confirm --> API
 ```
 
@@ -287,7 +266,7 @@ erDiagram
     STAFF_USER {
         uuid id PK
         uuid tenant_id FK
-        string email
+        string username
         string password_hash
         string role
         boolean is_active
@@ -296,35 +275,30 @@ erDiagram
         uuid id PK
         uuid tenant_id FK
         string name
-        string category
         string description
-        int price_idr
+        int price
         boolean is_available
         boolean is_active
     }
     OPENING_HOUR {
-        uuid id PK
-        uuid tenant_id FK
-        uuid outlet_id FK
-        int weekday
-        time open_time
-        time close_time
-        boolean is_closed
+        uuid tenant_id PK,FK
+        uuid outlet_id PK,FK
+        int weekday PK
+        int open_minute
+        int close_minute
     }
     SPECIAL_DAY {
-        uuid id PK
-        uuid tenant_id FK
-        uuid outlet_id FK
-        date local_date
-        time open_time
-        time close_time
-        boolean is_closed
+        uuid tenant_id PK,FK
+        uuid outlet_id PK,FK
+        date date PK
+        int open_minute
+        int close_minute
     }
     DINING_TABLE {
         uuid id PK
         uuid tenant_id FK
         uuid outlet_id FK
-        string table_number
+        string name
         int capacity
         boolean is_active
     }
@@ -353,7 +327,7 @@ erDiagram
         string from_status
         string to_status
         string actor_type
-        uuid actor_id
+        uuid staff_id FK
         string reason
         timestamptz created_at
     }
@@ -361,93 +335,90 @@ erDiagram
 
 `MENU_ITEM` milik brand karena MVP hanya mengoperasikan satu outlet. `is_available` berarti bisa ditawarkan, bukan jumlah persediaan inventori. Sebelum banyak outlet diaktifkan, tambahkan assignment menu, harga, dan availability per outlet; jangan mengklaim model sekarang sudah menyelesaikan stok multi-outlet.
 
-Email staff unik dalam tenant, bukan global. `actor_id` pada event boleh null untuk customer/system; identitas aktor dipasok backend, bukan model.
+Username staff unik dalam tenant, bukan global. `staff_id` pada event boleh null untuk customer/system; identitas aktor dipasok backend, bukan model. Label diagram OPENING_HOUR/SPECIAL_DAY memetakan tabel weekly_hours/special_hours; nilai menit null berpasangan berarti tutup. Diagram operasional menghilangkan timestamp umum dan relasi tambahan agar terbaca.
 
-### ERD assistant dan pengetahuan
+### ERD sesi reservasi dan pengetahuan
+
+Diagram berikut merangkum tabel yang sudah dimigrasikan pada database lokal; bukan klaim seluruh endpoint knowledge sudah aktif. Chat saat ini memakai state sesi aplikasi, bukan tabel CHAT_SESSION/CHAT_MESSAGE/TOOL_RUN pada PostgreSQL. Persistensi chat terpisah ditunda dan tidak diperlukan untuk menjalankan retrieval FAQ.
 
 ```mermaid
 erDiagram
-    TENANT ||--o{ CHAT_SESSION : isolates
-    OUTLET ||--o{ CHAT_SESSION : scopes
-    CHAT_SESSION ||--o{ CHAT_MESSAGE : contains
-    CHAT_SESSION ||--o{ TOOL_RUN : traces
-    CHAT_SESSION ||--o{ BOOKING_PROPOSAL : prepares
-    RESERVATION o|--o| BOOKING_PROPOSAL : results_from
+    TENANT ||--o{ RESERVATION_CREATOR_SESSION : isolates
+    RESERVATION_CREATOR_SESSION o|--o{ RESERVATION : created_by
+    RESERVATION_CREATOR_SESSION ||--o{ RESERVATION_CONFIRMATION : confirms
+    RESERVATION o|--o| RESERVATION_CONFIRMATION : consumed_for
+    RESERVATION ||--o{ RESERVATION_MANAGEMENT_SESSION : grants_access
     TENANT ||--o{ KNOWLEDGE_DOCUMENT : owns
-    KNOWLEDGE_DOCUMENT ||--o{ KNOWLEDGE_CHUNK : splits_into
+    KNOWLEDGE_DOCUMENT ||--o{ KNOWLEDGE_DOCUMENT_REVISION : versions
+    KNOWLEDGE_DOCUMENT_REVISION o|--o| KNOWLEDGE_DOCUMENT : active_pointer
+    KNOWLEDGE_DOCUMENT_REVISION ||--o{ KNOWLEDGE_CHUNK : contains
 
-    CHAT_SESSION {
+    RESERVATION_CREATOR_SESSION {
         uuid id PK
         uuid tenant_id FK
-        uuid outlet_id FK
-        string access_token_hash
+        string token_hash UK
         timestamptz expires_at
+        timestamptz revoked_at
     }
-    CHAT_MESSAGE {
+    RESERVATION_CONFIRMATION {
         uuid id PK
         uuid tenant_id FK
-        uuid session_id FK
-        string role
-        string redacted_content
-        timestamptz created_at
-    }
-    TOOL_RUN {
-        uuid id PK
-        uuid tenant_id FK
-        uuid session_id FK
-        string tool_name
-        string status
-        json redacted_metadata
-        string model_id
-        int latency_ms
-        int input_tokens
-        int output_tokens
-        timestamptz created_at
-    }
-    BOOKING_PROPOSAL {
-        uuid id PK
-        uuid tenant_id FK
-        uuid session_id FK
-        uuid outlet_id FK
+        uuid creator_session_id FK
+        string nonce_hash UK
+        string request_hash
+        timestamptz expires_at
+        timestamptz consumed_at
+        timestamptz invalidated_at
         uuid reservation_id FK
-        timestamptz start_at
-        timestamptz end_at
-        int party_size
-        string payload_hash
-        string state
+    }
+    RESERVATION_MANAGEMENT_SESSION {
+        uuid id PK
+        uuid tenant_id FK
+        uuid reservation_id FK
+        string token_hash UK
         timestamptz expires_at
+        timestamptz revoked_at
     }
     KNOWLEDGE_DOCUMENT {
         uuid id PK
         uuid tenant_id FK
+        int active_revision FK
+    }
+    KNOWLEDGE_DOCUMENT_REVISION {
+        uuid tenant_id PK,FK
+        uuid document_id PK,FK
+        int revision PK
         string title
-        string body
-        int revision
         string status
-        uuid published_by FK
+        string content_hash
+        string approved_hash
+        timestamptz approved_at
+        string approval_reference
         timestamptz published_at
+        timestamptz created_at
     }
     KNOWLEDGE_CHUNK {
-        uuid id PK
-        uuid tenant_id FK
-        uuid document_id FK
-        int document_revision
-        int position
-        string content
+        uuid tenant_id PK,FK
+        uuid document_id PK,FK
+        int revision PK,FK
+        int position PK
+        string text
     }
 ```
 
-Diagram assistant memakai `TENANT`, `OUTLET`, dan `RESERVATION` yang sama dengan diagram operasional. Satu proposal bisa menghasilkan paling banyak satu reservasi; reservasi web biasa tidak harus memiliki proposal. `reservation_id` nullable dan unik pada proposal. FK `published_by` mengarah ke staff tenant yang sama. Sesi chat tidak otomatis membuktikan kepemilikan reservasi.
+Seluruh relasi session/reservation/confirmation memakai tenant yang sama melalui FK komposit. Reservasi lama dapat memiliki creator_session_id null; reservasi web baru diikat service ke sesi pembuat. Satu konfirmasi web dapat dikonsumsi paling banyak satu reservasi dan bukan proposal dari agent.
 
-`TOOL_RUN` bukan metering lengkap: token berasal dari respons provider jika tersedia, dicatat sekali per inference request untuk mencegah penghitungan ganda ketika satu request meminta banyak tools; metadata menyimpan request/run ID. Jika field tidak tersedia, gunakan null, bukan nol palsu. Detail implementasi dapat memisahkan telemetry inferensi dari tool saat diperlukan.
+KnowledgeDocument menyimpan pointer aktif nullable; judul/status/hash/persetujuan berada pada revision, teks pada chunk. Pointer memakai FK (tenant_id, id, active_revision) ke revision; chunk memakai FK (tenant_id, document_id, revision). Constraint/trigger memastikan paling banyak satu revision published, pointer konsisten dan konten approved immutable. Approval metadata bukan credential atau bukti otorisasi sendiri; publikasi tetap memerlukan caller berhak. Dokumen FAQ adalah tenant-level, bukan data booking atau sesi chat.
+
+Telemetry inference terpisah dari dokumen knowledge; jangan menganggap diagram ini mewajibkan penyimpanan transcript atau raw prompt. Jika token usage tidak tersedia gunakan null, bukan angka nol palsu.
 
 ### Constraint dan invariant wajib
 
 - Foreign key komposit memastikan pasangan tenant dan resource benar: `(tenant_id, outlet_id)`, `(tenant_id, session_id)`, `(tenant_id, document_id)` dan seterusnya harus merujuk unique key yang cocok.
 - Reservasi merujuk meja lewat `(tenant_id, outlet_id, table_id)` agar meja tidak berasal dari outlet lain. Parent menyediakan unique key untuk kombinasi tersebut.
-- Unique untuk `(tenant_id, reference_code)`, `(tenant_id, idempotency_key)`, `(tenant_id, email)` pada staff, dan `(tenant_id, outlet_id, table_number)` pada meja.
-- Jadwal mingguan unik per outlet/hari; pengecualian unik per outlet/tanggal. Pada hari buka, `close_time > open_time`; hari tutup boleh tanpa interval.
-- `end_at > start_at`, `party_size > 0`, `capacity > 0`, `price_idr >= 0`; kolom wajib juga `NOT NULL`, bukan CHECK saja.
+- Unique untuk `(tenant_id, reference_code)`, `(tenant_id, idempotency_key)`, `(tenant_id, username)` pada staff, dan `(tenant_id, outlet_id, name)` pada meja.
+- Jadwal mingguan unik per outlet/hari; pengecualian unik per outlet/tanggal. Pada hari buka, `close_minute > open_minute`; hari tutup memakai kedua nilai null.
+- `end_at > start_at`, `party_size > 0`, `capacity > 0`, `price >= 0`; kolom wajib juga `NOT NULL`, bukan CHECK saja.
 - Exclusion constraint PostgreSQL pada tenant, meja, dan interval waktu untuk baris `status = confirmed` menjadi pertahanan terakhir anti tabrakan. Aktifkan dukungan operator yang diperlukan lewat migrasi terkontrol.
 - Kapasitas, jam buka, cutoff dan izin divalidasi service, bukan CHECK yang membaca tabel lain.
 - Availability dan create menggunakan aturan waktu yang sama. Transaksi create memvalidasi ulang dan memetakan konflik constraint menjadi respons konflik, bukan error internal.
@@ -455,62 +426,25 @@ Diagram assistant memakai `TENANT`, `OUTLET`, dan `RESERVATION` yang sama dengan
 - Hasil retry memulihkan receipt/reservasi tanpa membocorkan management token kepada sesi yang tidak berhak. Browser pembuat terikat sesi; pemulihan token harus memakai bukti sesi dan rotasi, bukan menyimpan token mentah dalam log/kolom idempotency.
 - Staff dan API memakai query tenant-scoped. RLS dapat ditambahkan kemudian; ketiadaannya tidak membebaskan kewajiban tes isolasi dan FK komposit.
 
-## Alur reservasi AI dan konfirmasi
+## Chatbot informasi dan konfirmasi web
 
 ### Tool yang tersedia untuk agent
 
 | Tool | Fungsi | Menulis bisnis? |
 | --- | --- | --- |
-| `get_restaurant_info` | Profil, outlet, jam dan aturan operasional | Tidak |
+| `get_restaurant_info` | Profil, lokasi, jam dan informasi operasional | Tidak |
 | `search_menu` | Nama, kategori, harga, availability menu | Tidak |
-| `check_availability` | Interval dan kapasitas yang tersedia | Tidak |
-| `search_knowledge` | Cuplikan FAQ/kebijakan approved beserta sumber | Tidak |
+| `search_knowledge` | Cuplikan FAQ/kebijakan published beserta sumber | Tidak |
 
-Keluaran agent dapat berisi data usulan booking berskema. Chat gateway memvalidasi data itu, kemudian membuat proposal terikat sesi. Agent tidak memiliki `create_reservation`, `cancel_reservation`, atau tool admin pada MVP. Ini tetap assistant berguna: mencari fakta, mengumpulkan kebutuhan, dan menyiapkan aksi, sementara pengguna menyetujui secara eksplisit.
+Agent tidak memiliki check_availability, prepare_reservation, create_reservation, cancel_reservation, atau tool admin dalam chatbot website. Kegagalan model/tools menghasilkan pesan keterbatasan, bukan proposal booking atau klaim transaksi sukses.
+
+### Ringkasan konfirmasi web
+
+Form reservasi meminta sesi pembuat, mengirim detail privat ke API, lalu menerima ringkasan terikat tenant/outlet, hash, nonce dan expiry. Ringkasan ini dibuat aplikasi deterministik tanpa inference. Ketersediaan belum ditahan; saat customer mengonfirmasi, backend memvalidasi ulang. Perubahan detail memerlukan ringkasan baru.
 
 ### Sequence diagram
 
-Diagram berikut adalah rancangan alur reservasi, bukan klaim fitur sudah aktif. Alur dipisah agar pencarian informasi tidak tercampur dengan transaksi. Panah penuh adalah permintaan, panah putus-putus adalah balasan.
-
-#### Pencarian slot dan pembuatan proposal
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor C as Customer
-    participant W as Website
-    participant B as API NestJS
-    participant A as Agent Agno
-    participant L as Model OpenRouter
-    participant D as PostgreSQL
-    C->>W: Masukkan waktu dan jumlah tamu
-    W->>B: Kirim pesan dengan sesi chat
-    B->>B: Validasi sesi, ikat tenant, samarkan pesan
-    B->>A: Pesan aman dan konteks sesi
-    A->>L: Inference dengan schema tools
-    L-->>A: Minta check_availability
-    A->>B: Tool read-only dengan konteks sesi
-    B->>B: Verifikasi service, sesi dan argumen
-    B->>D: Cari slot pada tenant dan outlet yang sama
-    D-->>B: Hasil pencarian slot
-    B-->>A: Data availability tervalidasi
-    A->>L: Hasil tool untuk menyusun jawaban
-    L-->>A: Jawaban dan usulan terstruktur
-    A-->>B: Usulan yang belum dieksekusi
-    alt Ada opsi dan usulan valid
-        B->>B: Validasi detail absolut dan binding sesi
-        B->>D: Simpan proposal, hash, nonce dan expiry
-        D-->>B: Proposal tersimpan
-        B-->>W: Kartu proposal dari data backend
-        W-->>C: Tampilkan detail untuk diperiksa
-    else Slot tidak ada atau detail belum valid
-        B-->>W: Hasil kosong atau permintaan koreksi
-        W-->>C: Pilih waktu lain atau lengkapi detail
-    end
-    Note over W,D: Proposal bukan booking dan tidak menahan meja
-```
-
-Model atau tool gagal menghasilkan pesan gangguan, bukan proposal atau klaim booking sukses. Customer tetap dapat memakai jalur web ketika layanan reservasi web sudah tersedia.
+Diagram berikut menjelaskan transaksi web terpisah dari chatbot; keberadaan diagram bukan klaim seluruh skenario telah diuji.
 
 #### Konfirmasi customer dan transaksi reservasi
 
@@ -560,7 +494,7 @@ sequenceDiagram
     Note over C,B: Kontak dan akses kelola tidak masuk model atau transcript chat
 ```
 
-### Aturan proposal
+### Aturan ringkasan konfirmasi web
 
 - Masa berlaku usulan 10 menit sebagai baseline konfigurasi. Tidak ada hold meja selama periode ini.
 - Konfirmasi diikat pada sesi, tenant, outlet, payload terkanonisasi dan hash, serta nonce sekali pakai. Detail berubah → proposal baru.
@@ -584,7 +518,7 @@ Nama dan telepon dikumpulkan dalam form terstruktur, tidak perlu dikirim ke mode
 | Pertanyaan | Sumber yang digunakan |
 | --- | --- |
 | Berapa harga rendang? | `search_menu` / API menu |
-| Masih ada meja pukul 19.00? | `check_availability` / service reservasi |
+| Masih ada meja pukul 19.00? | Endpoint availability melalui form web, bukan tool chatbot |
 | Apakah booking saya sudah confirmed? | Halaman privat dengan management session, bukan RAG |
 | Di mana alamat dan jam buka hari ini? | API profil/jadwal dengan pengecualian tanggal |
 | Bagaimana aturan membawa kue atau fasilitas keluarga? | Dokumen published melalui RAG |
@@ -594,7 +528,7 @@ Nama dan telepon dikumpulkan dalam form terstruktur, tidak perlu dikirim ke mode
 
 ```mermaid
 flowchart LR
-    O[Owner menulis FAQ Markdown / teks] --> V[Validasi dan review isi]
+    O[Developer menyiapkan FAQ yang disetujui pemilik] --> V[Validasi dan review isi]
     V --> P[Publish revision dokumen]
     P --> C[Chunk deterministik + metadata tenant]
     C --> K[(Chunks PostgreSQL)]
@@ -608,7 +542,7 @@ flowchart LR
 
 ### Retrieval minimum yang realistis
 
-- Mulai dengan 10–20 FAQ pendek per tenant. Owner menerbitkan teks yang sudah diperiksa, bukan crawler web bebas.
+- Mulai dengan 10–20 FAQ pendek per tenant. Developer menyiapkan dan menerbitkan teks yang telah diperiksa pemilik lewat proses terkontrol, bukan editor dashboard atau crawler web bebas.
 - Chunk berdasarkan judul/paragraf, simpan judul, revision, posisi dan tenant. Search lexical/keyword deterministik cukup sebagai baseline RAG: retrieve konteks lalu generate jawaban tidak mewajibkan vector database.
 - Ambil maksimal tiga cuplikan relevan; kalibrasi ranking dan kecocokan dengan pertanyaan Indonesia pada set uji. Tidak ada hasil memadai → abstain dan tampilkan kontak staff.
 - Unpublish dokumen langsung menghilangkannya dari retrieval. Publish revision baru dan pergantian chunks harus atomic atau memakai pointer revision aktif agar isi lama/baru tidak tercampur.
@@ -624,8 +558,8 @@ Dokumen yang memuat instruksi “abaikan aturan” tetap data tak tepercaya, buk
 ### Kebijakan model
 
 - Pilih model yang benar-benar mempunyai varian `:free` pada katalog dan mendukung parameter tools yang dibutuhkan. Menambahkan suffix pada sembarang ID tidak membuat model gratis.
-- Tetapkan satu model utama dan paling banyak satu cadangan gratis yang telah lulus evaluasi yang sama. Hindari routing acak untuk jalur booking karena kualitas dan dukungan fitur dapat berubah antar-model/provider.
-- Pilihan final ditentukan lewat smoke test Bahasa Indonesia, schema tools, argumen invalid, tool timeout, dan keluaran proposal. Tidak mengunci nama model yang mungkin hilang dari katalog.
+- Tetapkan satu model utama dan paling banyak satu cadangan gratis yang telah lulus evaluasi yang sama. Hindari routing acak untuk chatbot informasi karena kualitas dan dukungan fitur dapat berubah antar-model/provider.
+- Pilihan final ditentukan lewat smoke test Bahasa Indonesia, schema tools, argumen invalid, tool timeout, dan jawaban informasi bersumber. Tidak mengunci nama model yang mungkin hilang dari katalog.
 - Allowlist dan validasi konfigurasi saat startup; jangan memasukkan model berbayar, paid plugins, atau fallback berbayar tanpa keputusan biaya baru.
 - Kunci OpenRouter hanya pada server melalui environment/secret store; tidak dikirim ke browser dan tidak dicetak.
 
@@ -712,7 +646,7 @@ flowchart LR
     B --> D[(PostgreSQL)]
 ```
 
-Adapter MCP membungkus `get_restaurant_info`, `search_menu`, dan `check_availability`; tidak menyalin aturan bisnis. Identitas service dan konteks tenant/sesi tetap diverifikasi API. Penemuan tool bukan pemberian hak akses. MCP remote tidak dibuka publik tanpa desain autentikasi dan otorisasi yang diverifikasi terhadap versi spesifikasi yang dipilih.
+Adapter MCP opsional hanya membungkus informasi restoran, menu dan knowledge; tidak mengekspos availability atau transaksi reservasi pada chatbot website dan tidak menyalin aturan bisnis. Identitas service dan konteks tenant/sesi tetap diverifikasi API. Penemuan tool bukan pemberian hak akses. MCP remote tidak dibuka publik tanpa desain autentikasi dan otorisasi yang diverifikasi terhadap versi spesifikasi yang dipilih.
 
 ### Diagram A2A konseptual, bukan target implementasi
 
@@ -733,12 +667,12 @@ Nama route di bawah merupakan rancangan, bukan kontrak kode yang sudah tersedia.
 | --- | --- | --- |
 | Publik tenant | Profil, menu, availability | Tenant aktif dari slug; tidak ada PII |
 | Chat | Buat sesi, kirim pesan, baca history sesi sendiri | Cookie/session secret; scope tenant dan outlet |
-| Proposal | Buat dari usulan tervalidasi, tampilkan, konfirmasi | Sesi pemilik, expiry, payload, nonce, idempotency |
+| Konfirmasi web | Buat dari detail form tervalidasi, tampilkan, konfirmasi tanpa model | Sesi pemilik, expiry, payload, nonce, idempotency |
 | Reservasi | Buat langsung via form | Rate limit, validasi, konfirmasi dan idempotency |
 | Pengelolaan reservasi | Tukar token, lihat detail, batal | Token privat → management session dengan scope satu reservasi |
 | Staff | Login/logout, CRUD data, daftar dan transisi reservasi | Session staff, role, tenant dan audit |
-| Knowledge | Owner membuat draft/publish/unpublish; publik membaca versi published | Publish hanya owner; tenant-scoped |
-| Internal tools | Info/menu/availability/retrieval | Service auth dan konteks sesi terverifikasi, tidak dapat dieksekusi dari browser |
+| Knowledge | Developer menyiapkan publish/unpublish terkontrol; publik membaca versi published | Tenant-scoped, persetujuan isi pemilik, tanpa editor dashboard |
+| Internal tools | Info/menu/retrieval | Service auth dan konteks sesi terverifikasi, tidak dapat dieksekusi dari browser |
 
 Status error membedakan input invalid, autentikasi/izin gagal, konflik slot/idempotency, cutoff, rate limit, dan ketergantungan AI unavailable. Respons privat tidak mengungkap apakah ID milik tenant lain ada. Cookie/credential tidak dicetak ke log.
 
@@ -748,7 +682,7 @@ Status error membedakan input invalid, autentikasi/izin gagal, konflik slot/idem
 - Semua mutasi divalidasi server-side. Login staff memakai password hash yang sesuai dan sesi cookie aman; logout mencabut sesi.
 - Rate limit login, token exchange, booking, dan chat; tidak mengandalkan IP saja. Parameter awal dikalibrasi agar dua pengembang masih bisa menguji tanpa membuka abuse.
 - Log hanya request ID, tenant ID yang aman, tipe operasi, error code, durasi, model ID, token usage jika ada. Tidak menyimpan raw prompt/token/telepon di telemetry.
-- Chat tersamarkan dan trace tool dihapus setelah 30 hari; sesi chat kedaluwarsa setelah 24 jam; proposal invalid setelah 10 menit. Audit operasional demo disimpan maksimal 90 hari. Tidak ada data pribadi nyata dalam seed.
+- Chat tersamarkan dan trace tool dihapus setelah 30 hari; sesi chat kedaluwarsa setelah 24 jam; konfirmasi web invalid setelah maksimal 5 menit. Audit operasional demo disimpan maksimal 90 hari. Tidak ada data pribadi nyata dalam seed.
 - Data reservasi sintetis dipertahankan sampai evaluasi akhir. Kebijakan retensi data customer nyata, persetujuan pemrosesan, penghapusan, dan akses staff harus disetujui sebelum pilot nyata.
 - Backup/restore database diuji minimal sekali sebelum demo. Hosting gratis yang sleep tidak dijadikan jaminan availability produksi.
 - Form dan chat dapat digunakan keyboard, label input jelas, status/error terbaca, loading tidak mengunci jalur web, responsif mobile.
@@ -762,12 +696,12 @@ Status error membedakan input invalid, autentikasi/izin gagal, konflik slot/idem
 - Konkurensi: 50 request berbeda untuk satu meja fixed dan interval sama → tepat satu reservasi confirmed; retry key sama → satu hasil, bukan reservasi baru.
 - Auth: tenant lain, sesi lain, token salah/kedaluwarsa, role staff versus owner, CSRF, logout/revocation.
 - RAG: filter tenant sebelum ranking, hanya published/current revision, unpublish/reindex dan abstention.
-- E2E utama: mulai dari chat untuk menu/FAQ/cek meja serta buat/lihat/batal reservasi, konfirmasi melalui komponen privat, koreksi detail dan tanggal ambigu, refresh halaman, akses sesi kedaluwarsa, respons commit hilang.
+- E2E chat: informasi/menu/FAQ, sumber, pertanyaan di luar scope, isolasi tenant dan abstention. E2E reservasi terpisah: buat/lihat/batal melalui form privat, koreksi detail, refresh, sesi kedaluwarsa dan respons commit hilang.
 - E2E fallback: model/kuota mati → form mandiri tetap bekerja; nilai kontak, token, dan kartu reservasi privat tidak masuk payload model atau transcript.
 
 ### Evaluasi AI terbatas kuota
 
-Mulai dengan 30 skenario tetap: delapan menu/profil, enam dokumen FAQ, enam alur reservasi dari chat (buat/lihat/batal, koreksi detail, tanggal ambigu dan konfirmasi), enam adversarial/isolasi, empat gangguan/abstention. Sebagian adversarial API diuji tanpa memanggil model. Tambahkan variasi setelah kegagalan ditemukan, bukan mengejar jumlah semata.
+Mulai dengan 30 skenario tetap: delapan menu/profil, dua belas dokumen FAQ termasuk pertanyaan tanpa sumber, enam adversarial/isolasi, empat gangguan/abstention. Reservasi diuji terpisah tanpa inference model. Sebagian adversarial API diuji tanpa memanggil model. Tambahkan variasi setelah kegagalan ditemukan, bukan mengejar jumlah semata.
 
 Catat input sintetis, fakta yang diharapkan, tool yang dipanggil, sumber retrieval, respons aktual, jumlah inference request, model/provider, latensi, dan hasil penilaian. Gunakan pemeriksaan programatis untuk nilai/menu/tenant dan review manusia untuk kualitas jawaban; jangan bergantung pada LLM judge berbayar.
 
@@ -785,8 +719,8 @@ Baseline jadwal mulai 27 Oktober 2026. Dua pengembang, waktu efektif magang belu
 | --- | --- | --- | --- |
 | 27 Okt–1 Nov | Model tenant/outlet, migrasi awal, rancangan kontrak tools dan sesi | Skeleton web, service Agno, smoke test model gratis dan fallback | Satu tool membaca API; schema/proposal dan biaya nol terbukti pada smoke test |
 | 2–15 Nov | Auth staff, menu, meja, jam dan hari khusus, constraint tenant | Beranda/profil/menu/lokasi, dashboard, widget chat read-only dan renderer aman | Website bisa dijelajahi tanpa chat; tenant berbeda tidak saling melihat data; menu/jadwal dapat diisi |
-| 16–29 Nov | Availability, create/cancel, token akses privat, idempotency dan audit | Alur chatbot buat/lihat/batal dengan komponen privat, kartu proposal, konfirmasi dan form fallback | Reservasi dari chat lengkap, data privat tidak masuk model, tes konkurensi lulus |
-| 30 Nov–6 Des | Endpoint retrieval, publish/revision dokumen, pemeriksaan sesi internal | RAG kecil, sumber jawaban, evaluasi respons dan failure UI | FAQ punya sumber; dokumen tenant lain tidak masuk konteks |
+| 16–29 Nov | Availability, create/cancel, sesi akses privat, idempotency dan audit | Form web buat/lihat/batal, ringkasan, konfirmasi, receipt dan recovery; chatbot informasi terpisah | Reservasi web lengkap, data privat tidak masuk model, tes konkurensi lulus |
+| 30 Nov–6 Des | Endpoint retrieval, publikasi/revision dokumen oleh developer dan pemeriksaan sesi internal | RAG kecil, sumber jawaban, evaluasi respons dan failure UI | FAQ punya sumber; dokumen tenant lain tidak masuk konteks |
 | 7–13 Des | Auth negatif, replay, pengujian transaksi dan log | E2E chat/web, evaluasi AI, aksesibilitas; MCP hanya jika inti sudah lulus | Fitur inti dibekukan; tidak ada kegagalan safety terbuka |
 | 14–20 Des | Backup/restore, deploy lokal/staging, perbaikan bug | Demo lengkap, evaluasi live sesuai kuota, panduan penggunaan | Demo stabil dengan jalur AI dan fallback web |
 | 21–31 Des | Buffer, perbaikan penghambat dan serah terima | Buffer, rekaman cadangan berlabel dan penjelasan teknis | Tidak menambah fitur besar menjelang akhir magang |
@@ -827,10 +761,10 @@ Masih perlu ditetapkan saat kickoff: jumlah jam kerja efektif, target host atau 
 
 ## Kriteria selesai
 
-- Customer dapat mencari menu, bertanya FAQ, cek meja serta membuat, melihat, dan membatalkan booking dari chatbot website; kartu/form privat merupakan bagian pengalaman chat, bukan pengalihan wajib ke halaman lain.
+- Customer dapat mencari menu, informasi restoran dan FAQ bersumber melalui chatbot; permintaan booking diarahkan ke form web tanpa mengumpulkan kontak di chat.
 - Beranda, profil, menu, lokasi/jam buka serta form reservasi dapat digunakan tanpa membuka chatbot. Form biasa mendukung buat/lihat/batal, termasuk saat model gagal; keberhasilannya tidak dihitung sebagai bukti keberhasilan alur chatbot.
-- Chat membaca data operasional dari tools dan FAQ dari sumber published, menyiapkan proposal tanpa hak tulis.
-- Konfirmasi customer menghasilkan tepat satu reservasi lewat aturan bisnis yang sama dengan web.
+- Chat membaca informasi restoran/menu dari tools dan FAQ dari sumber published; tidak mengecek slot, menyiapkan proposal booking atau memegang hak tulis.
+- Konfirmasi eksplisit pada form web menghasilkan tepat satu reservasi; retry yang sama memulihkan receipt tanpa booking tambahan.
 - Dua tenant dalam pengujian tidak saling mengakses data, termasuk sesi chat, dokumen dan proposal.
 - Tes PostgreSQL nyata membuktikan tidak ada overlap untuk satu meja dan interval sama.
 - Gangguan model/kuota tidak memblokir form reservasi dan tidak memalsukan status sukses.

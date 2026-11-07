@@ -21,6 +21,16 @@ export function validatedChatCards(value: unknown) {
         return { id: text(item.id, 80), name: text(item.name, 120), description: text(item.description, 1000), price: item.price as number, isAvailable: item.isAvailable };
       }) };
     }
+    if (card.type === "knowledge") {
+      if (!Array.isArray(card.data) || card.data.length > 3) throw new ServiceUnavailableException();
+      return { type: "knowledge", data: card.data.map(rawItem => {
+        const item = record(rawItem);
+        if (Object.keys(item).sort().join() !== "documentId,position,revision,text,title" || !Number.isSafeInteger(item.revision) || (item.revision as number) < 1 || !Number.isInteger(item.position) || (item.position as number) < 0 || (item.position as number) > 99) throw new ServiceUnavailableException();
+        const documentId = text(item.documentId, 36);
+        if (!/^[a-f0-9-]{36}$/i.test(documentId)) throw new ServiceUnavailableException();
+        return { documentId, revision: item.revision as number, position: item.position as number, title: text(item.title, 200), text: text(item.text, 2000) };
+      }) };
+    }
     if (card.type === "restaurant") {
       const profile = record(card.data);
       if (Object.keys(profile).sort().join() !== "name,outlets,slug" || !Array.isArray(profile.outlets) || profile.outlets.length > 1 || profile.slug !== "demo-padang") throw new ServiceUnavailableException();

@@ -29,9 +29,19 @@ def today_hours_reply(profile: dict, *, wants_reservation: bool = False) -> str:
                 return f'{minutes // 60:02d}.{minutes % 60:02d}'
             answer = f"Hari ini restoran buka pukul {clock(today['openMinute'])}–{clock(today['closeMinute'])} WIB."
     if wants_reservation:
-        answer += ' Reservasi lewat chat belum bisa dilakukan.'
+        answer += ' ' + RESERVATION_FORM_REPLY
     return answer
 
+
+RESERVATION_FORM_REPLY = 'Untuk membuat, melihat atau membatalkan reservasi, gunakan form Reservasi pada website; jangan kirim kontak atau kode akses di chat.'
+
+def reservation_form_request(message: str) -> bool:
+    """Route only explicit, standalone booking actions; mixed factual questions stay on tools."""
+    text = message.casefold().strip().rstrip('.!?')
+    simple = bool(re.fullmatch(r'(?:(?:saya |aku )?(?:mau |ingin |tolong ))?(?:reservasi|booking|pesan meja|buat reservasi|buat booking|batalkan reservasi|batalkan booking|lihat reservasi|lihat booking)', text))
+    dated = asks_reservation(text) and bool(re.search(r'\b(?:besok|lusa|tanggal|pagi|siang|malam)\b|\d', text))
+    factual = bool(re.search(r'\b(?:menu|harga|alamat|lokasi|aturan|kebijakan|kapasitas)\b|jam buka|buka jam|berapa orang', text))
+    return simple or (dated and not factual)
 
 def asks_reservation(message: str) -> bool:
     return bool(re.search(r'\b(?:reservasi|booking|pesan meja)\b', message, flags=re.IGNORECASE))

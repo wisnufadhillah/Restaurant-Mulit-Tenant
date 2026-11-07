@@ -19,6 +19,7 @@ model Tenant {
   staff Staff[]
   menuItems MenuItem[]
   reservationCreatorSessions ReservationCreatorSession[]
+  knowledgeDocuments KnowledgeDocument[]
   @@map("tenants")
 }
 
@@ -217,6 +218,47 @@ model ReservationManagementSession {
   revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
   @@index([tenantId, reservationId])
   @@map("reservation_management_sessions")
+}
+
+model KnowledgeDocument {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  activeRevision Int? @map("active_revision")
+  revisions KnowledgeDocumentRevision[] @relation("KnowledgeRevisions")
+  active KnowledgeDocumentRevision? @relation("ActiveKnowledgeRevision", fields: [tenantId, id, activeRevision], references: [tenantId, documentId, revision], onDelete: NoAction, onUpdate: NoAction)
+  @@unique([tenantId, id])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeDocumentRevision {
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  revision Int
+  document KnowledgeDocument @relation("KnowledgeRevisions", fields: [tenantId, documentId], references: [tenantId, id], onDelete: Restrict)
+  activeFor KnowledgeDocument[] @relation("ActiveKnowledgeRevision")
+  title String
+  status String @default("draft")
+  contentHash String @map("content_hash")
+  approvedHash String? @map("approved_hash")
+  approvedAt DateTime? @map("approved_at") @db.Timestamptz(3)
+  approvalReference String? @map("approval_reference")
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  chunks KnowledgeChunk[]
+  @@id([tenantId, documentId, revision])
+  @@map("knowledge_document_revisions")
+}
+
+model KnowledgeChunk {
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  revision Int
+  position Int
+  text String
+  documentRevision KnowledgeDocumentRevision @relation(fields: [tenantId, documentId, revision], references: [tenantId, documentId, revision], onDelete: Restrict)
+  @@id([tenantId, documentId, revision, position])
+  @@map("knowledge_chunks")
 }
 
 model StaffSession {

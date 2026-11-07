@@ -15,7 +15,10 @@ export class ConversationTransport {
   async send(body: unknown) {
     const token = process.env.ASSISTANT_GATEWAY_TOKEN;
     if (!token || token.length < 32) throw new ServiceUnavailableException();
-    const response = await fetch("http://127.0.0.1:8001/turn", { method: "POST", headers: { "content-type": "application/json", "x-assistant-service-token": token }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000), redirect: "error" });
+    const origin = process.env.ASSISTANT_ORIGIN ?? "http://127.0.0.1:8001";
+    const url = new URL(origin);
+    if (url.origin !== origin || url.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(url.hostname) || url.username || url.password) throw new ServiceUnavailableException();
+    const response = await fetch(`${origin}/turn`, { method: "POST", headers: { "content-type": "application/json", "x-assistant-service-token": token }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000), redirect: "error" });
     if (!response.ok) throw new ServiceUnavailableException();
     const length = Number(response.headers.get("content-length"));
     if (!Number.isFinite(length) || length <= 0 || length > 131072) throw new ServiceUnavailableException();

@@ -5,17 +5,19 @@ import { maskedChatPreview } from "./chat-presentation";
 interface MenuItem { id: string; name: string; description: string; price: number; isAvailable: boolean; }
 interface Profile { name: string; outlets: { name: string; address: string; contactPhone: string }[]; }
 interface Hours { weekday: number; openMinute: number | null; closeMinute: number | null; }
-type Card = { type: "menu"; data: MenuItem[] } | { type: "restaurant"; data: Profile } | { type: "hours"; data: Hours[] };
+interface KnowledgeExcerpt { documentId: string; revision: number; position: number; title: string; text: string; }
+type Card = { type: "knowledge"; data: KnowledgeExcerpt[] } | { type: "menu"; data: MenuItem[] } | { type: "restaurant"; data: Profile } | { type: "hours"; data: Hours[] };
 interface Message { sender: "user" | "assistant"; text: string; cards?: Card[]; }
 const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 const time = (n: number) => `${String(Math.floor(n / 60)).padStart(2, "0")}.${String(n % 60).padStart(2, "0")}`;
 const currency = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 
 function ChatCard({ card }: { card: Card }) {
-  return <details className="sela-chat-card"><summary>{card.type === "menu" ? "Lihat menu dan harga" : card.type === "hours" ? "Lihat jadwal mingguan" : "Lihat info restoran"}</summary>
+  if (card.type === "knowledge") return <div className="sela-chat-card" role="group" aria-label="Sumber jawaban"><p className="senja-note">Sumber jawaban</p>{card.data.length ? card.data.map(item => <div key={`${item.documentId}-${item.revision}-${item.position}`}><strong>{item.title}</strong><p>{item.text}</p><small>Versi sumber {item.revision}</small></div>) : <p>Belum ada sumber FAQ yang sesuai.</p>}</div>;
+  return <div className="sela-chat-card" role="group" aria-label={card.type === "menu" ? "Menu dan harga" : card.type === "hours" ? "Jadwal mingguan" : "Info restoran"}>
     {card.type === "menu" ? (card.data.length ? card.data.map(item => <div className="sela-chat-menu-item" key={item.id}><strong>{item.name}</strong><span>{currency.format(item.price)} · {item.isAvailable ? "Tersedia" : "Habis"}</span><p>{item.description}</p></div>) : <p>Belum ada menu aktif.</p>) : card.type === "restaurant" ? <><strong>{card.data.name}</strong>{card.data.outlets.map(outlet => <div key={outlet.name}><p>{outlet.name}</p><p>{outlet.address}</p>{outlet.contactPhone && <p>{outlet.contactPhone}</p>}</div>)}</> : <><dl>{[1, 2, 3, 4, 5, 6, 0].map(day => { const row = card.data.find(item => item.weekday === day); return <div key={day}><dt>{days[day]}</dt><dd>{!row ? "Belum diatur" : row.openMinute === null || row.closeMinute === null ? "Tutup" : `${time(row.openMinute)}–${time(row.closeMinute)} WIB`}</dd></div>; })}</dl><p>Jadwal reguler; hari khusus bisa berbeda.</p></>}
     <small>Data restoran</small>
-  </details>;
+  </div>;
 }
 
 export default function ChatbotWidget() {
@@ -68,7 +70,7 @@ export default function ChatbotWidget() {
       const response = await fetch("/chat/messages", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: submitted }) });
       const body = await response.json();
       if (!response.ok) { if (response.status === 403) setReady(false); throw new Error(); }
-      setMessages(previous => [...previous.slice(0, -1), { sender: "user" as const, text: body.input }, { sender: "assistant", text: body.message, cards: (body.cards ?? []).filter((card: Card) => card.type === "menu") } as Message].slice(-20));
+      setMessages(previous => [...previous.slice(0, -1), { sender: "user" as const, text: body.input }, { sender: "assistant", text: body.message, cards: (body.cards ?? []).filter((card: Card) => card.type === "menu" || card.type === "knowledge" || card.type === "restaurant") } as Message].slice(-20));
     } catch {
       setMessages(previous => previous.slice(0, -1));
       setInput(submitted);

@@ -27,15 +27,15 @@ function dashboard(session) {
 
 test('dashboard navigation keeps existing managers and exposes honest unwired screens', async () => {
   const render = dashboard(async () => ({ username: 'Synthetic operator', slug: 'synthetic-restaurant', role: 'owner' }));
-  for (const [tab, target] of [['menu', 'MenuManager'], ['tables', 'TableManager'], ['hours', 'HoursManager'], ['profile', 'ProfileManager']]) {
+  for (const [tab, target] of [['menu', 'MenuManager'], ['tables', 'TableManager'], ['hours', 'HoursManager'], ['profile', 'ProfileManager'], ['reservations', 'ReservationManager']]) {
     const html = await render(tab);
     assert.ok(html.includes(`data-manager="${target}"`));
-    assert.equal((html.match(/aria-current="page"/g) ?? []).length, tab === 'menu' ? 1 : 2);
+    assert.equal((html.match(/aria-current="page"/g) ?? []).length, ['menu', 'reservations'].includes(tab) ? 1 : 2);
   }
   assert.ok((await render(undefined)).includes('data-view="overview"'));
   assert.ok((await render('outlets')).includes('data-view="outlets"'));
   assert.ok((await render('unknown')).includes('data-view="overview"'));
-  for (const tab of ['reservations', 'categories', 'audit']) {
+  for (const tab of ['categories', 'audit']) {
     const html = await render(tab);
     assert.ok(html.includes('Belum terhubung'));
     assert.ok(html.includes('Data tidak ditampilkan sampai layanan ini terhubung.'));

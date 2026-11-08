@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { staffSession } from "../staff-session";
 import LogoutButton from "./LogoutButton";
 import MenuManager from "./MenuManager";
+import ReservationManager from "./ReservationManager";
 import TableManager from "./TableManager";
 import HoursManager from "./HoursManager";
 import ProfileManager from "./ProfileManager";
@@ -71,7 +72,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <main id="staff-content" className="sela-admin-main">
         <header className="sela-admin-heading"><div><p className="sela-admin-breadcrumb">Ruang pengelola / {sections.find(section => section.key === active)?.label}</p><h1>{title}</h1><p>{description}</p></div>{tab === "overview" && <Link className="senja-button" href="/dashboard?tab=menu">Kelola menu <span aria-hidden="true">→</span></Link>}</header>
         {active === "outlets" && <nav className="sela-admin-subnav" aria-label="Pengaturan outlet">{[["outlets", "Lokasi"], ["profile", "Profil"], ["hours", "Jam & hari khusus"], ["tables", "Meja"]].map(([key, label]) => <Link key={key} href={`/dashboard?tab=${key}`} aria-current={tab === key ? "page" : undefined}>{label}</Link>)}</nav>}
-        {unavailable ? <div className="senja-service-state"><h2>Sesi belum dapat diperiksa.</h2><p role="alert">Pastikan API berjalan, lalu muat ulang halaman. Data restoran belum ditampilkan.</p><Link className="senja-text-link" href="/dashboard">Periksa sesi lagi</Link></div> : tab === "profile" ? <ProfileManager role={session!.role} /> : tab === "hours" ? <HoursManager role={session!.role} /> : tab === "tables" ? <TableManager role={session!.role} /> : tab === "menu" ? <MenuManager role={session!.role} /> : tab === "overview" || tab === "outlets" ? <DashboardViews view={tab} /> : <UnconnectedView tab={tab} />}
+        {unavailable ? <div className="senja-service-state"><h2>Sesi belum dapat diperiksa.</h2><p role="alert">Pastikan API berjalan, lalu muat ulang halaman. Data restoran belum ditampilkan.</p><Link className="senja-text-link" href="/dashboard">Periksa sesi lagi</Link></div> : tab === "reservations" ? <ReservationManager /> : tab === "profile" ? <ProfileManager role={session!.role} /> : tab === "hours" ? <HoursManager role={session!.role} /> : tab === "tables" ? <TableManager role={session!.role} /> : tab === "menu" ? <MenuManager role={session!.role} /> : tab === "overview" || tab === "outlets" ? <DashboardViews view={tab} /> : <UnconnectedView tab={tab} />}
       </main>
     </div>
   </div>;

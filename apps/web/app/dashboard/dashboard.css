@@ -107,6 +107,37 @@
 .sela-hours-row > strong { width: 70px; font-size: 12px; }
 .sela-hours-row label { display: grid; gap: 6px; font-size: 11px; }
 .sela-hours-row input:not([type="checkbox"]) { min-height: 44px; max-width: 180px; padding: 8px; border: 1px solid #858d7d; border-radius: 3px; background: #fffdf7; color: inherit; font-size: 16px; }
+.sela-reservations .sela-reservation-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; padding: 20px; margin-block: 20px; border: 1px solid var(--senja-line); border-radius: 6px; background: #fffdf7; }
+.sela-reservation-filters label { display: grid; gap: 8px; flex: 1 1 220px; font-size: 12px; font-weight: 600; }
+.sela-reservation-filters input,.sela-reservation-filters select { width: 100%; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border: 1px solid #858d7d; border-radius: 4px; background: #fffdf7; color: inherit; font: 16px Arial,sans-serif; }
+.sela-reservations-table { min-width: 1000px; table-layout: auto; }
+.sela-reservations-table tbody th { width: auto; }
+.sela-reservations-table th,.sela-reservations-table td { overflow-wrap: normal; word-break: normal; }
+.sela-reservations-table th:nth-child(2),.sela-reservations-table td:nth-child(2) { min-width: 130px; max-width: 240px; overflow-wrap: break-word; }
+.sela-reservations-table th:nth-child(3),.sela-reservations-table td:nth-child(3) { min-width: 160px; }
+.sela-reservations-table th:nth-child(4),.sela-reservations-table td:nth-child(4) { min-width: 150px; }
+.sela-reservations-table th:nth-child(5),.sela-reservations-table td:nth-child(5),.sela-reservations-table td:last-child { white-space: nowrap; }
+.sela-reservation-summary { list-style: none; margin: 0; padding: 0; }
+.sela-reservation-summary li { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 18px; border-bottom: 1px solid var(--senja-line); }
+.sela-reservation-summary li:last-child { border-bottom: 0; }
+.sela-reservation-summary li > div { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.sela-reservation-summary strong { font-size: 13px; }
+.sela-reservation-summary p,.sela-reservation-summary span { font-size: 12px; color: var(--senja-muted); }
+.sela-reservation-reference { white-space: nowrap; font-family: ui-monospace,monospace; font-size: 12px; }
+.sela-reservation-pagination { margin-block: 24px; }
+.sela-reservation-detail { padding: 24px; border: 1px solid var(--senja-line); border-radius: 6px; background: #fffdf7; scroll-margin-top: 24px; }
+.sela-reservation-detail header,.sela-reservation-detail footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+.sela-reservation-detail .senja-eyebrow { margin-bottom: 6px; color: var(--senja-muted); }
+.sela-reservation-detail h3 { margin: 0; font-size: 20px; overflow-wrap: anywhere; }
+.sela-reservation-full-reference { display: grid; gap: 6px; padding-block: 20px; margin-top: 20px; border-block: 1px solid var(--senja-line); }
+.sela-reservation-full-reference span,.sela-reservation-detail dt { color: var(--senja-muted); font-size: 12px; }
+.sela-reservation-full-reference strong { font: 13px/1.6 ui-monospace,monospace; overflow-wrap: anywhere; user-select: text; }
+.sela-reservation-detail dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px 32px; margin-block: 24px; }
+.sela-reservation-detail dl > div { min-width: 0; }
+.sela-reservation-detail dd { margin: 6px 0 0; font-size: 15px; line-height: 1.65; overflow-wrap: anywhere; }
+.sela-reservation-detail footer { border-top: 1px solid var(--senja-line); padding-top: 20px; }
+.sela-reservations button:disabled { opacity: .55; cursor: not-allowed; }
+@media (max-width: 40rem) { .sela-reservation-detail { padding: 18px; } .sela-reservation-detail dl { grid-template-columns: 1fr; gap: 20px; } .sela-reservation-filters > button { width: 100%; } }
 .sela-admin :focus-visible { outline: 3px solid #a26124; outline-offset: 3px; }
 @media (hover: hover) { .sela-admin-sidebar nav a:hover { background: #2c533d; } .sela-admin-quick-actions a:hover { background: #e5ebdc; } .sela-admin-topline a:hover,.sela-admin-location-actions a:hover { text-decoration: underline; text-underline-offset: 4px; } }
 @media (max-width: 75rem) { .sela-admin { grid-template-columns: 224px minmax(0, 1fr); } .sela-admin-main { padding: 24px; } .sela-admin-quick-actions > div { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sela-admin-overview-grid { grid-template-columns: 1fr; } .sela-admin-outlet-grid { grid-template-columns: 1fr; } }

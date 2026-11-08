@@ -1,4 +1,6 @@
 import { Module } from "@nestjs/common";
+import { StaffReservationsController } from "./restaurant/staff-reservations.controller";
+import { StaffReservationsService } from "./restaurant/staff-reservations.service";
 import { KnowledgeController } from "./restaurant/knowledge.controller";
 import { KnowledgeRepository } from "./restaurant/knowledge.repository";
 import { HealthController } from "./health.controller";
@@ -35,5 +37,5 @@ import { ReservationController } from "./restaurant/reservation.controller";
 import { ReservationService } from "./restaurant/reservation.service";
 import { ReservationRepository } from "./restaurant/reservation.repository";
 
-@Module({ controllers: [KnowledgeController, ReservationController, AvailabilityController, ChatMessageController, ChatCatalogueController, ChatSessionController, InternalToolsController, HealthController, RestaurantController, StaffController, MenuController, TableController, HoursController, ProfileController, SpecialHoursController], providers: [KnowledgeRepository, ReservationService, ReservationRepository, AvailabilityService, AvailabilityRepository, ConversationTransport, ChatSessionsService, RestaurantService, StaffService, StaffRepository, MenuService, TableService, HoursService, ProfileService, SpecialHoursService] })
+@Module({ controllers: [StaffReservationsController, KnowledgeController, ReservationController, AvailabilityController, ChatMessageController, ChatCatalogueController, ChatSessionController, InternalToolsController, HealthController, RestaurantController, StaffController, MenuController, TableController, HoursController, ProfileController, SpecialHoursController], providers: [StaffReservationsService, KnowledgeRepository, ReservationService, ReservationRepository, AvailabilityService, AvailabilityRepository, ConversationTransport, ChatSessionsService, RestaurantService, StaffService, StaffRepository, MenuService, TableService, HoursService, ProfileService, SpecialHoursService] })
 export class AppModule {}

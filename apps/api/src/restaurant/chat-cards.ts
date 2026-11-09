@@ -42,3 +42,20 @@ export function validatedChatCards(value: unknown) {
     throw new ServiceUnavailableException();
   });
 }
+
+export function validatedChatActions(value: unknown) {
+  if (!Array.isArray(value) || value.length > 3) throw new ServiceUnavailableException();
+  return value.map(raw => {
+    const action = record(raw);
+    const type = action.type;
+    if (type === "navigate") {
+      if (Object.keys(action).sort().join() !== "id,label,target,type" || !["#menu", "#reservasi"].includes(String(action.target))) throw new ServiceUnavailableException();
+      return { id: text(action.id, 40), type: "navigate" as const, label: text(action.label, 80), target: action.target as "#menu" | "#reservasi" };
+    }
+    if (type === "prompt") {
+      if (Object.keys(action).sort().join() !== "id,label,message,type" || !["Jam buka hari ini kapan?", "Apa kebijakan restoran lain yang perlu saya tahu?"].includes(String(action.message))) throw new ServiceUnavailableException();
+      return { id: text(action.id, 40), type: "prompt" as const, label: text(action.label, 80), message: action.message as string };
+    }
+    throw new ServiceUnavailableException();
+  });
+}

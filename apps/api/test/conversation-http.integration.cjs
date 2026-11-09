@@ -24,7 +24,7 @@ test('Nest gateway crosses real Python HTTP boundary with redaction, cards and s
         if (text.includes('\n')) { clearTimeout(timer); try { resolvePort(JSON.parse(text.split('\n')[0]).port); } catch { reject(new Error('Invalid readiness response')); } }
       });
     });
-    global.fetch = (url, options) => originalFetch(url === 'http://127.0.0.1:8001/turn' ? `http://127.0.0.1:${port}/turn` : url, options);
+    global.fetch = (url, options) => originalFetch(url === 'http://127.0.0.1:8010/turn' ? `http://127.0.0.1:${port}/turn` : url, options);
     app = await createApp(); await app.listen(0, '127.0.0.1');
     const session = app.get(ChatSessionsService).create('demo-padang');
     const send = message => originalFetch(`${app.getHttpServer().address().address === '127.0.0.1' ? 'http://127.0.0.1' : ''}:${app.getHttpServer().address().port}/api/v1/chat/messages`, { method: 'POST', headers: { cookie: `restaurant_chat=${session.token}`, origin: 'http://127.0.0.1:3000', 'content-type': 'application/json' }, body: JSON.stringify({ message }) });

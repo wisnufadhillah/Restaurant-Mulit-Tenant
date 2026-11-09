@@ -1,0 +1,17 @@
+HTML = r'''<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agno Playground</title>
+<style>
+:root{color-scheme:dark;font:15px system-ui;background:#111827;color:#e5e7eb}body{max-width:1180px;margin:0 auto;padding:24px}h1{margin:0 0 4px}.muted{color:#9ca3af}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}.card{background:#1f2937;border:1px solid #374151;border-radius:10px;padding:16px}textarea{width:100%;height:86px;box-sizing:border-box;background:#111827;color:inherit;border:1px solid #4b5563;border-radius:6px;padding:10px}button{background:#2563eb;color:white;border:0;border-radius:6px;padding:9px 12px;cursor:pointer;margin:8px 6px 0 0}button.secondary{background:#4b5563}.message{white-space:pre-wrap;margin-top:12px;min-height:40px}.event{border-left:3px solid #60a5fa;padding:7px 10px;margin:7px 0;background:#111827;font-family:ui-monospace,monospace;font-size:12px;white-space:pre-wrap}.scenario{display:flex;justify-content:space-between;gap:8px;align-items:center;border-bottom:1px solid #374151;padding:10px 0}.PASS{color:#34d399}.FAIL{color:#f87171}.REVIEW{color:#fbbf24}@media(max-width:800px){.grid{grid-template-columns:1fr}}
+</style></head><body>
+<h1>Agno Playground</h1><div class="muted">Standalone agent inspector — mock restaurant data, no production API.</div>
+<div class="grid"><section class="card"><h2>Chat</h2><textarea id="message" placeholder="Contoh: Ada meja untuk 4 orang besok jam 19:00?"></textarea><br><button onclick="chat()">Run agent</button><div id="answer" class="message"></div><div id="trace"></div></section>
+<section class="card"><h2>Scenario testing</h2><div id="scenarios">Loading…</div><h2>Recent runs</h2><div id="runs" class="muted">Loading…</div></section></div>
+<script>
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function refresh(){const [s,r]=await Promise.all([fetch('/api/playground/scenarios').then(x=>x.json()),fetch('/api/playground/runs').then(x=>x.json())]);document.querySelector('#scenarios').innerHTML=s.map(x=>`<div class="scenario"><span><b>${esc(x.name)}</b><br><small>${esc(x.description)}</small></span><button class="secondary" onclick="scenario('${x.id}')">Run</button></div>`).join('');document.querySelector('#runs').innerHTML=r.runs.slice(0,8).map(x=>`<div><span class="${x.evaluation?.status||x.status}">${x.evaluation?.status||x.status}</span> ${esc(x.message)}</div>`).join('')||'No runs';}
+function show(run){document.querySelector('#answer').innerHTML=`<b>${esc(run.status)}</b><div>${esc(run.response||run.error||'')}</div>`;document.querySelector('#trace').innerHTML=run.events.map(e=>`<div class="event"><b>${esc(e.type)}</b> ${esc(JSON.stringify(e.data,null,2))}</div>`).join('');}
+async function chat(){const message=document.querySelector('#message').value.trim();if(!message)return;const res=await fetch('/api/playground/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({message})});const data=await res.json();show(data);refresh();}
+async function scenario(id){const res=await fetch('/api/playground/scenarios/run',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({scenario_id:id})});const data=await res.json();show(data);refresh();}
+refresh();
+</script></body></html>'''

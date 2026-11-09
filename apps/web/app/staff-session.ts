@@ -11,7 +11,7 @@ export const cookieOptions = { httpOnly: true, sameSite: "strict" as const, secu
 
 function acceptedOrigins(expected: string) {
   const origins = new Set([expected]);
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" || process.env.STAFF_ORIGIN === expected) {
     const url = new URL(expected);
     if (url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname)) {
       url.hostname = url.hostname === "localhost" ? "127.0.0.1" : "localhost";
@@ -26,7 +26,8 @@ export function trustedOrigin(request: Request): boolean {
   if (!expected || request.headers.get("sec-fetch-site") === "cross-site") return false;
   try {
     const url = new URL(expected);
-    return url.origin === expected && acceptedOrigins(expected).has(request.headers.get("origin") ?? "") && (url.protocol === "https:" || (process.env.NODE_ENV !== "production" && url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname)));
+    const localHttp = url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname) && process.env.STAFF_ORIGIN === expected;
+    return url.origin === expected && acceptedOrigins(expected).has(request.headers.get("origin") ?? "") && (url.protocol === "https:" || localHttp);
   } catch { return false; }
 }
 

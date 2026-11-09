@@ -42,6 +42,8 @@
 .sela-chat-shortcuts { display: flex; flex-wrap: wrap; align-self: flex-start; flex-shrink: 0; gap: 6px; max-width: 100%; }
 .sela-chat-shortcuts[hidden] { display: none; }
 .sela-chat-shortcuts button { background: var(--senja-paper); border: 1px solid var(--senja-line); border-radius: 16px; padding: 6px 12px; min-height: 44px; font: inherit; font-size: 12px; cursor: pointer; }
+.sela-chat-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.sela-chat-actions button { background: var(--senja-paper); border: 1px solid var(--senja-line); border-radius: 16px; padding: 6px 12px; min-height: 40px; font: inherit; font-size: 12px; cursor: pointer; }
 .sela-chat-composer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 6px; margin-top: 0; }
 .sela-chat-composer textarea { width: 100%; min-width: 0; max-height: 112px; resize: none; overflow-y: hidden; scrollbar-width: thin; border: 1px solid var(--senja-line); border-radius: 8px; background: var(--senja-paper); font: inherit; font-size: 12px; line-height: 18px; padding: 10px 8px; color: #183e2c; box-sizing: border-box; min-height: 40px; }
 .sela-chat-composer textarea::placeholder { color: #686d60; opacity: 1; }

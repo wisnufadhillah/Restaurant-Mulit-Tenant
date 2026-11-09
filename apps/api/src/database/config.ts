@@ -2,7 +2,12 @@ import { config } from "dotenv";
 import { resolve } from "node:path";
 
 export function databaseUrl(): string {
-  config({ path: resolve(__dirname, "../../.env"), quiet: true });
+  const candidates = [
+    resolve(process.cwd(), ".env"),
+    resolve(process.cwd(), "apps/api/.env"),
+    resolve(__dirname, "../../.env"),
+  ];
+  for (const path of candidates) config({ path, quiet: true });
   const value = process.env.DATABASE_URL;
   if (!value) throw new Error("DATABASE_URL is required");
   let url: URL;

@@ -54,6 +54,14 @@ export class ReservationController {
     return { data: await this.reservations.confirmation(slug, token, body) };
   }
 
+  @Post("recovery")
+  @HttpCode(200)
+  async recovery(@Param("slug") slug: string, @Body() body: unknown, @Req() request: StaffRequest, @Res({ passthrough: true }) response: StaffResponse) {
+    const creator = this.prepare(slug, request, response);
+    this.empty(body);
+    return { data: await this.reservations.recovery(slug, creator, request.headers["idempotency-key"]) };
+  }
+
   @Post("management-session")
   @HttpCode(200)
   async managementSession(@Param("slug") slug: string, @Body() body: unknown, @Req() request: StaffRequest, @Res({ passthrough: true }) response: StaffResponse) {

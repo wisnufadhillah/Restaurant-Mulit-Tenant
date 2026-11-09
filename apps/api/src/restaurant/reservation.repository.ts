@@ -114,6 +114,21 @@ export class ReservationRepository implements OnModuleDestroy {
     }, OPTIONS);
   }
 
+  recovery(slug: string, creatorHash: string, idempotencyKey: string) {
+    return this.db.$transaction(async tx => {
+      const tenantId = await this.scope(tx, slug);
+      const now = new Date();
+      const owner = await this.owner(tx, tenantId, creatorHash, now);
+      const reservation = await tx.reservation.findUnique({ where: { tenantId_idempotencyKey: { tenantId, idempotencyKey } } });
+      if (reservation) {
+        if (reservation.creatorSessionId !== owner.id) throw new ForbiddenException();
+        return { outcome: "reservation_exists" as const };
+      }
+      await tx.reservationConfirmation.updateMany({ where: { tenantId, creatorSessionId: owner.id, consumedAt: null, invalidatedAt: null }, data: { invalidatedAt: now } });
+      return { outcome: "not_created" as const };
+    }, OPTIONS);
+  }
+
   managementSession(slug: string, creatorHash: string, idempotencyKey: string, existingHash?: string) {
     return this.db.$transaction(async tx => {
       const tenantId = await this.scope(tx, slug);

@@ -43,10 +43,8 @@ export default function ReservationSection() {
     if (key && /^[A-Za-z0-9_-]{16,128}$/.test(key)) {
       setUncertain(true);
       setMessage("Memulihkan percobaan sebelumnya. Jangan membuat booking baru.");
-      request("management", {}, key).then(() => request("receipt")).then((data: Receipt) => { setReceipt(data); managementReady.current = true; setUncertain(false); sessionStorage.setItem("reservation_lookup", key!); if (sessionStorage.getItem("reservation_attempt") === key) sessionStorage.removeItem("reservation_attempt"); }).catch((error: unknown) => {
-        if (error instanceof Error && "status" in error && error.status === 404 && !sessionStorage.getItem("reservation_lookup")) {
-          sessionStorage.removeItem("reservation_attempt"); setUncertain(false); setMessage("Percobaan sebelumnya tidak menghasilkan reservasi. Periksa ulang detail.");
-        } else setError("Percobaan sebelumnya belum dapat dipastikan. Tetap di halaman ini dan hubungi restoran sebelum membuat booking baru.");
+      request("management", {}, key).then(() => request("receipt")).then((data: Receipt) => { setReceipt(data); managementReady.current = true; setUncertain(false); sessionStorage.setItem("reservation_lookup", key!); if (sessionStorage.getItem("reservation_attempt") === key) sessionStorage.removeItem("reservation_attempt"); }).catch(() => {
+        setError("Percobaan sebelumnya belum dapat dipastikan. Periksa status lagi atau hubungi restoran sebelum membuat booking baru.");
       }).finally(finish);
     } else request("receipt").then((data: Receipt) => { setReceipt(data); managementReady.current = true; }).catch((error: unknown) => {
       if (!(error instanceof Error) || !("status" in error) || error.status !== 403) { setUncertain(true); setError("Status reservasi belum dapat diperiksa. Muat ulang untuk memulihkan; jangan buat booking baru."); }
@@ -91,23 +89,45 @@ export default function ReservationSection() {
   }
   async function refresh() {
     await run(async () => {
-      const key = attempt?.key ?? sessionStorage.getItem("reservation_lookup");
+      const key = attempt?.key ?? sessionStorage.getItem("reservation_attempt") ?? sessionStorage.getItem("reservation_lookup");
       if (key) { await request("management", {}, key); managementReady.current = true; }
       const current: Receipt = await request("receipt");
       if (key) sessionStorage.setItem("reservation_lookup", key);
       setReceipt(current); setAttempt(null); setUncertain(false); sessionStorage.removeItem("reservation_attempt"); setMessage("Status terbaru dimuat.");
     });
   }
+  async function settle() {
+    await run(async () => {
+      const key = attempt?.key ?? sessionStorage.getItem("reservation_attempt");
+      if (!key) throw new Error("Percobaan tidak ditemukan. Hubungi restoran untuk memeriksa status.");
+      const result = await request("recovery", {}, key);
+      if (result?.outcome === "reservation_exists") {
+        await request("management", {}, key);
+        const current: Receipt = await request("receipt");
+        sessionStorage.setItem("reservation_lookup", key);
+        managementReady.current = true;
+        setReceipt(current);
+        setMessage("Reservasi ditemukan. Akses privat dipulihkan.");
+      } else if (result?.outcome === "not_created") {
+        setReceipt(null);
+        setMessage("Percobaan ditutup tanpa reservasi. Periksa ulang detail untuk memulai lagi.");
+      } else throw new Error("Hasil belum dapat dipastikan. Jangan membuat booking baru.");
+      if (sessionStorage.getItem("reservation_attempt") === key) sessionStorage.removeItem("reservation_attempt");
+      setAttempt(null); setSummary(null); setUncertain(false); setCancelConfirm(false);
+    });
+  }
+  const recovery = uncertain ? <div><p>Selesaikan percobaan untuk memastikan hasil. Jika belum tersimpan, seluruh ringkasan yang belum dikonfirmasi pada sesi browser ini, termasuk tab lain, tidak berlaku lagi. Booking tersimpan tidak dibatalkan.</p><button disabled={busy} onClick={settle}>Selesaikan percobaan</button></div> : null;
   return <section className="senja-section senja-reservation" id="reservasi" aria-labelledby="reservation-heading">
     <div><p className="senja-eyebrow">SISIHKAN WAKTUNYA</p><h2 id="reservation-heading">Meja untuk cerita berikutnya.</h2><p className="senja-note">Tanpa akun · Durasi 90 menit · Pesan minimal 60 menit sebelumnya, maksimal 30 hari ke depan.</p><p>Kontak hanya dikirim melalui form privat, bukan chatbot. Simpan akses pada browser ini; kode referensi bukan bukti akses.</p></div>
     <div className="senja-service-state">
       <p role="status" aria-live="polite">{busy ? "Memproses…" : message}</p>
       {error ? <p role="alert">{error}</p> : null}
+      {bootstrapping ? null : recovery}
       {bootstrapping ? <p role="status">Memeriksa akses reservasi sebelumnya…</p> : receipt ? <div><h3>Reservasi {receipt.status === "cancelled" ? "dibatalkan" : receipt.status === "confirmed" ? "terkonfirmasi" : receipt.status}</h3><p>Kode: <strong>{receipt.referenceCode}</strong></p><p>{display(receipt.startAt)} WIB – {display(receipt.endAt)} WIB · {receipt.partySize} tamu</p>
         <button className="senja-button" disabled={busy} onClick={refresh}>Muat status / pulihkan akses</button>
         {receipt.status === "confirmed" ? <div>{cancelConfirm ? <><p>Batalkan reservasi ini? Pembatalan paling lambat dua jam sebelum mulai.</p><button disabled={busy} onClick={() => run(async () => { if (!managementReady.current) throw new Error("Pulihkan akses privat terlebih dahulu."); setReceipt(await request("cancel", { referenceCode: receipt.referenceCode })); setCancelConfirm(false); setMessage("Reservasi dibatalkan."); })}>Ya, batalkan reservasi</button><button disabled={busy} onClick={() => setCancelConfirm(false)}>Tetap simpan reservasi</button></> : <button disabled={busy} onClick={() => setCancelConfirm(true)}>Batalkan reservasi</button>}</div> : null}
         <button disabled={busy || uncertain || !!attempt} onClick={() => run(async () => { await request("logout"); sessionStorage.removeItem("reservation_lookup"); managementReady.current = false; setReceipt(null); setAttempt(null); setMessage("Akses privat ditutup. Sesi pembuat tetap tersimpan; jangan gunakan perangkat bersama."); })}>Tutup akses privat</button>
-      </div> : summary && attempt ? <div><h3>Periksa reservasi</h3><p>{display(summary.startAt)} WIB · {summary.partySize} tamu · 90 menit</p><p>{summary.guestName} · {summary.guestPhone}</p><p>Meja belum ditahan. Konfirmasi akan memeriksa ketersediaan lagi.</p><button className="senja-button" disabled={busy} onClick={confirm}>{uncertain ? "Coba ulang percobaan yang sama" : "Konfirmasi reservasi"}</button><button disabled={busy || uncertain} onClick={() => { setSummary(null); setAttempt(null); setMessage(""); }}>Koreksi detail</button>{uncertain ? <p>Hasil belum pasti. Jangan mengganti detail atau membuat booking baru. Jangan tutup halaman sebelum status dipulihkan.</p> : null}</div> : uncertain ? <p>Hasil percobaan sebelumnya belum pasti. Jangan buat reservasi baru. Muat ulang untuk mencoba memulihkan akses atau hubungi restoran.</p> : <form onSubmit={prepare}><fieldset disabled={busy}><legend>Detail kunjungan</legend><label>Tanggal (WIB)<input name="date" type="date" required value={details.date} onChange={e => setDetails({ ...details, date: e.target.value })} /></label><label>Jam (WIB)<input name="time" type="time" required value={details.time} onChange={e => setDetails({ ...details, time: e.target.value })} /></label><label>Jumlah tamu<input name="partySize" type="number" min="1" max="12" required value={details.partySize} onChange={e => setDetails({ ...details, partySize: Number(e.target.value) })} /></label><label>Nama<input name="guestName" autoComplete="name" maxLength={120} required value={details.guestName} onChange={e => setDetails({ ...details, guestName: e.target.value })} /></label><label>Nomor telepon<input name="guestPhone" type="tel" autoComplete="tel" maxLength={40} required value={details.guestPhone} onChange={e => setDetails({ ...details, guestPhone: e.target.value })} /></label><button className="senja-button" type="submit">Periksa meja dan ringkasan</button></fieldset></form>}
+      </div> : summary && attempt ? <div><h3>Periksa reservasi</h3><p>{display(summary.startAt)} WIB · {summary.partySize} tamu · 90 menit</p><p>{summary.guestName} · {summary.guestPhone}</p><p>Meja belum ditahan. Konfirmasi akan memeriksa ketersediaan lagi.</p><button className="senja-button" disabled={busy} onClick={confirm}>{uncertain ? "Coba ulang percobaan yang sama" : "Konfirmasi reservasi"}</button><button disabled={busy || uncertain} onClick={() => { setSummary(null); setAttempt(null); setMessage(""); }}>Koreksi detail</button>{uncertain ? <p>Hasil belum pasti. Jangan mengganti detail atau membuat booking baru. Jangan tutup halaman sebelum status dipulihkan.</p> : null}</div> : uncertain ? <div><p>Hasil percobaan sebelumnya belum pasti. Jangan buat reservasi baru. Periksa status lagi atau hubungi restoran.</p><button className="senja-button" disabled={busy} onClick={refresh}>Periksa status percobaan</button></div> : <form onSubmit={prepare}><fieldset disabled={busy}><legend>Detail kunjungan</legend><label>Tanggal (WIB)<input name="date" type="date" required value={details.date} onChange={e => setDetails({ ...details, date: e.target.value })} /></label><label>Jam (WIB)<input name="time" type="time" required value={details.time} onChange={e => setDetails({ ...details, time: e.target.value })} /></label><label>Jumlah tamu<input name="partySize" type="number" min="1" max="12" required value={details.partySize} onChange={e => setDetails({ ...details, partySize: Number(e.target.value) })} /></label><label>Nama<input name="guestName" autoComplete="name" maxLength={120} required value={details.guestName} onChange={e => setDetails({ ...details, guestName: e.target.value })} /></label><label>Nomor telepon<input name="guestPhone" type="tel" autoComplete="tel" maxLength={40} required value={details.guestPhone} onChange={e => setDetails({ ...details, guestPhone: e.target.value })} /></label><button className="senja-button" type="submit">Periksa meja dan ringkasan</button></fieldset></form>}
     </div>
   </section>;
 }

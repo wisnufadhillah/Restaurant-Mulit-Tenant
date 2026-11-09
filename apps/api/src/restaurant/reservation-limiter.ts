@@ -11,8 +11,23 @@ export class ReservationLimiter {
   private readonly buckets = new Map<string, number>();
   private end = 0;
   private total = 0;
+  private verifying = 0;
+  private verifications = 0;
   constructor(private readonly clock: () => number = () => performance.now(), private readonly capacity = 4096) {
     if (!Number.isSafeInteger(capacity) || capacity < 1) throw new Error("Invalid limiter capacity");
+  }
+
+  acquireVerification(): () => void {
+    if (this.verifying >= 4) throw new ReservationRateLimitException(1);
+    if (this.verifications >= 120) throw new ReservationRateLimitException(Math.max(1, Math.ceil((this.end - this.clock()) / 1000)));
+    this.verifications++;
+    this.verifying++;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.verifying--;
+    };
   }
 
   consume(identityHash?: string, sessionEndpoint = false, peer?: string): void {
@@ -21,6 +36,7 @@ export class ReservationLimiter {
     if (now >= this.end) {
       this.end = now + 60_000;
       this.total = 0;
+      this.verifications = 0;
       this.buckets.clear();
     }
     const deny = (): never => { throw new ReservationRateLimitException(Math.max(1, Math.ceil((this.end - now) / 1000))); };

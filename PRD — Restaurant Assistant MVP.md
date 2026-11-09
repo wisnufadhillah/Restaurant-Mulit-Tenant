@@ -772,6 +772,149 @@ Masih perlu ditetapkan saat kickoff: jumlah jam kerja efektif, target host atau 
 - Tidak ada credential atau identitas nyata di seed, prompt evaluasi, log, dan bahan demo.
 - Backup/restore serta demo ulang berhasil; batas fitur dapat dijelaskan tanpa mengklaim A2A/fine-tuning sudah dibangun.
 
+## Addendum implementasi: migrasi chatbot ke Agno V2
+
+Bagian ini menyatukan keputusan migrasi runtime chatbot dengan PRD MVP. Ia melengkapi baseline produk di atas; tidak mengubah batas bahwa chatbot production hanya read-only dan reservasi tetap melalui form web.
+
+### Tujuan migrasi
+
+- Mengganti runtime agent chatbot lama dengan Agno V2 tanpa memutus endpoint `/chat/*` yang digunakan web.
+- Menjadikan NestJS satu-satunya pemilik tenant, session, retrieval, database, dan business rules.
+- Mempertahankan jalur rollback ke runtime lama selama acceptance test migrasi belum lulus.
+- Memberikan action button kontekstual yang dibuat aplikasi secara allowlist, sehingga customer tidak harus mengetik instruksi berulang.
+
+### Arsitektur target
+
+```text
+Next.js chatbot UI
+        |
+        v
+NestJS chatbot gateway
+  - session dan tenant binding
+  - masking/redaction dan rate limit
+  - validasi request/response
+  - internal tool endpoints
+        |
+        v
+Agno V2
+  - satu agent dan model adapter
+  - tool calling read-only
+  - bounded execution
+        |
+        v
+NestJS domain layer -> Prisma/PostgreSQL
+```
+
+Agno menerima context opaque bertanda tangan dari NestJS. Agno tidak menerima credential database, tidak mengakses Prisma, dan tidak menentukan tenant, role, approval, status transaksi, atau hak tulis.
+
+### Ownership dan kontrak migrasi
+
+| Concern | Pemilik | Batas Agno |
+| --- | --- | --- |
+| Tenant, outlet, session dan auth | NestJS | Menggunakan context yang diterbitkan gateway |
+| Menu, profil, jam buka | NestJS/domain API | Membaca melalui tool internal |
+| FAQ published dan revision aktif | NestJS/domain API | Mencari melalui tool internal |
+| Availability dan reservasi | NestJS/form web | Tidak memiliki tool chatbot |
+| Database dan Prisma | NestJS | Tidak boleh diakses langsung |
+| Agent, model dan tool calling | Agno V2 | Menangani data tool sebagai data tak tepercaya |
+| Kartu dan action UI | NestJS contract/Next.js | Tidak menerima raw HTML atau URL model |
+
+NestJS mempertahankan endpoint browser berikut:
+
+- `POST /api/v1/chat/session`
+- `POST /api/v1/chat/messages`
+- `GET /api/v1/chat/catalogue/:resource`
+
+Gateway memanggil Agno melalui loopback `POST /turn` dengan payload server-side:
+
+```json
+{
+  "message": "Apa menu yang tersedia?",
+  "tenantSlug": "demo-padang",
+  "sessionId": "opaque-session-id",
+  "context": "signed-short-lived-context"
+}
+```
+
+Response Agno minimal berbentuk bounded:
+
+```json
+{
+  "status": "ok",
+  "message": "...",
+  "cards": [],
+  "actions": [],
+  "attempted_requests": 1,
+  "diagnostics": []
+}
+```
+
+Setiap internal tool memverifikasi service token, signature context, tenant, session dan expiry. Nilai tenant/session dari browser atau model tidak dipercaya.
+
+### Scope runtime production
+
+Tool production Agno hanya:
+
+- informasi restoran dan outlet;
+- menu, harga dan status menu dari API;
+- FAQ/kebijakan published dengan revision aktif dan filter tenant sebelum ranking.
+
+Tool availability, reservation, order, payment, SQL, shell, admin, MCP write, A2A dan multi-agent tidak terdaftar pada production agent. Playground boleh memiliki mock terisolasi, tetapi tidak boleh berbagi credential atau registry production.
+
+Runtime dibatasi oleh allowlist model gratis, maksimal tool/inference request per turn, output/context length, retry, timeout dan deadline. Provider error, 429, timeout, invalid tool atau kuota habis menghasilkan fallback jujur dan tetap menyediakan jalur form web.
+
+### Action button kontekstual
+
+Model tidak dipercaya untuk menentukan action. Aplikasi membentuk action setelah memvalidasi intent dan hasil tool, lalu API dan UI memvalidasi ulang schema tersebut.
+
+Action MVP yang diizinkan:
+
+- navigasi lokal ke `#menu`;
+- navigasi lokal ke `#reservasi`;
+- prompt aman untuk pertanyaan jam buka;
+- prompt aman untuk pertanyaan kebijakan.
+
+Maksimal tiga action per response. Target eksternal, raw URL, HTML, script, action write, atau action yang tidak dikenal tidak boleh dirender maupun dieksekusi. Button harus aman untuk keyboard, mobile, duplicate click dan kondisi request sedang berjalan.
+
+### Keputusan folder `lib`
+
+Folder `lib` tidak menjadi dependency dan tidak dipulihkan. Business logic tetap berada pada service, repository dan domain module di `apps/api/src`. Membuat runtime TypeScript kedua atau menduplikasi aturan reservasi untuk melengkapi Agno berada di luar scope.
+
+### Tahapan migrasi dan rollback
+
+1. Bekukan request/response contract NestJS–Agno dan tambahkan schema/negative test.
+2. Jalankan Agno V2 dengan internal tools read-only dan bounded runner.
+3. Jalankan contract, tenant-isolation, published-only knowledge, injection, timeout, 429 dan action validation test.
+4. Jalankan evaluasi shadow dengan input sintetis yang sama pada runtime lama dan Agno.
+5. Arahkan gateway NestJS ke origin Agno V2 melalui konfigurasi loopback.
+6. Pertahankan old origin sebagai rollback sampai acceptance test dan review selesai.
+7. Hapus compatibility code hanya setelah caller, test dan rollback tidak lagi membutuhkannya.
+
+Migrasi tidak mengubah schema bisnis, data reservasi, form reservasi, dashboard, atau aturan transaksi. Tidak ada data atau file untracked yang dihapus sebagai bagian migrasi tanpa pemeriksaan terpisah.
+
+### Acceptance tambahan migrasi
+
+- UI lama dapat membuat session dan mengirim pesan melalui Agno tanpa perubahan kontrak browser.
+- Pertanyaan profil, menu, harga, jam buka dan FAQ memanggil tool yang sesuai.
+- Dua tenant tidak dapat membaca menu, profil, FAQ, session atau context tenant lain.
+- Hanya published/current revision knowledge yang dapat masuk ke response.
+- Agent production tidak mempunyai tool availability, reservation, order, payment atau admin.
+- Response invalid, tool invalid, timeout, 429 dan provider failure menghasilkan fallback aman.
+- Action valid dirender sebagai button kontekstual; action invalid tidak dirender dan tidak dieksekusi.
+- Email, nomor telepon, token, cookie dan detail reservasi privat tidak masuk ke payload model/transcript setelah masking atau dialihkan ke form.
+- Retry dan request paralel chatbot tidak menghasilkan efek tulis.
+- Rollback ke runtime lama dapat dilakukan dengan konfigurasi tanpa migrasi data.
+
+### Bukti verifikasi migrasi
+
+- Python syntax/import test dan runtime health test untuk `agno-v2`.
+- Build/typecheck web dan API.
+- Contract test endpoint `/turn`, auth, payload invalid, timeout, fallback dan action schema.
+- Integration test internal tools dengan tenant scope.
+- Knowledge test published-only, revision switch, unpublish dan no-source abstention.
+- Browser/E2E test widget, keyboard/mobile dan fallback web.
+- `git diff --check`, review status/diff, serta smoke test live dengan data sintetis.
+
 ## Sources
 
 Referensi untuk konsep dan batas layanan; bukan bukti integrasi aplikasi telah berjalan. Dukungan adapter Agno, model, dan transport harus dicocokkan kembali dengan versi yang dipin saat implementasi. Kompatibilitas Agno–OpenRouter harus dibuktikan lewat smoke test, bukan diasumsikan dari kemiripan format API.

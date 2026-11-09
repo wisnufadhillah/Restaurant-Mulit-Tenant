@@ -3,7 +3,7 @@ import { ChatSessionsService } from "./chat-sessions.service";
 import { chatCookie } from "./chat-session.controller";
 import { StaffController, StaffRequest, StaffResponse } from "../auth/staff.controller";
 import { StaffService } from "../auth/staff.service";
-import { validatedChatCards } from "./chat-cards";
+import { validatedChatActions, validatedChatCards } from "./chat-cards";
 
 export function redactChat(message: string) {
   return message.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[kontak disamarkan]")
@@ -15,7 +15,7 @@ export class ConversationTransport {
   async send(body: unknown) {
     const token = process.env.ASSISTANT_GATEWAY_TOKEN;
     if (!token || token.length < 32) throw new ServiceUnavailableException();
-    const origin = process.env.ASSISTANT_ORIGIN ?? "http://127.0.0.1:8001";
+    const origin = process.env.ASSISTANT_ORIGIN ?? "http://127.0.0.1:8010";
     const url = new URL(origin);
     if (url.origin !== origin || url.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(url.hostname) || url.username || url.password) throw new ServiceUnavailableException();
     const response = await fetch(`${origin}/turn`, { method: "POST", headers: { "content-type": "application/json", "x-assistant-service-token": token }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000), redirect: "error" });
@@ -36,7 +36,7 @@ export class ConversationTransport {
       if (["platform", "upstream", "unknown"].includes(String(e.limit_scope))) safe.limit_scope = e.limit_scope as string;
       return [safe];
     }) : [];
-    return { status: result.status, message: result.message, cards: result.cards as unknown[], attempted_requests: Number.isInteger(result.attempted_requests) && result.attempted_requests >= 0 && result.attempted_requests <= 3 ? result.attempted_requests as number : 0, diagnostics };
+    return { status: result.status, message: result.message, cards: result.cards as unknown[], actions: result.actions === undefined ? [] : validatedChatActions(result.actions), attempted_requests: Number.isInteger(result.attempted_requests) && result.attempted_requests >= 0 && result.attempted_requests <= 3 ? result.attempted_requests as number : 0, diagnostics };
   }
 }
 @Controller("chat/messages")
@@ -61,9 +61,9 @@ export class ChatMessageController {
       const context = this.sessions.context(token, session.slug);
       const result = await this.transport.send({ message: safeMessage, tenantSlug: session.slug, sessionId: context.sessionId, context: context.context });
       this.sessions.assertActive(session.id, session.slug);
-      return { status: result.status, message: redactChat(result.message), cards: ["ok", "partial"].includes(result.status) ? validatedChatCards(result.cards) : [], input: safeMessage, attempted_requests: result.attempted_requests, diagnostics: result.diagnostics };
+      return { status: result.status, message: redactChat(result.message), cards: ["ok", "partial"].includes(result.status) ? validatedChatCards(result.cards) : [], actions: ["ok", "partial", "unavailable", "timeout"].includes(result.status) ? result.actions : [], input: safeMessage, attempted_requests: result.attempted_requests, diagnostics: result.diagnostics };
     } catch {
-      return { status: "unavailable", message: "Asisten belum tersedia. Silakan gunakan halaman restoran atau coba lagi nanti.", cards: [], input: safeMessage };
+      return { status: "unavailable", message: "Asisten belum tersedia. Silakan gunakan halaman restoran atau coba lagi nanti.", cards: [], actions: [{ id: "reservation-form", type: "navigate", label: "Buka form reservasi", target: "#reservasi" }], input: safeMessage };
     } finally { entry.busy = false; }
   }
 }

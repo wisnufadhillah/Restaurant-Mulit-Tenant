@@ -5,17 +5,17 @@ const { execFileSync } = require('node:child_process');
 const { parse } = require('../apps/api/node_modules/dotenv');
 
 function provision(root, checkOnly = false) {
-  const paths = ['apps/api/.env', 'apps/assistant/.env'];
+  const paths = ['apps/api/.env', 'apps/assistant/.env', 'agno-v2/.env'];
   for (const path of paths) {
     execFileSync('git', ['check-ignore', '--quiet', '--', path], { cwd: root, stdio: 'ignore' });
     if (!existsSync(resolve(root, path))) throw new Error('Private configuration files must already exist');
   }
   const sources = paths.map(path => readFileSync(resolve(root, path), 'utf8'));
   const values = sources.map(source => parse(source));
-  const additions = [[], []];
+  const additions = [[], [], []];
   const shared = ['ASSISTANT_GATEWAY_TOKEN', 'INTERNAL_TOOL_SERVICE_TOKEN'];
   for (const name of [...shared, 'INTERNAL_CONTEXT_SECRET']) {
-    const targets = shared.includes(name) ? [0, 1] : [0];
+    const targets = shared.includes(name) ? [0, 1, 2] : [0];
     for (const index of targets) {
       const count = sources[index].split(/\r?\n/).filter(line => new RegExp(`^\\s*(?:export\\s+)?${name}\\s*=`).test(line)).length;
       if (count > 1 || count === 1 && !values[index][name]) throw new Error('Duplicate or empty internal configuration; review privately');

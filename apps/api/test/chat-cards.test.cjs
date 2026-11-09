@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { validatedChatCards } = require('../dist/restaurant/chat-cards');
+const { validatedChatActions, validatedChatCards } = require('../dist/restaurant/chat-cards');
 test('chat cards allow only bounded public menu/profile fields and reject private tools', () => {
   const card = { type: 'menu', data: [{ id: 'synthetic', name: 'Rendang', description: 'Demo', price: 35000, isAvailable: true }] };
   assert.equal(validatedChatCards([card])[0].data[0].price, 35000);
@@ -9,4 +9,17 @@ test('chat cards allow only bounded public menu/profile fields and reject privat
   assert.throws(() => validatedChatCards([{ type: 'knowledge', data: [{ ...source, approvalReference: 'internal' }] }]));
   assert.throws(() => validatedChatCards([{ type: 'knowledge', data: [{ ...source, text: 'x'.repeat(2001) }] }]));
   for (const value of [[{ type: 'sql', data: {} }], [{ ...card, data: [{ ...card.data[0], tenantId: 'other' }] }], [{ ...card, data: [{ ...card.data[0], price: -1 }] }], Array(4).fill(card)]) assert.throws(() => validatedChatCards(value));
+});
+
+test('chat actions allow only local, contextual targets', () => {
+  assert.deepEqual(validatedChatActions([
+    { id: 'reservation-form', type: 'navigate', label: 'Buka form reservasi', target: '#reservasi' },
+    { id: 'opening-hours', type: 'prompt', label: 'Tanya jam buka', message: 'Jam buka hari ini kapan?' },
+  ]), [
+    { id: 'reservation-form', type: 'navigate', label: 'Buka form reservasi', target: '#reservasi' },
+    { id: 'opening-hours', type: 'prompt', label: 'Tanya jam buka', message: 'Jam buka hari ini kapan?' },
+  ]);
+  assert.throws(() => validatedChatActions([{ id: 'external', type: 'navigate', label: 'Buka', target: 'https://example.com' }]));
+  assert.throws(() => validatedChatActions([{ id: 'unsafe', type: 'prompt', label: 'Jalankan', message: 'Kirim token' }]));
+  assert.throws(() => validatedChatActions(Array(4).fill({ id: 'x', type: 'navigate', label: 'Menu', target: '#menu' })));
 });

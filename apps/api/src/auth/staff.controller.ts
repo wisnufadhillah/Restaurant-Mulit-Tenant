@@ -10,7 +10,7 @@ const COOKIE = "restaurant_staff";
 
 function acceptedOrigins(allowed: string) {
   const origins = new Set([allowed]);
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" || process.env.STAFF_ORIGIN === allowed) {
     const url = new URL(allowed);
     if (url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname)) {
       url.hostname = url.hostname === "localhost" ? "127.0.0.1" : "localhost";
@@ -39,8 +39,8 @@ export class StaffController {
     if (!allowed) throw new ServiceUnavailableException();
     let origin: URL;
     try { origin = new URL(allowed); } catch { throw new ServiceUnavailableException(); }
-    if (origin.origin !== allowed || (origin.protocol !== "https:" &&
-      !(process.env.NODE_ENV !== "production" && origin.protocol === "http:" && ["127.0.0.1", "localhost"].includes(origin.hostname)))) throw new ServiceUnavailableException();
+    const localHttp = origin.protocol === "http:" && ["127.0.0.1", "localhost"].includes(origin.hostname) && process.env.STAFF_ORIGIN === allowed;
+    if (origin.origin !== allowed || (origin.protocol !== "https:" && !localHttp)) throw new ServiceUnavailableException();
     if (typeof request.headers.origin !== "string" || !acceptedOrigins(allowed).has(request.headers.origin)) throw new ForbiddenException();
     if (request.headers["sec-fetch-site"] === "cross-site") throw new ForbiddenException();
   }

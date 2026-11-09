@@ -7,7 +7,8 @@ interface Profile { name: string; outlets: { name: string; address: string; cont
 interface Hours { weekday: number; openMinute: number | null; closeMinute: number | null; }
 interface KnowledgeExcerpt { documentId: string; revision: number; position: number; title: string; text: string; }
 type Card = { type: "knowledge"; data: KnowledgeExcerpt[] } | { type: "menu"; data: MenuItem[] } | { type: "restaurant"; data: Profile } | { type: "hours"; data: Hours[] };
-interface Message { sender: "user" | "assistant"; text: string; cards?: Card[]; }
+type Action = { id: string; type: "navigate"; label: string; target: "#menu" | "#reservasi" } | { id: string; type: "prompt"; label: string; message: "Jam buka hari ini kapan?" | "Apa kebijakan restoran lain yang perlu saya tahu?" };
+interface Message { sender: "user" | "assistant"; text: string; cards?: Card[]; actions?: Action[]; }
 const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 const time = (n: number) => `${String(Math.floor(n / 60)).padStart(2, "0")}.${String(n % 60).padStart(2, "0")}`;
 const currency = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
@@ -18,6 +19,11 @@ function ChatCard({ card }: { card: Card }) {
     {card.type === "menu" ? (card.data.length ? card.data.map(item => <div className="sela-chat-menu-item" key={item.id}><strong>{item.name}</strong><span>{currency.format(item.price)} · {item.isAvailable ? "Tersedia" : "Habis"}</span><p>{item.description}</p></div>) : <p>Belum ada menu aktif.</p>) : card.type === "restaurant" ? <><strong>{card.data.name}</strong>{card.data.outlets.map(outlet => <div key={outlet.name}><p>{outlet.name}</p><p>{outlet.address}</p>{outlet.contactPhone && <p>{outlet.contactPhone}</p>}</div>)}</> : <><dl>{[1, 2, 3, 4, 5, 6, 0].map(day => { const row = card.data.find(item => item.weekday === day); return <div key={day}><dt>{days[day]}</dt><dd>{!row ? "Belum diatur" : row.openMinute === null || row.closeMinute === null ? "Tutup" : `${time(row.openMinute)}–${time(row.closeMinute)} WIB`}</dd></div>; })}</dl><p>Jadwal reguler; hari khusus bisa berbeda.</p></>}
     <small>Data restoran</small>
   </div>;
+}
+
+function ChatActions({ actions, onAction, disabled }: { actions: Action[]; onAction: (action: Action) => void; disabled: boolean }) {
+  if (!actions.length) return null;
+  return <div className="sela-chat-actions" role="group" aria-label="Pilihan tindakan">{actions.map(action => <button key={action.id} type="button" disabled={disabled} onClick={() => onAction(action)}>{action.label}</button>)}</div>;
 }
 
 export default function ChatbotWidget() {
@@ -41,6 +47,15 @@ export default function ChatbotWidget() {
     composer.current.style.overflowY = height > 112 ? "auto" : "hidden";
   }, [input, open]);
   const close = () => { dialog.current?.close(); };
+  function runAction(action: Action) {
+    if (action.type === "navigate") {
+      document.querySelector(action.target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      close();
+      return;
+    }
+    setInput(action.message);
+    composer.current?.focus();
+  }
   async function initialize() {
     if (busy.current || ready) return;
     busy.current = true; setPending(true); setError("");
@@ -70,7 +85,8 @@ export default function ChatbotWidget() {
       const response = await fetch("/chat/messages", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: submitted }) });
       const body = await response.json();
       if (!response.ok) { if (response.status === 403) setReady(false); throw new Error(); }
-      setMessages(previous => [...previous.slice(0, -1), { sender: "user" as const, text: body.input }, { sender: "assistant", text: body.message, cards: (body.cards ?? []).filter((card: Card) => card.type === "menu" || card.type === "knowledge" || card.type === "restaurant") } as Message].slice(-20));
+      const actions = (Array.isArray(body.actions) ? body.actions : []).filter((action: Action) => action && typeof action.id === "string" && typeof action.label === "string" && ((action.type === "navigate" && (action.target === "#menu" || action.target === "#reservasi")) || (action.type === "prompt" && (action.message === "Jam buka hari ini kapan?" || action.message === "Apa kebijakan restoran lain yang perlu saya tahu?"))));
+      setMessages(previous => [...previous.slice(0, -1), { sender: "user" as const, text: body.input }, { sender: "assistant", text: body.message, cards: (body.cards ?? []).filter((card: Card) => card.type === "menu" || card.type === "knowledge" || card.type === "restaurant"), actions } as Message].slice(-20));
     } catch {
       setMessages(previous => previous.slice(0, -1));
       setInput(submitted);
@@ -84,7 +100,7 @@ export default function ChatbotWidget() {
       <header className="sela-chat-header"><span className="sela-chat-avatar" aria-hidden="true">DS</span><div><h2 id="assistant-heading">Asisten Dapur Sela</h2><p>Menu, jam buka, dan info kunjungan</p></div><button type="button" className="sela-chat-close" aria-label="Tutup chat" onClick={close}>×</button></header>
       <div className="sela-chat-log" ref={log} role="log" aria-live="polite" aria-label="Percakapan restoran" aria-busy={pending}>
         {messages.length === 0 && <div className="sela-chat-bubble sela-chat-assistant sela-chat-welcome"><p>Halo! Mau lihat menu atau cek jam buka Dapur Sela? Tanyakan di sini.</p></div>}
-        {messages.map((item, index) => <div key={index} className={`sela-chat-bubble sela-chat-${item.sender}`}><span className="sela-chat-sr-only">{item.sender === "user" ? "Kamu" : "Asisten"}:</span><p>{item.text}</p>{item.cards?.map((card, cardIndex) => <ChatCard key={cardIndex} card={card} />)}</div>)}
+        {messages.map((item, index) => <div key={index} className={`sela-chat-bubble sela-chat-${item.sender}`}><span className="sela-chat-sr-only">{item.sender === "user" ? "Kamu" : "Asisten"}:</span><p>{item.text}</p>{item.cards?.map((card, cardIndex) => <ChatCard key={cardIndex} card={card} />)}{item.sender === "assistant" && <ChatActions actions={item.actions ?? []} onAction={runAction} disabled={pending} />}</div>)}
         <div id="chat-shortcuts" className="sela-chat-shortcuts" hidden={messages.length > 0} role="group" aria-label="Pilihan informasi"><button type="button" disabled={!ready || pending} onClick={() => void load("menu")}>Menu</button><button type="button" disabled={!ready || pending} onClick={() => void load("restaurant")}>Info restoran</button><button type="button" disabled={!ready || pending} onClick={() => void load("hours")}>Jam buka</button></div>
         {pending && <div className="sela-chat-bubble sela-chat-assistant sela-chat-loading"><span>{ready ? "Sedang mengetik…" : "Menyambungkan chat…"}</span></div>}
       </div>

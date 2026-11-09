@@ -37,6 +37,58 @@ test('peer session quota resets exactly at expiry and does not affect another pe
   assert.equal(f.calls(), 22);
 });
 
+test('existing session verification remains available after shared creation quota is exhausted', async () => {
+  const f = fixture();
+  for (let i = 0; i < 20; i++) await f.service.session('demo-a', undefined, 'proxy-peer');
+  await assert.rejects(async () => f.service.session('demo-a', undefined, 'proxy-peer'), limited);
+  await f.service.session('demo-a', createSessionToken(), 'proxy-peer');
+  await f.service.session('demo-a', createSessionToken(), 'proxy-peer');
+  assert.equal(f.calls(), 22);
+});
+
+test('rotating tokens have a bounded verification budget and window resets', async () => {
+  let now = 0, calls = 0;
+  const { ForbiddenException } = require('@nestjs/common');
+  const service = new ReservationService({ session: async () => { calls++; throw new ForbiddenException(); } });
+  service.limiter = new ReservationLimiter(() => now);
+  for (let i = 0; i < 120; i++) await assert.rejects(service.session('demo-a', createSessionToken(), 'proxy-peer'), e => e.getStatus() === 403);
+  await assert.rejects(async () => service.session('demo-a', createSessionToken(), 'proxy-peer'), limited);
+  assert.equal(calls, 120);
+  now = 60000;
+  await assert.rejects(service.session('demo-a', createSessionToken(), 'proxy-peer'), e => e.getStatus() === 403);
+  assert.equal(calls, 121);
+});
+
+test('session reuse counts token quota once and mixed requests count global quota once', async () => {
+  const f = fixture(), token = createSessionToken();
+  for (let i = 0; i < 60; i++) await f.service.session('demo-a', token, 'proxy-peer');
+  await assert.rejects(async () => f.service.session('demo-a', token, 'proxy-peer'), limited);
+  assert.equal(f.calls(), 60);
+  // The denied token request also consumed one global admission.
+  for (let i = 0; i < 1939; i++) await f.service.manage('demo-a', createSessionToken(), false);
+  assert.equal(f.calls(), 1999);
+  await assert.rejects(async () => f.service.manage('demo-a', createSessionToken(), false), limited);
+  assert.equal(f.calls(), 1999);
+});
+
+test('verification concurrency releases after failure and survives window reset', async () => {
+  let now = 0;
+  const limiter = new ReservationLimiter(() => now);
+  const gates = [];
+  const service = new ReservationService({ session: async () => new Promise((resolve, reject) => gates.push({ resolve, reject })) });
+  service.limiter = limiter;
+  const pending = Array.from({ length: 4 }, () => service.session('demo-a', createSessionToken(), 'proxy-peer'));
+  await assert.rejects(async () => service.session('demo-a', createSessionToken(), 'proxy-peer'), limited);
+  now = 60000;
+  await assert.rejects(async () => service.session('demo-a', createSessionToken(), 'proxy-peer'), limited);
+  gates[0].reject(new Error('Synthetic dependency failure'));
+  await assert.rejects(pending[0], e => e.getStatus() === 503);
+  const next = service.session('demo-a', createSessionToken(), 'proxy-peer');
+  for (const gate of gates.slice(1)) gate.resolve({});
+  await Promise.all([...pending.slice(1), next]);
+  const release = limiter.acquireVerification(); release(); release();
+});
+
 test('invalid requests consume bounded global quota without touching DB', async () => {
   const f = fixture();
   for (let i = 0; i < 2000; i++) await assert.rejects(async () => f.service.manage('!', undefined, false), e => e.getStatus() === 400);

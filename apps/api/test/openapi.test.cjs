@@ -5,7 +5,13 @@ const spec = require('../../../docs/api/openapi.json');
 test('OpenAPI documents implemented routes, session security and schema references', () => {
   assert.equal(spec.openapi, '3.1.1');
   assert.deepEqual(Object.keys(spec.paths).filter(path => !path.startsWith('/public/tenants/{slug}/reservations')).sort(), ['/chat/catalogue/{resource}', '/chat/messages', '/chat/session', '/health', '/internal/tenants/{slug}/menu', '/internal/tenants/{slug}/restaurant', '/public/tenants/{slug}/availability', '/public/tenants/{slug}/hours', '/public/tenants/{slug}/menu', '/public/tenants/{slug}/restaurant', '/staff/login', '/staff/tenants/{slug}/hours', '/staff/tenants/{slug}/logout', '/staff/tenants/{slug}/menu', '/staff/tenants/{slug}/menu/{id}', '/staff/tenants/{slug}/menu/{id}/availability', '/staff/tenants/{slug}/profile', '/staff/tenants/{slug}/reservations', '/staff/tenants/{slug}/reservations/{id}', '/staff/tenants/{slug}/session', '/staff/tenants/{slug}/special-hours', '/staff/tenants/{slug}/special-hours/{date}', '/staff/tenants/{slug}/tables', '/staff/tenants/{slug}/tables/{id}']);
-  for (const suffix of ['', '/session', '/confirmations', '/management-session', '/receipt', '/cancel', '/management-session/logout']) assert.ok(spec.paths['/public/tenants/{slug}/reservations' + suffix].post);
+  for (const suffix of ['', '/session', '/confirmations', '/recovery', '/management-session', '/receipt', '/cancel', '/management-session/logout']) assert.ok(spec.paths['/public/tenants/{slug}/reservations' + suffix].post);
+  const recovery = spec.paths['/public/tenants/{slug}/reservations/recovery'].post;
+  for (const [status, response] of Object.entries(recovery.responses)) if (Number(status) >= 400) {
+    const example = response.content['application/json'].example;
+    assert.equal(typeof example.error.message, 'string');
+    assert.match(example.request_id, /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/);
+  }
   const availability = spec.paths['/public/tenants/{slug}/availability'].get;
   assert.deepEqual(availability.parameters.map(parameter => parameter.name), ['slug', 'date', 'time', 'partySize']);
   assert.equal(availability.responses['200'].headers['Cache-Control'].schema.const, 'no-store');

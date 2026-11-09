@@ -7,7 +7,7 @@ if (SLUG.length > 80 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(SLUG)) throw new Erro
 const PATH = `/api/v1/public/tenants/${SLUG}/reservations`;
 const CREATOR = `restaurant_reservation_${SLUG}`;
 const MANAGEMENT = `${CREATOR}_management`;
-const actions: Record<string, string> = { session: "/session", confirmations: "/confirmations", create: "", management: "/management-session", receipt: "/receipt", cancel: "/cancel", logout: "/management-session/logout" };
+const actions: Record<string, string> = { session: "/session", confirmations: "/confirmations", create: "", management: "/management-session", recovery: "/recovery", receipt: "/receipt", cancel: "/cancel", logout: "/management-session/logout" };
 
 export async function POST(request: Request, context: { params: Promise<{ action: string }> }) {
   const headers: Record<string, string> = { "Cache-Control": "no-store" };
@@ -38,6 +38,7 @@ export async function POST(request: Request, context: { params: Promise<{ action
       payload = await response.json();
       const data = payload?.data;
       if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Invalid response envelope");
+      if (action === "recovery" && (Object.keys(data).join() !== "outcome" || !["reservation_exists", "not_created"].includes(data.outcome))) throw new Error("Invalid recovery outcome");
       if (["session", "management", "confirmations"].includes(action) && (typeof data.expiresAt !== "string" || !Number.isFinite(Date.parse(data.expiresAt)))) throw new Error("Invalid session expiry");
       if (action === "confirmations" && (typeof data.nonce !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(data.nonce) || !data.summary || typeof data.summary.startAt !== "string" || !Number.isFinite(Date.parse(data.summary.startAt)) || !Number.isFinite(Date.parse(data.summary.endAt)))) throw new Error("Invalid confirmation");
       if (["receipt", "create", "cancel"].includes(action) && (typeof data.referenceCode !== "string" || !Number.isFinite(Date.parse(data.startAt)) || !Number.isFinite(Date.parse(data.endAt)) || data.timezone !== "Asia/Jakarta" || !Number.isInteger(data.partySize) || data.partySize < 1 || data.partySize > 12 || !["confirmed", "cancelled", "completed", "no_show"].includes(data.status))) throw new Error("Invalid receipt");

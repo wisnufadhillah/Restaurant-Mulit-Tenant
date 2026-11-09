@@ -26,10 +26,12 @@ export class ReservationService {
     }
   }
   session(slug: string, token: string | undefined, peer?: string) {
-    this.limit(token, true, peer);
+    this.limit(token, token === undefined, peer);
     this.slug(slug);
     const hash = token === undefined ? undefined : this.token(token);
-    return this.safe(() => this.repository.session(slug, hash));
+    if (hash === undefined) return this.safe(() => this.repository.session(slug, hash));
+    const release = this.limiter.acquireVerification();
+    return this.safe(() => this.repository.session(slug, hash)).finally(release);
   }
   confirmation(slug: string, token: string | undefined, input: unknown) {
     this.limit(token);
@@ -37,6 +39,13 @@ export class ReservationService {
     const hash = this.token(token);
     const body = reservationInput(input);
     return this.safe(() => this.repository.confirmation(slug, hash, body));
+  }
+  recovery(slug: string, creatorToken: string | undefined, key: unknown) {
+    this.limit(creatorToken);
+    this.slug(slug);
+    const creatorHash = this.token(creatorToken);
+    if (typeof key !== "string" || !/^[A-Za-z0-9_-]{16,128}$/.test(key)) throw new BadRequestException();
+    return this.safe(() => this.repository.recovery(slug, creatorHash, key));
   }
   managementSession(slug: string, creatorToken: string | undefined, key: unknown, managementToken?: string) {
     this.limit(creatorToken);

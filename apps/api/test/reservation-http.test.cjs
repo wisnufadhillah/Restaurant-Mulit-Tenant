@@ -26,6 +26,7 @@ test('reservation HTTP protects private routes, cookie scope and error responses
       return { nonce, expiresAt, summary: { held: false } };
     },
     async create(slug, hash) { if (slug !== 'demo-a' || hash !== hashSessionToken(creator)) throw new ForbiddenException(); writes++; return receipt; },
+    async recovery(slug, hash) { if (slug !== 'demo-a' || hash !== hashSessionToken(creator)) throw new ForbiddenException(); return { outcome: 'not_created' }; },
     async managementSession(slug, hash) { if (slug !== 'demo-a' || hash !== hashSessionToken(creator)) throw new ForbiddenException(); return { token: management, expiresAt }; },
     async manage(slug, hash, cancel) {
       if (slug !== 'demo-a' || hash !== hashSessionToken(management)) throw new ForbiddenException();
@@ -62,6 +63,16 @@ test('reservation HTTP protects private routes, cookie scope and error responses
     assert.equal(writes, 0);
     assert.equal((await send('', { reservation, nonce }, { cookie, 'idempotency-key': randomUUID() })).status, 200);
     assert.equal((await send('/management-session', {}, { cookie, 'idempotency-key': randomUUID() })).status, 200);
+    const recoveryHeaders = { cookie, 'idempotency-key': randomUUID() };
+    const recovered = await send('/recovery', {}, recoveryHeaders);
+    assert.equal(recovered.status, 200);
+    assert.equal(recovered.headers.get('cache-control'), 'no-store');
+    assert.equal(recovered.headers.get('set-cookie'), null);
+    assert.deepEqual(await recovered.json(), { data: { outcome: 'not_created' } });
+    assert.equal((await send('/recovery', { terminal: true }, recoveryHeaders)).status, 403);
+    assert.equal((await send('/recovery', {}, { cookie })).status, 400);
+    assert.equal((await send('/recovery', {}, { 'idempotency-key': randomUUID() })).status, 403);
+    assert.equal((await send('/recovery', {}, { ...recoveryHeaders, origin: 'https://foreign.invalid' })).status, 403);
     assert.equal((await send('/receipt', {}, { cookie })).status, 403);
     const read = await send('/receipt', {}, { cookie: managedCookie });
     assert.equal(read.status, 200);
@@ -84,5 +95,9 @@ test('reservation HTTP protects private routes, cookie scope and error responses
     assert.ok(Number(throttled.headers.get('retry-after')) > 0);
     assert.equal(throttled.headers.get('cache-control'), 'no-store');
     assert.deepEqual((await throttled.json()).error, { code: 'RATE_LIMITED', message: 'Terlalu banyak permintaan.' });
+    const validReuse = await send('/session', {}, { cookie });
+    assert.equal(validReuse.status, 200);
+    assert.equal(validReuse.headers.get('set-cookie'), null);
+    assert.equal((await send('/session', {}, { cookie: `restaurant_reservation_demo-a=${createSessionToken()}` })).status, 403);
   } finally { await app.close(); }
 });

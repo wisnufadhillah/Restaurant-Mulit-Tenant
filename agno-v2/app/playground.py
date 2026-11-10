@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from .agent import build_playground_agent
+from .playground_tools import build_playground_tools
 
 
 def now() -> str:
@@ -39,7 +39,6 @@ class PlaygroundRun:
 
 SCENARIOS = [
     {"id": "menu-question", "name": "Pertanyaan menu", "message": "Apa menu makanan yang tersedia?", "expects_tool": "get_restaurant_data", "description": "Agent harus memakai data mock."},
-    {"id": "availability-question", "name": "Cek ketersediaan meja", "message": "Ada meja untuk 4 orang besok jam 19:00?", "expects_tool": "check_availability", "description": "Agent harus mengecek availability."},
 ]
 
 
@@ -49,6 +48,8 @@ class PlaygroundStore:
 
     def create(self, message: str, scenario_id: str | None = None) -> PlaygroundRun:
         run = PlaygroundRun(str(uuid4()), message, scenario_id)
+        if len(self.runs) >= 100:
+            del self.runs[next(iter(self.runs))]
         self.runs[run.run_id] = run
         return run
 
@@ -61,30 +62,14 @@ store = PlaygroundStore()
 
 async def execute_playground(message: str, run: PlaygroundRun, session_id: str | None = None) -> PlaygroundRun:
     run.event("agent.started", message=message)
-    agent = build_playground_agent(
+    tools = build_playground_tools(
         on_tool_start=lambda name, args: run.event("tool.started", tool=name, arguments=args),
         on_tool_end=lambda name, result: run.event("tool.finished", tool=name, result=result),
     )
-    try:
-        result = await agent.arun(message, session_id=session_id or f"playground-{run.run_id}")
-        run.response = result.content if isinstance(result.content, str) else str(result.content)
-        run.event("agent.finished", run_id=result.run_id, session_id=result.session_id)
-        run.event("response.created", content=run.response)
-        model_error = run.response.lower()
-        if (
-            "api_key not set" in model_error
-            or "authentication error" in model_error
-            or "user not found" in model_error
-            or "invalid api key" in model_error
-        ):
-            run.status = "REVIEW"
-            run.event("agent.review_required", reason="Model credentials are not configured")
-        else:
-            run.status = "COMPLETED"
-    except Exception as exc:
-        run.status = "FAILED"
-        run.event("agent.failed", error=str(exc))
-        raise
+    # This simulator never imports production settings, model clients or API tools.
+    run.response = 'Simulasi mock tanpa inference. Data contoh: ' + tools[0]()
+    run.event("response.created", content=run.response)
+    run.status = "COMPLETED"
     return run
 
 

@@ -1,0 +1,107 @@
+{
+  "checked_at": "2026-11-10T08:25:28.014214+00:00",
+  "source": "live OpenRouter; synthetic API tools; not website or business DB",
+  "request_limit": 14,
+  "attempted_requests": 5,
+  "results": [
+    {
+      "case": "menu",
+      "input": "Harga rendang?",
+      "status": "ok",
+      "answer": "Rendang tersedia dengan harga Rp35.000.",
+      "tool_reads": [
+        "menu"
+      ],
+      "attempted_requests": 2,
+      "latency_seconds": 13.235,
+      "diagnostics": [
+        {
+          "category": "ok",
+          "http_status": 200
+        },
+        {
+          "category": "ok",
+          "http_status": 200
+        }
+      ],
+      "passed": true
+    },
+    {
+      "case": "profile",
+      "input": "Apa nama restoran dan alamatnya?",
+      "status": "ok",
+      "answer": "Restoran Sintetis — alamatnya saat ini belum tersedia.",
+      "tool_reads": [
+        "restaurant"
+      ],
+      "attempted_requests": 2,
+      "latency_seconds": 15.078,
+      "diagnostics": [
+        {
+          "category": "ok",
+          "http_status": 200
+        },
+        {
+          "category": "ok",
+          "http_status": 200
+        }
+      ],
+      "passed": true
+    },
+    {
+      "case": "faq",
+      "input": "Boleh membawa kue?",
+      "status": "ok",
+      "answer": "Iya, pelanggan boleh membawa kue sendiri tanpa biaya tambahan.",
+      "tool_reads": [
+        "knowledge"
+      ],
+      "attempted_requests": 1,
+      "latency_seconds": 1.031,
+      "diagnostics": [
+        {
+          "category": "ok",
+          "http_status": 200
+        }
+      ],
+      "passed": true
+    },
+    {
+      "case": "no-source",
+      "input": "Apakah tersedia parkir?",
+      "status": "ok",
+      "answer": "Saya belum memiliki sumber FAQ yang sesuai untuk memastikan jawabannya. Silakan tanyakan informasi lain atau gunakan halaman restoran.",
+      "tool_reads": [
+        "knowledge"
+      ],
+      "attempted_requests": 0,
+      "latency_seconds": 0.0,
+      "diagnostics": [],
+      "passed": true
+    },
+    {
+      "case": "reservation",
+      "input": "Mau reservasi",
+      "status": "ok",
+      "answer": "Untuk membuat, melihat atau membatalkan reservasi, gunakan form Reservasi pada website; jangan kirim kontak atau kode akses di chat.",
+      "tool_reads": [],
+      "attempted_requests": 0,
+      "latency_seconds": 0.0,
+      "diagnostics": [],
+      "passed": true
+    }
+  ],
+  "status": "passed",
+  "model": "nvidia/nemotron-3.5-lightning:free",
+  "catalogue_free_tools": true,
+  "providers": [
+    "Nvidia"
+  ],
+  "provider_http_statuses": [
+    200,
+    200,
+    200,
+    200,
+    200
+  ]
+}

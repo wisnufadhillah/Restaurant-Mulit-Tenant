@@ -30,6 +30,8 @@ settings = Settings()
 
 def validate_model_settings() -> None:
     free_model = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.:-]+:free$")
+    if settings.model_base_url != 'https://openrouter.ai/api/v1':
+        raise RuntimeError('Only the OpenRouter endpoint is permitted')
     if not settings.model_api_key or not settings.model_id or not settings.allowed_models:
         raise RuntimeError("Agno model configuration is incomplete")
     if settings.model_id not in settings.allowed_models or any(not free_model.fullmatch(model) for model in settings.allowed_models):

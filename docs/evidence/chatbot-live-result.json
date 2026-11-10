@@ -1,0 +1,31 @@
+{
+  "checked_at": "2026-11-10T08:19:25.383070+00:00",
+  "source": "live OpenRouter; synthetic API tools; not website or business DB",
+  "request_limit": 15,
+  "attempted_requests": 1,
+  "counter_correction": "Original harness used instance counter while reporting class counter. One outgoing model request completed far enough to record provider Nvidia; no live retry performed.",
+  "results": [
+    {
+      "case": "menu",
+      "input": "Harga rendang?",
+      "status": "unavailable",
+      "answer": "Informasi belum tersedia. Silakan gunakan halaman atau form web restoran.",
+      "tool_reads": [],
+      "attempted_requests": 1,
+      "latency_seconds": 5.234,
+      "diagnostics": [
+        {
+          "category": "transport_error",
+          "http_status": null
+        }
+      ],
+      "passed": false
+    }
+  ],
+  "status": "stopped",
+  "model": "nvidia/nemotron-3.5-lightning:free",
+  "catalogue_free_tools": true,
+  "providers": [
+    "Nvidia"
+  ]
+}

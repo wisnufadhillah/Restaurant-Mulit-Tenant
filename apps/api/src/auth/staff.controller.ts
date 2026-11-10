@@ -39,7 +39,8 @@ export class StaffController {
     if (!allowed) throw new ServiceUnavailableException();
     let origin: URL;
     try { origin = new URL(allowed); } catch { throw new ServiceUnavailableException(); }
-    const localHttp = origin.protocol === "http:" && ["127.0.0.1", "localhost"].includes(origin.hostname) && process.env.STAFF_ORIGIN === allowed;
+    const localHttp = origin.protocol === "http:" && ["127.0.0.1", "localhost"].includes(origin.hostname) &&
+      (process.env.NODE_ENV !== "production" || process.env.STAFF_ORIGIN === allowed);
     if (origin.origin !== allowed || (origin.protocol !== "https:" && !localHttp)) throw new ServiceUnavailableException();
     if (typeof request.headers.origin !== "string" || !acceptedOrigins(allowed).has(request.headers.origin)) throw new ForbiddenException();
     if (request.headers["sec-fetch-site"] === "cross-site") throw new ForbiddenException();

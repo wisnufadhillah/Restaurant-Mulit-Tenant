@@ -1,0 +1,94 @@
+{
+  "checked_at": "2026-11-10T08:33:01.295Z",
+  "source": "real browser, live OpenRouter, real Nest internal API and local PostgreSQL",
+  "request_limit": 6,
+  "attempted_requests": 3,
+  "results": [
+    {
+      "case": "menu",
+      "status": "ok",
+      "answer": "Rendang sapi saat ini terjual harga Rp35.000 per porsi.",
+      "attempted_requests": 2,
+      "diagnostics": [
+        {
+          "category": "ok",
+          "http_status": 200
+        },
+        {
+          "category": "ok",
+          "http_status": 200
+        }
+      ],
+      "cards": [
+        {
+          "type": "menu",
+          "data": [
+            {
+              "id": "30000000-0000-4000-8000-000000000003",
+              "name": "Dendeng balado",
+              "description": "Menu sintetis untuk demo rumah makan. Harga dapat diubah pemilik.",
+              "price": 38000,
+              "isAvailable": true
+            },
+            {
+              "id": "30000000-0000-4000-8000-000000000002",
+              "name": "Gulai ayam",
+              "description": "Menu sintetis untuk demo rumah makan. Harga dapat diubah pemilik.",
+              "price": 32000,
+              "isAvailable": true
+            },
+            {
+              "id": "30000000-0000-4000-8000-000000000001",
+              "name": "Rendang sapi",
+              "description": "Menu sintetis untuk demo rumah makan. Harga dapat diubah pemilik.",
+              "price": 35000,
+              "isAvailable": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case": "faq",
+      "status": "ok",
+      "answer": "Tidak, halaman publik dan form reservasi dapat digunakan tanpa membuat akun. Pengelolaan reservasi memerlukan sesi privat yang sesuai; kode referensi saja tidak cukup untuk mengakses atau memulihkan status.",
+      "attempted_requests": 1,
+      "diagnostics": [
+        {
+          "category": "ok",
+          "http_status": 200
+        }
+      ],
+      "cards": [
+        {
+          "type": "knowledge",
+          "data": [
+            {
+              "documentId": "48f95699-0d35-4bde-b63a-3a0886317486",
+              "revision": 1,
+              "position": 0,
+              "title": "Apakah saya perlu akun untuk menggunakan website?",
+              "text": "Halaman publik dan form reservasi dapat digunakan tanpa membuat akun customer. Pengelolaan reservasi memerlukan sesi privat yang sesuai; kode referensi saja tidak memberi akses. State pemulihan terikat tab. Browser yang sama, tab baru, atau perangkat lain tidak menjamin akses maupun pemulihan."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case": "reservation",
+      "status": "ok",
+      "answer": "Untuk membuat, melihat atau membatalkan reservasi, gunakan form Reservasi pada website; jangan kirim kontak atau kode akses di chat.",
+      "attempted_requests": 0,
+      "diagnostics": [],
+      "cards": []
+    }
+  ],
+  "status": "passed",
+  "expected_menu": {
+    "name": "Rendang sapi",
+    "price": 35000
+  },
+  "runtime_offline_form_accessible": true,
+  "reservation_count_unchanged": true,
+  "screenshot_directory": "docs/images/chatbot-live-browser/2026-11-10T08-33-01-293Z"
+}

@@ -16,13 +16,13 @@ from grounded_reply import grounded_reply, source_reply
 from opening_hours_reply import hours_question, today_hours_reply, asks_reservation, reservation_form_request, RESERVATION_FORM_REPLY
 
 
-async def run_conversation(message, settings, tenant_slug, internal_headers, *, model_transport=None, api_transport=None):
+async def run_conversation(message, settings, tenant_slug, internal_headers, *, model_transport=None, api_transport=None, api_origin=None):
     checked = ModelSettings.from_environment({"OPENROUTER_MODEL": settings.model_id, "OPENROUTER_ALLOWED_MODELS": ",".join(settings.allowed_models), "OPENROUTER_API_KEY": settings.api_key})
     if not isinstance(tenant_slug, str) or not __import__('re').fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', tenant_slug) or len(tenant_slug) > 80:
         raise ValueError('Invalid tenant context')
     if set(internal_headers) != {'x-internal-service-token', 'x-internal-context', 'x-session-id'} or not all(isinstance(v, str) and v for v in internal_headers.values()):
         raise ValueError('Internal context required')
-    api_origin = os.environ.get('RESTAURANT_API_ORIGIN', 'http://127.0.0.1:3001')
+    api_origin = api_origin or os.environ.get('RESTAURANT_API_ORIGIN', 'http://127.0.0.1:3001')
     origin = urlsplit(api_origin)
     if origin.scheme != 'http' or origin.hostname not in ('127.0.0.1', 'localhost') or origin.username or origin.password or origin.path or origin.query or origin.fragment:
         raise ValueError('Invalid internal API origin')

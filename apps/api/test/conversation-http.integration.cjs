@@ -11,7 +11,7 @@ test('Nest gateway crosses real Python HTTP boundary with redaction, cards and s
   process.env.ASSISTANT_GATEWAY_TOKEN = randomBytes(32).toString('base64url');
   process.env.INTERNAL_CONTEXT_SECRET = randomBytes(32).toString('base64url');
   const root = resolve(__dirname, '../../..');
-  const child = spawn(resolve(root, 'apps/assistant/.venv/Scripts/python.exe'), [resolve(root, 'apps/assistant/conversation_http_fixture.py')], { cwd: root, env: { ...process.env, INTERNAL_TOOL_SERVICE_TOKEN: randomBytes(32).toString('base64url') }, stdio: ['ignore', 'pipe', 'ignore'] });
+  const child = spawn(resolve(root, 'agno-v2/.venv/Scripts/python.exe'), [resolve(root, 'agno-v2/http_fixture.py')], { cwd: root, env: { ...process.env, INTERNAL_TOOL_SERVICE_TOKEN: randomBytes(32).toString('base64url') }, stdio: ['ignore', 'pipe', 'ignore'] });
   const originalFetch = global.fetch;
   let app;
   try {

@@ -4,6 +4,7 @@ const { randomUUID, randomBytes } = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { once } = require('node:events');
 const { resolve } = require('node:path');
+const { readFileSync, writeFileSync } = require('node:fs');
 const net = require('node:net');
 const { chromium } = require('@playwright/test');
 const { createApp } = require('../dist/create-app');
@@ -40,17 +41,16 @@ test('published FAQ reaches real browser through web proxy, API gateway, Python 
   process.env.ASSISTANT_ORIGIN = 'http://127.0.0.1:8111';
   const db = createDatabaseClient();
   let app, python, web, browser;
+  const generatedConfig = ['apps/web/next-env.d.ts', 'apps/web/tsconfig.json'].map(path => ({ path, content: readFileSync(path) }));
   const snapshot = () => db.knowledgeDocument.findMany({ orderBy: { id: 'asc' }, select: { id: true, tenantId: true, activeRevision: true } });
   try {
     const before = await snapshot();
-    const published = await db.knowledgeDocumentRevision.findMany({ where: { status: 'published', document: { tenant: { slug: 'demo-padang', status: 'active' } } }, select: { documentId: true, revision: true, title: true } });
-    const expected = published.find(item => item.title === 'Apakah saya perlu akun untuk menggunakan website?');
+    const published = await db.knowledgeDocumentRevision.findMany({ where: { status: 'published', document: { tenant: { slug: 'demo-padang', status: 'active' } } }, select: { documentId: true, revision: true, title: true, document: { select: { activeRevision: true } } } });
+    const expected = published.find(item => item.title === 'Apakah saya perlu akun untuk menggunakan website?' && item.revision === item.document.activeRevision);
     assert.ok(expected, 'Approved local website guidance must already be published; never publish fixtures automatically');
     app = await createApp(); await app.listen(3111, '127.0.0.1');
-    // Exercise the production HTTP handler and runner. Replace only private model settings/provider transport.
-    // The FAQ deterministic path must not touch the provider; any attempted model request fails the turn.
-    const code = `import asyncio,httpx,logging\nfrom http.server import ThreadingHTTPServer\nimport conversation_server as server\nfrom agent_factory import ModelSettings\nfrom conversation_runner import run_conversation\ndef model(request):\n return httpx.Response(200,json={'id':'synthetic','object':'chat.completion','created':1,'model':'example/demo:free','choices':[{'index':0,'message':{'role':'assistant','content':'Gunakan panduan yang sesuai dan jangan membuat reservasi baru saat hasil belum pasti.'},'finish_reason':'stop'}]})\nasync def guarded(*args, **kwargs):\n return await run_conversation(*args, **kwargs,model_transport=httpx.MockTransport(model))\nserver.load_model_settings=lambda *args:ModelSettings('example/demo:free',('example/demo:free',),'synthetic-test-value')\nserver.run_conversation=guarded\nlogging.disable(logging.CRITICAL)\nThreadingHTTPServer(('127.0.0.1',8111),server.ConversationHandler).serve_forever()`;
-    python = spawn(resolve('apps/assistant/.venv/Scripts/python.exe'), ['-c', code], { cwd: resolve('apps/assistant'), env: { ...process.env, RESTAURANT_API_ORIGIN: 'http://127.0.0.1:3111' }, stdio: 'ignore' });
+    // Real FastAPI runner and internal APIs; only model HTTP transport is deterministic.
+    python = spawn(resolve('agno-v2/.venv/Scripts/python.exe'), [resolve('agno-v2/browser_fixture.py')], { env: { ...process.env, AGNO_SERVICE_API_KEY: process.env.ASSISTANT_GATEWAY_TOKEN, RESTAURANT_API_BASE_URL: 'http://127.0.0.1:3111' }, stdio: 'ignore' });
     await ready('http://127.0.0.1:8111/health', python);
     web = spawn(process.execPath, ['apps/web/node_modules/next/dist/bin/next', 'dev', 'apps/web', '--hostname', '127.0.0.1', '--port', '3110'], { env: { ...process.env, NODE_ENV: 'development', API_ORIGIN: 'http://127.0.0.1:3111', WEB_DIST_DIR: `.next-browser-${randomUUID()}` }, stdio: 'ignore' });
     await ready('http://127.0.0.1:3110', web);
@@ -70,7 +70,7 @@ test('published FAQ reaches real browser through web proxy, API gateway, Python 
     assert.ok(result.cards.some(card => card.type === 'knowledge' && card.data.some(item => item.documentId === expected.documentId && item.revision === expected.revision)));
     await page.getByRole('group', { name: 'Sumber jawaban', exact: true }).waitFor();
     await page.locator('.sela-chat-card strong').filter({ hasText: expected.title }).waitFor();
-    await page.getByText('Versi sumber 1', { exact: true }).first().waitFor();
+    await page.getByText(`Versi sumber ${expected.revision}`, { exact: true }).first().waitFor();
     await page.getByLabel('Pesan untuk asisten').fill('Apakah tersedia parkir?');
     const emptyObserved = page.waitForResponse(response => response.url().endsWith('/chat/messages') && response.request().method() === 'POST');
     await page.getByRole('button', { name: 'Kirim', exact: true }).click();
@@ -78,10 +78,21 @@ test('published FAQ reaches real browser through web proxy, API gateway, Python 
     assert.equal(empty.status, 'ok'); assert.equal(empty.attempted_requests, 0);
     assert.match(empty.message, /belum memiliki sumber FAQ/);
     assert.deepEqual(empty.cards, [{ type: 'knowledge', data: [] }]);
+    for (const message of ['Lihat menu', 'Jam buka hari ini kapan?', 'Mau reservasi']) {
+      await page.getByLabel('Pesan untuk asisten').fill(message);
+      const observed = page.waitForResponse(response => response.url().endsWith('/chat/messages') && response.request().method() === 'POST');
+      await page.getByRole('button', { name: 'Kirim', exact: true }).click();
+      const turn = await (await observed).json();
+      assert.equal(turn.status, 'ok');
+      if (message === 'Lihat menu') assert.ok(turn.cards.some(card => card.type === 'menu'));
+      else assert.equal(turn.attempted_requests, 0);
+    }
+    await page.getByRole('button', { name: 'Buka form reservasi', exact: true }).click();
+    assert.equal(await page.getByRole('dialog').isVisible(), false);
     assert.deepEqual(await snapshot(), before);
   } finally {
     try { if (browser) await browser.close(); } finally {
-      try { await stop(web); } finally {
+      try { await stop(web); for (const file of generatedConfig) writeFileSync(file.path, file.content); } finally {
         try { await stop(python); } finally {
           try { if (app) await app.close(); } finally {
             await db.$disconnect();

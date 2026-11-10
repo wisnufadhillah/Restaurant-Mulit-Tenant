@@ -5,6 +5,7 @@ dist/
 .venv/
 __pycache__/
 *.pyc
+*.egg-info/
 *.tsbuildinfo
 .env
 .env.*

@@ -17,6 +17,7 @@ class ChatResponse(BaseModel):
 
 
 class GatewayRequest(BaseModel):
+    model_config = {"extra": "forbid", "strict": True}
     message: str = Field(min_length=1, max_length=2000)
     tenantSlug: str = Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=80)
     sessionId: str = Field(min_length=1, max_length=128)

@@ -129,12 +129,27 @@ model Order {
   snapToken String? @map("snap_token")
   redirectUrl String? @map("redirect_url")
   idempotencyKey String @map("idempotency_key")
+  requestHash String? @map("request_hash")
+  snapCreationState String @default("unknown") @map("snap_creation_state")
+  paymentEvents OrderPaymentEvent[]
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
   @@unique([tenantId, id])
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, createdAt])
   @@map("orders")
+}
+
+model OrderPaymentEvent {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  orderId String @map("order_id") @db.Uuid
+  order Order @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Restrict)
+  fromStatus String @map("from_status")
+  toStatus String @map("to_status")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  @@index([tenantId, orderId, createdAt])
+  @@map("order_payment_events")
 }
 
 model ChatSession {

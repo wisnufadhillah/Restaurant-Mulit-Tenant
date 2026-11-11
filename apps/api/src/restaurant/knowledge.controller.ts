@@ -16,7 +16,7 @@ export class KnowledgeController {
     @Headers("x-session-id") session: string | undefined, @Res({ passthrough: true }) response: StaffResponse) {
     response.setHeader("Cache-Control", "no-store");
     authorizeInternalTool(service, context, session, slug);
-    this.sessions.assertActive(session!, slug);
+    await this.sessions.assertActive(session!, slug);
     if (Object.keys(query).join() !== "q" || typeof query.q !== "string" || !query.q.trim() || query.q.length > 500) throw new BadRequestException();
     let release: () => void;
     try { release = this.limiter.acquire(slug, session!); }

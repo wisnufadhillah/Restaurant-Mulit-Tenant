@@ -19,21 +19,21 @@ export function authorizeInternalTool(service: string | undefined, context: stri
 export class InternalToolsController {
   constructor(private readonly restaurant: RestaurantService, private readonly menu: MenuService, private readonly sessions: ChatSessionsService, private readonly availability: AvailabilityService) {}
   @Get("restaurant")
-  info(@Param("slug") slug: string, @Headers("x-internal-service-token") service: string | undefined, @Headers("x-internal-context") context: string | undefined, @Headers("x-session-id") session: string | undefined) {
+  async info(@Param("slug") slug: string, @Headers("x-internal-service-token") service: string | undefined, @Headers("x-internal-context") context: string | undefined, @Headers("x-session-id") session: string | undefined) {
     authorizeInternalTool(service, context, session, slug);
-    this.sessions.assertActive(session!, slug);
+    await this.sessions.assertActive(session!, slug);
     return this.restaurant.info(slug);
   }
   @Get("menu")
-  menuInfo(@Param("slug") slug: string, @Headers("x-internal-service-token") service: string | undefined, @Headers("x-internal-context") context: string | undefined, @Headers("x-session-id") session: string | undefined) {
+  async menuInfo(@Param("slug") slug: string, @Headers("x-internal-service-token") service: string | undefined, @Headers("x-internal-context") context: string | undefined, @Headers("x-session-id") session: string | undefined) {
     authorizeInternalTool(service, context, session, slug);
-    this.sessions.assertActive(session!, slug);
+    await this.sessions.assertActive(session!, slug);
     return this.menu.publicList(slug);
   }
   @Get("availability")
-  availabilityInfo(@Param("slug") slug: string, @Query() query: Record<string, string>, @Headers("x-internal-service-token") service: string | undefined, @Headers("x-internal-context") context: string | undefined, @Headers("x-session-id") session: string | undefined) {
+  async availabilityInfo(@Param("slug") slug: string, @Query() query: Record<string, string>, @Headers("x-internal-service-token") service: string | undefined, @Headers("x-internal-context") context: string | undefined, @Headers("x-session-id") session: string | undefined) {
     authorizeInternalTool(service, context, session, slug);
-    this.sessions.assertActive(session!, slug);
+    await this.sessions.assertActive(session!, slug);
     return this.availability.check(slug, new URLSearchParams(query));
   }
 }

@@ -1,45 +1,59 @@
-import { ForbiddenException, Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { ForbiddenException, Injectable, OnModuleDestroy, ServiceUnavailableException } from "@nestjs/common";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createDatabaseClient } from "../database/client";
 import { signInternalContext } from "./internal-context";
 
 const SESSION_MS = 24 * 60 * 60 * 1000;
-interface Session { id: string; slug: string; expiresAt: number; history: Array<{ role: "user" | "assistant"; content: string }>; }
+type Message = { role: "user" | "assistant"; content: string };
+type Session = { id: string; slug: string; expiresAt: number; history: Message[] };
+
 @Injectable()
-export class ChatSessionsService {
-  private readonly sessions = new Map<string, Session>();
+export class ChatSessionsService implements OnModuleDestroy {
+  private readonly db = createDatabaseClient();
   private digest(token: string) { return createHash("sha256").update(token).digest("hex"); }
-  create(slug: string, now = Date.now()) {
+  private async tenant(slug: string) {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length > 80) throw new ForbiddenException();
-    for (const [hash, session] of this.sessions) if (session.expiresAt <= now) this.sessions.delete(hash);
-    if (this.sessions.size >= 1000) throw new ServiceUnavailableException();
+    const row = await this.db.tenant.findFirst({ where: { slug, status: "active" }, select: { id: true } });
+    if (!row) throw new ForbiddenException();
+    return row.id;
+  }
+  async create(slug: string, now = Date.now()) {
+    const tenantId = await this.tenant(slug);
     const token = randomBytes(32).toString("base64url");
-    const session = { id: randomUUID(), slug, expiresAt: now + SESSION_MS, history: [] as Array<{ role: "user" | "assistant"; content: string }> };
-    this.sessions.set(this.digest(token), session);
+    const session = { id: randomUUID(), slug, expiresAt: now + SESSION_MS, history: [] as Message[] };
+    await this.db.chatSession.create({ data: { id: session.id, tenantId, tokenHash: this.digest(token), expiresAt: new Date(session.expiresAt), history: [] } });
     return { token, ...session };
   }
-  read(token: string, slug: string, now = Date.now()) {
+  async read(token: string, slug: string, now = Date.now()): Promise<Session> {
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new ForbiddenException();
-    const session = this.sessions.get(this.digest(token));
-    if (!session || session.slug !== slug || session.expiresAt <= now) throw new ForbiddenException();
-    return session;
+    const tenantId = await this.tenant(slug);
+    const row = await this.db.chatSession.findFirst({ where: { tenantId, tokenHash: this.digest(token), revokedAt: null, expiresAt: { gt: new Date(now) } }, select: { id: true, expiresAt: true, history: true } });
+    if (!row) throw new ForbiddenException();
+    const history = Array.isArray(row.history) ? row.history.filter((item): item is Message => !!item && typeof item === "object" && ((item as Record<string, unknown>).role === "user" || (item as Record<string, unknown>).role === "assistant") && typeof (item as Record<string, unknown>).content === "string").slice(-8) : [];
+    return { id: row.id, slug, expiresAt: row.expiresAt.getTime(), history };
   }
-  assertActive(id: string, slug: string, now = Date.now()) {
-    if (![...this.sessions.values()].some(session => session.id === id && session.slug === slug && session.expiresAt > now)) throw new ForbiddenException();
+  async assertActive(id: string, slug: string, now = Date.now()) { await this.readById(id, slug, now); }
+  private async readById(id: string, slug: string, now: number) {
+    const tenantId = await this.tenant(slug);
+    const row = await this.db.chatSession.findFirst({ where: { id, tenantId, revokedAt: null, expiresAt: { gt: new Date(now) } }, select: { id: true } });
+    if (!row) throw new ForbiddenException();
+    return row;
   }
-  revoke(token: string, slug: string) {
-    this.read(token, slug);
-    this.sessions.delete(this.digest(token));
+  async revoke(token: string, slug: string) {
+    const session = await this.read(token, slug);
+    await this.db.chatSession.updateMany({ where: { id: session.id, tokenHash: this.digest(token), revokedAt: null }, data: { revokedAt: new Date() } });
   }
-  context(token: string, slug: string, now = Date.now()) {
-    const session = this.read(token, slug, now);
+  async context(token: string, slug: string, now = Date.now()) {
+    const session = await this.read(token, slug, now);
     const secret = process.env.INTERNAL_CONTEXT_SECRET;
     if (!secret || secret.length < 32) throw new ServiceUnavailableException();
     return { sessionId: session.id, context: signInternalContext({ tenantSlug: slug, sessionId: session.id, expiresAt: Math.min(session.expiresAt, now + 30000) }, secret) };
   }
-  history(token: string, slug: string) { return this.read(token, slug).history.slice(-8); }
-  append(token: string, slug: string, messages: Array<{ role: "user" | "assistant"; content: string }>) {
-    const session = this.read(token, slug);
-    session.history.push(...messages.filter(message => message.content.length <= 2000));
-    if (session.history.length > 8) session.history.splice(0, session.history.length - 8);
+  async history(token: string, slug: string) { return (await this.read(token, slug)).history; }
+  async append(token: string, slug: string, messages: Message[]) {
+    const session = await this.read(token, slug);
+    const history = [...session.history, ...messages.filter(message => message.content.length <= 2000)].slice(-8);
+    await this.db.chatSession.updateMany({ where: { id: session.id, tokenHash: this.digest(token), revokedAt: null }, data: { history } });
   }
+  async onModuleDestroy() { await this.db.$disconnect(); }
 }

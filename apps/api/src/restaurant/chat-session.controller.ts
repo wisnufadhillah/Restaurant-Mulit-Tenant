@@ -28,28 +28,28 @@ export class ChatSessionController {
     const existing = chatCookie(request);
     let session;
     if (existing) {
-      try { session = this.sessions.read(existing, SLUG); }
+      try { session = await this.sessions.read(existing, SLUG); }
       catch (error) { if (!(error instanceof ForbiddenException)) throw error; }
     }
     if (!session) {
-      session = this.sessions.create(SLUG);
+      session = await this.sessions.create(SLUG);
       response.setHeader("Set-Cookie", `${COOKIE}=${session.token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
     }
     return { data: { id: session.id, expiresAt: session.expiresAt } };
   }
   @Get()
-  read(@Req() request: StaffRequest, @Res({ passthrough: true }) response: StaffResponse) {
+  async read(@Req() request: StaffRequest, @Res({ passthrough: true }) response: StaffResponse) {
     this.prepare(request, response, false);
-    const session = this.sessions.read(chatCookie(request), SLUG);
+    const session = await this.sessions.read(chatCookie(request), SLUG);
     return { data: { id: session.id, expiresAt: session.expiresAt } };
   }
   @Delete()
   @HttpCode(204)
-  revoke(@Req() request: StaffRequest, @Res({ passthrough: true }) response: StaffResponse) {
+  async revoke(@Req() request: StaffRequest, @Res({ passthrough: true }) response: StaffResponse) {
     this.prepare(request, response, true);
     const token = chatCookie(request);
     if (token) {
-      try { this.sessions.revoke(token, SLUG); }
+      try { await this.sessions.revoke(token, SLUG); }
       catch (error) { if (!(error instanceof ForbiddenException)) throw error; }
     }
     response.setHeader("Set-Cookie", `${COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);

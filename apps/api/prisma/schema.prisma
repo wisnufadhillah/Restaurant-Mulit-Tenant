@@ -19,6 +19,7 @@ model Tenant {
   staff Staff[]
   menuItems MenuItem[]
   orders Order[]
+  chatSessions ChatSession[]
   reservationCreatorSessions ReservationCreatorSession[]
   knowledgeDocuments KnowledgeDocument[]
   @@map("tenants")
@@ -114,6 +115,8 @@ model Order {
   id String @id @default(uuid()) @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  chatSessionId String? @map("chat_session_id") @db.Uuid
+  chatSession ChatSession? @relation(fields: [tenantId, chatSessionId], references: [tenantId, id], onDelete: Restrict)
   code String @unique
   customerName String @map("customer_name")
   customerPhone String? @map("customer_phone")
@@ -132,6 +135,21 @@ model Order {
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, createdAt])
   @@map("orders")
+}
+
+model ChatSession {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  tokenHash String @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  history Json
+  orders Order[]
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  @@unique([tenantId, id])
+  @@index([tenantId, expiresAt])
+  @@map("chat_sessions")
 }
 
 model Staff {

@@ -1,5 +1,17 @@
 # Diagnosis Login Lokal
 
+## Default Origin development
+
+`trustedOrigin` pada web sebelumnya memilih default `http://127.0.0.1:3000`, tetapi menolak HTTP lokal bila `STAFF_ORIGIN` tidak diisi eksplisit. Akibatnya request login development dapat berhenti dengan 403 sebelum API memeriksa credential. Default loopback kini diterima pada development; Origin asing/cross-site tetap ditolak dan production tanpa konfigurasi tetap fail-closed.
+
+```sh
+rtk proxy node --test apps/api/test/web-origin.test.cjs apps/api/test/login-proxy.test.cjs apps/api/test/staff-origin.test.cjs
+```
+
+Tes default web gagal sebelum perbaikan, lalu ketiga tes lulus. Typecheck web lulus. Pemeriksaan API health dan profil demo masing-masing HTTP 200; ini belum membuktikan credential lokal benar. Isi JSON akun tidak dibaca atau diubah dalam diagnosis ini.
+
+Restart FE milik sendiri, buka `http://127.0.0.1:3000/login`, lalu coba satu kali dengan akun privat. Port berbeda memerlukan `STAFF_ORIGIN` yang cocok pada web dan API. Jangan mencetak password, cookie atau file environment. Runtime assistant tidak diperlukan untuk login staff; peringatan uv tentang environment berbeda tidak menjelaskan penolakan login.
+
 ## Gejala dan bukti
 
 Tes login web pernah gagal dengan HTTP 503, sementara tes auth terisolasi lulus. Pemeriksaan setelah kegagalan menunjukkan health API dan profil publik HTTP 200. Probe login bersamaan menghasilkan 429 pada satu request, lalu tes web dijalankan sendiri lulus. Penyebab 503 awal belum teridentifikasi; 429 membuktikan pembatasan konkurensi, bukan membuktikan penyebab 503.

@@ -49,7 +49,7 @@ export class ChatMessageController {
     if (!input || typeof input !== "object" || Array.isArray(input)) throw new BadRequestException();
     const body = input as Record<string, unknown>;
     if (Object.keys(body).join() !== "message" || typeof body.message !== "string" || !body.message.trim() || body.message.length > 2000) throw new BadRequestException();
-    const token = chatCookie(request), session = this.sessions.read(token, "demo-padang");
+    const token = chatCookie(request), session = await this.sessions.read(token, "demo-padang");
     const now = Date.now();
     for (const [id, entry] of this.turns) if (!entry.busy && entry.until <= now) this.turns.delete(id);
     const entry = this.turns.get(session.id) ?? { count: 0, until: now + 60000, busy: false };
@@ -57,10 +57,10 @@ export class ChatMessageController {
     entry.count++; entry.busy = true; this.turns.set(session.id, entry);
     const safeMessage = redactChat(body.message.trim());
     try {
-      const context = this.sessions.context(token, session.slug);
-      const result = await this.transport.send({ message: safeMessage, tenantSlug: session.slug, sessionId: context.sessionId, context: context.context, history: this.sessions.history(token, session.slug) });
-      this.sessions.assertActive(session.id, session.slug);
-      this.sessions.append(token, session.slug, [{ role: "user", content: safeMessage }, { role: "assistant", content: redactChat(result.message) }]);
+      const context = await this.sessions.context(token, session.slug);
+      const result = await this.transport.send({ message: safeMessage, tenantSlug: session.slug, sessionId: context.sessionId, context: context.context, history: await this.sessions.history(token, session.slug) });
+      await this.sessions.assertActive(session.id, session.slug);
+      await this.sessions.append(token, session.slug, [{ role: "user", content: safeMessage }, { role: "assistant", content: redactChat(result.message) }]);
       return { status: result.status, message: redactChat(result.message), cards: ["ok", "partial"].includes(result.status) ? validatedChatCards(result.cards) : [], actions: ["ok", "partial", "unavailable", "timeout"].includes(result.status) ? result.actions : [], input: safeMessage, attempted_requests: result.attempted_requests, diagnostics: result.diagnostics };
     } catch {
       try {

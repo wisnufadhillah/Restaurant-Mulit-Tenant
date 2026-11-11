@@ -32,6 +32,15 @@ export class ChatSessionsService implements OnModuleDestroy {
     const history = Array.isArray(row.history) ? row.history.filter((item): item is Message => !!item && typeof item === "object" && ((item as Record<string, unknown>).role === "user" || (item as Record<string, unknown>).role === "assistant") && typeof (item as Record<string, unknown>).content === "string").slice(-8) : [];
     return { id: row.id, slug, expiresAt: row.expiresAt.getTime(), history };
   }
+  async readForOrders(token: string, now = Date.now()) {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new ForbiddenException();
+    const row = await this.db.chatSession.findFirst({
+      where: { tokenHash: this.digest(token), revokedAt: null, expiresAt: { gt: new Date(now) }, tenant: { status: "active" } },
+      select: { id: true, tenantId: true, expiresAt: true, tenant: { select: { slug: true } } },
+    });
+    if (!row) throw new ForbiddenException();
+    return { id: row.id, tenantId: row.tenantId, slug: row.tenant.slug, expiresAt: row.expiresAt.getTime() };
+  }
   async assertActive(id: string, slug: string, now = Date.now()) { await this.readById(id, slug, now); }
   private async readById(id: string, slug: string, now: number) {
     const tenantId = await this.tenant(slug);

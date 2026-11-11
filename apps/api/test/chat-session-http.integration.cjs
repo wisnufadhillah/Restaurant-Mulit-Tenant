@@ -1,5 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const { randomBytes } = require('node:crypto');
 const { createApp } = require('../dist/create-app');
 
 test('chat cookie session reuses valid context and revokes without exposing bearer in JSON', async () => {
@@ -26,6 +27,8 @@ test('chat cookie session reuses valid context and revokes without exposing bear
     assert.deepEqual(await read.json(), body);
     const reuse = await fetch(base, { method: 'POST', headers: { cookie, origin: 'http://127.0.0.1:3000' } });
     assert.deepEqual(await reuse.json(), body); assert.equal(reuse.headers.get('set-cookie'), null);
+    const stale = await fetch(base, { method: 'POST', headers: { cookie: `restaurant_chat=${randomBytes(32).toString('base64url')}`, origin: 'http://127.0.0.1:3000' } });
+    assert.equal(stale.status, 200); assert.ok(stale.headers.get('set-cookie')?.includes('restaurant_chat='));
     assert.equal((await fetch(base, { headers: { cookie: `${cookie}; ${cookie}` } })).status, 403);
     assert.equal((await fetch(base, { method: 'DELETE', headers: { cookie, origin: 'https://other.example' } })).status, 403);
     assert.equal((await fetch(base, { method: 'DELETE', headers: { cookie, origin: 'http://127.0.0.1:3000' } })).status, 204);

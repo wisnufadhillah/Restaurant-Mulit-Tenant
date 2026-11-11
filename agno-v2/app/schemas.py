@@ -22,3 +22,4 @@ class GatewayRequest(BaseModel):
     tenantSlug: str = Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=80)
     sessionId: str = Field(min_length=1, max_length=128)
     context: str = Field(min_length=1, max_length=4096)
+    history: list[dict[str, str]] = Field(default_factory=list, max_length=12)

@@ -2,7 +2,7 @@
   "name": "@restaurant/api",
   "private": true,
   "scripts": {
-    "dev": "tsc && node --watch dist/main.js",
+    "dev": "tsc && node dev.cjs",
     "watch:types": "tsc --watch",
     "build": "prisma generate && tsc",
     "start": "node dist/main.js",

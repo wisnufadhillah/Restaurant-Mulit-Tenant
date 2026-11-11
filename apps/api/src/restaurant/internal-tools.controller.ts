@@ -1,9 +1,10 @@
-import { Controller, ForbiddenException, Get, Headers, Param, UnauthorizedException } from "@nestjs/common";
+import { Controller, ForbiddenException, Get, Headers, Param, Query, UnauthorizedException } from "@nestjs/common";
 import { timingSafeEqual } from "node:crypto";
 import { verifyInternalContext } from "./internal-context";
 import { RestaurantService } from "./restaurant.service";
 import { MenuService } from "../menu/menu.service";
 import { ChatSessionsService } from "./chat-sessions.service";
+import { AvailabilityService } from "./availability.service";
 
 export function authorizeInternalTool(service: string | undefined, context: string | undefined, session: string | undefined, slug: string) {
   const expected = process.env.INTERNAL_TOOL_SERVICE_TOKEN;
@@ -16,7 +17,7 @@ export function authorizeInternalTool(service: string | undefined, context: stri
 
 @Controller("internal/tenants/:slug")
 export class InternalToolsController {
-  constructor(private readonly restaurant: RestaurantService, private readonly menu: MenuService, private readonly sessions: ChatSessionsService) {}
+  constructor(private readonly restaurant: RestaurantService, private readonly menu: MenuService, private readonly sessions: ChatSessionsService, private readonly availability: AvailabilityService) {}
   @Get("restaurant")
   info(@Param("slug") slug: string, @Headers("x-internal-service-token") service: string | undefined, @Headers("x-internal-context") context: string | undefined, @Headers("x-session-id") session: string | undefined) {
     authorizeInternalTool(service, context, session, slug);
@@ -28,5 +29,11 @@ export class InternalToolsController {
     authorizeInternalTool(service, context, session, slug);
     this.sessions.assertActive(session!, slug);
     return this.menu.publicList(slug);
+  }
+  @Get("availability")
+  availabilityInfo(@Param("slug") slug: string, @Query() query: Record<string, string>, @Headers("x-internal-service-token") service: string | undefined, @Headers("x-internal-context") context: string | undefined, @Headers("x-session-id") session: string | undefined) {
+    authorizeInternalTool(service, context, session, slug);
+    this.sessions.assertActive(session!, slug);
+    return this.availability.check(slug, new URLSearchParams(query));
   }
 }

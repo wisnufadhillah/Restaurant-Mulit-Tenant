@@ -18,9 +18,10 @@ def model_settings():
     return ModelSettings(settings.model_id, settings.allowed_models, settings.model_api_key)
 
 
-async def run_turn(request, *, model_settings_override=None, model_transport=None, api_transport=None):
+async def run_turn(request, *, model_settings_override=None, model_transport=None, api_transport=None, history=None):
     checked = model_settings_override or model_settings()
     headers = internal_headers({'x-internal-context': request.context, 'x-session-id': request.sessionId})
     return await run_conversation(request.message, checked, request.tenantSlug, headers,
+        history=history,
         model_transport=model_transport, api_transport=api_transport,
         api_origin=settings.restaurant_api_base_url)

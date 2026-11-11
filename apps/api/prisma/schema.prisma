@@ -18,6 +18,7 @@ model Tenant {
   outlets Outlet[]
   staff Staff[]
   menuItems MenuItem[]
+  orders Order[]
   reservationCreatorSessions ReservationCreatorSession[]
   knowledgeDocuments KnowledgeDocument[]
   @@map("tenants")
@@ -107,6 +108,30 @@ model MenuItem {
   @@unique([tenantId, id])
   @@index([tenantId])
   @@map("menu_items")
+}
+
+model Order {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  code String @unique
+  customerName String @map("customer_name")
+  customerPhone String? @map("customer_phone")
+  status String @default("pending")
+  paymentStatus String @default("unpaid") @map("payment_status")
+  paymentMethod String? @map("payment_method")
+  orderTotal Int @map("order_total")
+  items Json
+  midtransOrderId String? @unique @map("midtrans_order_id")
+  snapToken String? @map("snap_token")
+  redirectUrl String? @map("redirect_url")
+  idempotencyKey String @map("idempotency_key")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  @@unique([tenantId, id])
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, createdAt])
+  @@map("orders")
 }
 
 model Staff {

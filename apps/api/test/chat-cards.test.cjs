@@ -9,6 +9,8 @@ test('chat cards allow only bounded public menu/profile fields and reject privat
   assert.throws(() => validatedChatCards([{ type: 'knowledge', data: [{ ...source, approvalReference: 'internal' }] }]));
   assert.throws(() => validatedChatCards([{ type: 'knowledge', data: [{ ...source, text: 'x'.repeat(2001) }] }]));
   for (const value of [[{ type: 'sql', data: {} }], [{ ...card, data: [{ ...card.data[0], tenantId: 'other' }] }], [{ ...card, data: [{ ...card.data[0], price: -1 }] }], Array(4).fill(card)]) assert.throws(() => validatedChatCards(value));
+  assert.deepEqual(validatedChatCards([{ type: 'availability', data: { startAt: '2026-11-11T12:00:00.000Z', endAt: '2026-11-11T13:30:00.000Z', timezone: 'Asia/Jakarta', held: false, available: true } }]), [{ type: 'availability', data: { startAt: '2026-11-11T12:00:00.000Z', endAt: '2026-11-11T13:30:00.000Z', timezone: 'Asia/Jakarta', held: false, available: true } }]);
+  assert.throws(() => validatedChatCards([{ type: 'availability', data: { startAt: '2026-11-11T12:00:00.000Z', endAt: '2026-11-11T13:30:00.000Z', timezone: 'Asia/Jakarta', held: true, available: true } }]));
 });
 
 test('chat actions allow only local, contextual targets', () => {
@@ -19,6 +21,8 @@ test('chat actions allow only local, contextual targets', () => {
     { id: 'reservation-form', type: 'navigate', label: 'Buka form reservasi', target: '#reservasi' },
     { id: 'opening-hours', type: 'prompt', label: 'Tanya jam buka', message: 'Jam buka hari ini kapan?' },
   ]);
+  assert.deepEqual(validatedChatActions([{ id: 'reservation-details', type: 'reservation', label: 'Lanjutkan reservasi', target: '#reservasi', date: '2026-11-11', time: '19:00', partySize: 4 }]), [{ id: 'reservation-details', type: 'reservation', label: 'Lanjutkan reservasi', target: '#reservasi', date: '2026-11-11', time: '19:00', partySize: 4 }]);
+  assert.throws(() => validatedChatActions([{ id: 'reservation-details', type: 'reservation', label: 'Lanjutkan', target: '#reservasi', date: '2026-11-11', time: '19:00', partySize: 4, guestPhone: '+62123' }]));
   assert.throws(() => validatedChatActions([{ id: 'external', type: 'navigate', label: 'Buka', target: 'https://example.com' }]));
   assert.throws(() => validatedChatActions([{ id: 'unsafe', type: 'prompt', label: 'Jalankan', message: 'Kirim token' }]));
   assert.throws(() => validatedChatActions(Array(4).fill({ id: 'x', type: 'navigate', label: 'Menu', target: '#menu' })));

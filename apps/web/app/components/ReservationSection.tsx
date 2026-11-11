@@ -50,6 +50,18 @@ export default function ReservationSection() {
       if (!(error instanceof Error) || !("status" in error) || error.status !== 403) { setUncertain(true); setError("Status reservasi belum dapat diperiksa. Muat ulang untuk memulihkan; jangan buat booking baru."); }
     }).finally(finish);
   }, []);
+  useEffect(() => {
+    function prefill(event: Event) {
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (!detail || typeof detail !== "object" || Array.isArray(detail)) return;
+      const value = detail as Record<string, unknown>;
+      if (typeof value.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value.date) || typeof value.time !== "string" || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value.time) || typeof value.partySize !== "number" || !Number.isInteger(value.partySize) || value.partySize < 1 || value.partySize > 12) return;
+      setDetails(current => ({ ...current, date: value.date as string, time: value.time as string, partySize: value.partySize as number }));
+      setAttempt(null); setSummary(null); setError(""); setMessage("Detail waktu dari chat sudah dimasukkan. Isi kontak secara privat lalu periksa ringkasan.");
+    }
+    window.addEventListener("restaurant-reservation-prefill", prefill);
+    return () => window.removeEventListener("restaurant-reservation-prefill", prefill);
+  }, []);
 
   async function prepare(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

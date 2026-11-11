@@ -77,6 +77,26 @@ test('pending request blocks duplicate send and Escape returns focus', async ({ 
   await expect(page.getByRole('button', { name: 'Tanya restoran', exact: true })).toBeFocused();
 });
 
+test('availability action prefills only non-private reservation details', async ({ page }) => {
+  await session(page);
+  await page.route('**/reservation/*', route => route.fulfill({ status: 403, contentType: 'application/json', body: '{}' }));
+  await page.route('**/chat/messages', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+    input: 'Reservasi 4 orang besok jam 19.00', status: 'ok', message: 'Ada slot yang terlihat tersedia.',
+    cards: [{ type: 'availability', data: { startAt: '2026-11-11T12:00:00Z', endAt: '2026-11-11T13:30:00Z', timezone: 'Asia/Jakarta', held: false, available: true } }],
+    actions: [{ id: 'reservation-details', type: 'reservation', label: 'Lanjutkan reservasi', target: '#reservasi', date: '2026-11-11', time: '19:00', partySize: 4 }],
+  }) }));
+  await open(page);
+  await page.getByLabel('Pesan untuk asisten').fill('Reservasi 4 orang besok jam 19.00');
+  await page.getByLabel('Pesan untuk asisten').press('Enter');
+  await page.getByRole('button', { name: 'Lanjutkan reservasi', exact: true }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page.getByLabel('Tanggal (WIB)')).toHaveValue('2026-11-11');
+  await expect(page.getByLabel('Jam (WIB)')).toHaveValue('19:00');
+  await expect(page.getByLabel('Jumlah tamu')).toHaveValue('4');
+  await expect(page.getByLabel('Nama', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Nomor telepon')).toHaveValue('');
+});
+
 test('expired session preserves draft and new session recovers', async ({ page }) => {
   await session(page);
   await page.route('**/chat/messages', route => route.fulfill({ status: 403, contentType: 'application/json', body: '{}' }));

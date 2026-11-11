@@ -39,6 +39,16 @@ export function validatedChatCards(value: unknown) {
         return { name: text(outlet.name, 200), address: text(outlet.address, 2000), contactPhone: text(outlet.contactPhone, 100) };
       }) } };
     }
+    if (card.type === "availability") {
+      const availability = record(card.data);
+      const keys = Object.keys(availability).sort().join();
+      if (!["available,endAt,held,startAt,timezone", "available,endAt,held,reason,startAt,timezone"].includes(keys) ||
+        typeof availability.startAt !== "string" || !Number.isFinite(Date.parse(availability.startAt)) ||
+        typeof availability.endAt !== "string" || !Number.isFinite(Date.parse(availability.endAt)) ||
+        availability.timezone !== "Asia/Jakarta" || availability.held !== false || typeof availability.available !== "boolean" ||
+        ("reason" in availability && (typeof availability.reason !== "string" || availability.reason.length > 200))) throw new ServiceUnavailableException();
+      return { type: "availability", data: { startAt: availability.startAt, endAt: availability.endAt, timezone: "Asia/Jakarta" as const, held: false as const, available: availability.available, ...(typeof availability.reason === "string" ? { reason: availability.reason } : {}) } };
+    }
     throw new ServiceUnavailableException();
   });
 }
@@ -55,6 +65,17 @@ export function validatedChatActions(value: unknown) {
     if (type === "prompt") {
       if (Object.keys(action).sort().join() !== "id,label,message,type" || !["Jam buka hari ini kapan?", "Apa kebijakan restoran lain yang perlu saya tahu?"].includes(String(action.message))) throw new ServiceUnavailableException();
       return { id: text(action.id, 40), type: "prompt" as const, label: text(action.label, 80), message: action.message as string };
+    }
+    if (type === "reservation") {
+      if (Object.keys(action).sort().join() !== "date,id,label,partySize,target,time,type" || action.target !== "#reservasi" ||
+        typeof action.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(action.date) ||
+        typeof action.time !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(action.time) ||
+        typeof action.partySize !== "number" || !Number.isInteger(action.partySize) || action.partySize < 1 || action.partySize > 12) throw new ServiceUnavailableException();
+      return { id: text(action.id, 40), type: "reservation" as const, label: text(action.label, 80), target: "#reservasi" as const, date: action.date, time: action.time, partySize: action.partySize };
+    }
+    if (type === "order") {
+      if (Object.keys(action).sort().join() !== "id,itemId,label,quantity,type" || typeof action.itemId !== "string" || !/^[0-9a-f-]{36}$/i.test(action.itemId) || typeof action.quantity !== "number" || !Number.isInteger(action.quantity) || action.quantity < 1 || action.quantity > 20) throw new ServiceUnavailableException();
+      return { id: text(action.id, 40), type: "order" as const, label: text(action.label, 80), itemId: action.itemId, quantity: action.quantity };
     }
     throw new ServiceUnavailableException();
   });

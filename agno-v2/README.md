@@ -50,4 +50,4 @@ Panduan command, batas stub versus PostgreSQL nyata, hasil lokal dan pemeriksaan
 ## Status
 
 Chatbot lama sekarang dapat diarahkan ke gateway ini melalui `ASSISTANT_ORIGIN=http://127.0.0.1:8010`. UI dan endpoint `/chat/*` tetap tidak berubah.
-Chatbot production hanya read-only: tidak ada availability, proposal, reservasi, pembayaran, atau tool admin. Reservasi tetap melalui form web privat.
+Chatbot production dapat membaca availability tanpa menahan meja. Ia tidak memiliki tool tulis: proposal, konfirmasi reservasi, pembayaran, dan admin tetap berjalan melalui form web privat serta API bisnis.

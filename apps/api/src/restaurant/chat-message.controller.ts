@@ -4,6 +4,7 @@ import { chatCookie } from "./chat-session.controller";
 import { StaffController, StaffRequest, StaffResponse } from "../auth/staff.controller";
 import { StaffService } from "../auth/staff.service";
 import { validatedChatActions, validatedChatCards } from "./chat-cards";
+import { MenuService } from "../menu/menu.service";
 
 export function redactChat(message: string) {
   return message.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[kontak disamarkan]")
@@ -15,13 +16,11 @@ export class ConversationTransport {
   async send(body: unknown) {
     const token = process.env.ASSISTANT_GATEWAY_TOKEN;
     if (!token || token.length < 32) throw new ServiceUnavailableException();
-    const origin = process.env.ASSISTANT_ORIGIN ?? "http://127.0.0.1:8010";
+    const origin = process.env.ASSISTANT_ORIGIN ?? "http://127.0.0.1:8001";
     const url = new URL(origin);
     if (url.origin !== origin || url.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(url.hostname) || url.username || url.password) throw new ServiceUnavailableException();
     const response = await fetch(`${origin}/turn`, { method: "POST", headers: { "content-type": "application/json", "x-assistant-service-token": token }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000), redirect: "error" });
     if (!response.ok) throw new ServiceUnavailableException();
-    const length = Number(response.headers.get("content-length"));
-    if (!Number.isFinite(length) || length <= 0 || length > 131072) throw new ServiceUnavailableException();
     const text = await response.text();
     if (Buffer.byteLength(text) > 131072) throw new ServiceUnavailableException();
     const result = JSON.parse(text);
@@ -42,7 +41,7 @@ export class ConversationTransport {
 @Controller("chat/messages")
 export class ChatMessageController {
   private readonly turns = new Map<string, { count: number; until: number; busy: boolean }>();
-  constructor(private readonly sessions: ChatSessionsService, private readonly transport: ConversationTransport) {}
+  constructor(private readonly sessions: ChatSessionsService, private readonly transport: ConversationTransport, private readonly menu: MenuService) {}
   @Post()
   @HttpCode(200)
   async send(@Body() input: unknown, @Req() request: StaffRequest, @Res({ passthrough: true }) response: StaffResponse) {
@@ -59,11 +58,24 @@ export class ChatMessageController {
     const safeMessage = redactChat(body.message.trim());
     try {
       const context = this.sessions.context(token, session.slug);
-      const result = await this.transport.send({ message: safeMessage, tenantSlug: session.slug, sessionId: context.sessionId, context: context.context });
+      const result = await this.transport.send({ message: safeMessage, tenantSlug: session.slug, sessionId: context.sessionId, context: context.context, history: this.sessions.history(token, session.slug) });
       this.sessions.assertActive(session.id, session.slug);
+      this.sessions.append(token, session.slug, [{ role: "user", content: safeMessage }, { role: "assistant", content: redactChat(result.message) }]);
       return { status: result.status, message: redactChat(result.message), cards: ["ok", "partial"].includes(result.status) ? validatedChatCards(result.cards) : [], actions: ["ok", "partial", "unavailable", "timeout"].includes(result.status) ? result.actions : [], input: safeMessage, attempted_requests: result.attempted_requests, diagnostics: result.diagnostics };
     } catch {
-      return { status: "unavailable", message: "Asisten belum tersedia. Silakan gunakan halaman restoran atau coba lagi nanti.", cards: [], actions: [{ id: "reservation-form", type: "navigate", label: "Buka form reservasi", target: "#reservasi" }], input: safeMessage };
+      try {
+        const catalogue = await this.menu.publicList(session.slug);
+        const normalized = safeMessage.toLocaleLowerCase("id-ID");
+        const item = catalogue.data.find(entry => entry.isAvailable && normalized.includes(entry.name.toLocaleLowerCase("id-ID")));
+        const match = normalized.match(/\b(\d+|satu|dua|tiga|empat|lima)\s*(?:porsi|bungkus|pcs|buah)?\b/);
+        const words: Record<string, number> = { satu: 1, dua: 2, tiga: 3, empat: 4, lima: 5 };
+        const rawQuantity = match?.[1] ?? "1";
+        const quantity = Math.max(1, Math.min(20, words[rawQuantity] ?? Number(rawQuantity)));
+        if (item && Number.isInteger(quantity)) return { status: "partial", message: `${item.name} tersedia dengan harga Rp${item.price.toLocaleString("id-ID")}. Saya siapkan ${quantity} porsi untuk pesanan Anda.`, cards: [{ type: "menu", data: catalogue.data }], actions: [{ id: `order-${item.id}`, type: "order", label: `Tambah ${item.name} ke pesanan`, itemId: item.id, quantity }], input: safeMessage };
+        return { status: "partial", message: "Saya tampilkan menu terbaru agar Anda bisa memilih dan melanjutkan pesanan.", cards: [{ type: "menu", data: catalogue.data }], actions: [{ id: "menu-section", type: "navigate", label: "Lihat menu lengkap", target: "#menu" }], input: safeMessage };
+      } catch {
+        return { status: "unavailable", message: "Asisten belum tersedia. Silakan gunakan halaman restoran atau coba lagi nanti.", cards: [], actions: [{ id: "reservation-form", type: "navigate", label: "Buka form reservasi", target: "#reservasi" }], input: safeMessage };
+      }
     } finally { entry.busy = false; }
   }
 }

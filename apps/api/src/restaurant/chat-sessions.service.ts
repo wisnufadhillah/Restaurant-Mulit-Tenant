@@ -3,7 +3,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { signInternalContext } from "./internal-context";
 
 const SESSION_MS = 24 * 60 * 60 * 1000;
-interface Session { id: string; slug: string; expiresAt: number; }
+interface Session { id: string; slug: string; expiresAt: number; history: Array<{ role: "user" | "assistant"; content: string }>; }
 @Injectable()
 export class ChatSessionsService {
   private readonly sessions = new Map<string, Session>();
@@ -13,7 +13,7 @@ export class ChatSessionsService {
     for (const [hash, session] of this.sessions) if (session.expiresAt <= now) this.sessions.delete(hash);
     if (this.sessions.size >= 1000) throw new ServiceUnavailableException();
     const token = randomBytes(32).toString("base64url");
-    const session = { id: randomUUID(), slug, expiresAt: now + SESSION_MS };
+    const session = { id: randomUUID(), slug, expiresAt: now + SESSION_MS, history: [] as Array<{ role: "user" | "assistant"; content: string }> };
     this.sessions.set(this.digest(token), session);
     return { token, ...session };
   }
@@ -35,5 +35,11 @@ export class ChatSessionsService {
     const secret = process.env.INTERNAL_CONTEXT_SECRET;
     if (!secret || secret.length < 32) throw new ServiceUnavailableException();
     return { sessionId: session.id, context: signInternalContext({ tenantSlug: slug, sessionId: session.id, expiresAt: Math.min(session.expiresAt, now + 30000) }, secret) };
+  }
+  history(token: string, slug: string) { return this.read(token, slug).history.slice(-8); }
+  append(token: string, slug: string, messages: Array<{ role: "user" | "assistant"; content: string }>) {
+    const session = this.read(token, slug);
+    session.history.push(...messages.filter(message => message.content.length <= 2000));
+    if (session.history.length > 8) session.history.splice(0, session.history.length - 8);
   }
 }

@@ -28,6 +28,24 @@ class ConversationTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result['attempted_requests'], 0)
             self.assertEqual(result['cards'], [])
 
+    async def test_dated_booking_uses_tenant_bound_availability(self):
+        calls = []
+        def model(request):
+            calls.append(json.loads(request.content))
+            message = {'role': 'assistant', 'content': 'Ada slot yang terlihat tersedia.'}
+            if len(calls) == 1:
+                message = {'role': 'assistant', 'content': None, 'tool_calls': [{'id': 'availability-call', 'type': 'function', 'function': {'name': 'check_availability', 'arguments': json.dumps({'date': '2026-11-11', 'time': '19:00', 'party_size': 4})}}]}
+            return httpx.Response(200, json={'id': 'synthetic', 'object': 'chat.completion', 'created': 1, 'model': MODEL, 'choices': [{'index': 0, 'message': message, 'finish_reason': 'tool_calls' if len(calls) == 1 else 'stop'}]})
+        def api(request):
+            self.assertEqual(request.url.path, '/api/v1/internal/tenants/demo-padang/availability')
+            self.assertEqual(dict(request.url.params), {'date': '2026-11-11', 'time': '19:00', 'partySize': '4'})
+            self.assertEqual(request.headers['x-session-id'], HEADERS['x-session-id'])
+            return httpx.Response(200, json={'data': {'startAt': '2026-11-11T12:00:00Z', 'endAt': '2026-11-11T13:30:00Z', 'timezone': 'Asia/Jakarta', 'held': False, 'available': True}, 'retrieved_at': '2026-11-10T12:00:00Z', 'source': 'restaurant_api'})
+        result = await run_conversation('Reservasi 4 orang besok jam 19.00', SETTINGS, 'demo-padang', HEADERS, model_transport=httpx.MockTransport(model), api_transport=httpx.MockTransport(api))
+        self.assertEqual(result['status'], 'ok')
+        self.assertEqual(result['cards'], [{'type': 'availability', 'data': {'startAt': '2026-11-11T12:00:00Z', 'endAt': '2026-11-11T13:30:00Z', 'timezone': 'Asia/Jakarta', 'held': False, 'available': True, 'reason': None}}])
+        self.assertEqual(result['attempted_requests'], 2)
+
     async def test_greeting_with_question_reaches_model_and_formats_plain_text(self):
         calls = []
         def model(request):

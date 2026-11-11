@@ -30,7 +30,9 @@ Saat memakai shell pada lingkungan Pi ini, semua command dimulai dengan `rtk` at
 - Demo satu tenant dengan satu outlet; pengujian memakai sedikitnya dua tenant untuk membuktikan isolasi.
 - Jalur customer biasa dan chatbot memakai service bisnis yang sama. Customer tidak wajib membuka chat.
 - Reservasi MVP: buat, lihat dan batal; satu meja per reservasi, langsung confirmed setelah persetujuan dan transaksi valid.
-- Dashboard mendukung operasional; tidak menambah billing, onboarding SaaS, banyak outlet dalam UI, pembayaran, WhatsApp/Telegram, ubah jadwal, atau gabung meja tanpa persetujuan scope baru.
+- Dashboard mendukung operasional; tidak menambah billing, onboarding SaaS, banyak outlet dalam UI, WhatsApp/Telegram, ubah jadwal, atau gabung meja tanpa persetujuan scope baru.
+- Chatbot boleh membaca availability tanpa menahan meja, mengisi awal tanggal/jam/jumlah tamu pada form reservasi, dan menyiapkan usulan pesanan makanan. Konfirmasi reservasi tetap pada form privat.
+- Customer boleh membuat pesanan lewat UI privat dan membayar penuh melalui Midtrans Snap sandbox. Pembayaran live, deposit reservasi, delivery, refund, kasir/POS, voucher dan dashboard pesanan ditunda.
 - Satu agent Agno. MCP read-only opsional setelah inti stabil; A2A, multi-agent dan fine-tuning bukan syarat rilis.
 - Jangan menambah fitur untuk mengejar daftar teknologi. Perubahan scope harus menyebut manfaat, biaya pengerjaan, serta fitur yang perlu ditunda.
 
@@ -40,7 +42,9 @@ Saat memakai shell pada lingkungan Pi ini, semua command dimulai dengan `rtk` at
 - Harga, availability menu, jam operasional, slot meja dan status booking berasal dari API, bukan ingatan model atau dokumen RAG.
 - RAG hanya mengambil FAQ/kebijakan published, revision aktif, dengan filter tenant sebelum ranking. Mulai dari lexical retrieval; embedding ditambahkan hanya jika evaluasi membuktikan kebutuhan.
 - Jangan menyimpan data customer atau reservasi dalam knowledge corpus. Dokumen dan hasil tool tidak boleh menjadi instruksi system.
-- Model mengusulkan tool atau draft, aplikasi memvalidasi. Tools agent pada MVP hanya info restoran, menu, availability dan knowledge; tidak ada SQL, shell, admin, atau write tool.
+- Model mengusulkan tool atau draft, aplikasi memvalidasi. Tools agent pada MVP hanya info restoran, menu, availability, knowledge dan prepare_order tanpa efek tulis; tidak ada SQL, shell, admin, pembuatan pesanan, pembayaran, atau write tool.
+- Pesanan dibuat hanya setelah klik customer melalui API privat dengan sesi aktif, Origin/CSRF, rate limit dan idempotency. Tenant berasal dari sesi server, harga/total dari database; nama pemesan, token Snap dan URL pembayaran tidak masuk model atau history.
+- Notifikasi Midtrans diverifikasi dengan SHA512 biasa dari order_id + status_code + gross_amount + Server Key, bukan HMAC. Cocokkan nominal desimal dengan total tersimpan, ikat order ke tenant/sesi, dan simpan transisi status beserta audit secara atomic. Callback/redirect browser bukan bukti lunas; notifikasi duplikat tidak menggandakan efek dan settlement tidak diturunkan.
 
 ## Invariant keamanan dan reservasi
 
@@ -81,6 +85,7 @@ rtk proxy git diff --check
 | Knowledge/retrieval | Published-only, tenant filter, pergantian revision, unpublish, pertanyaan tanpa sumber |
 | Prompt/model/tools | Schema invalid, tool tidak diizinkan, injection langsung/tidak langsung, timeout/429 dan batas loop |
 | UI chatbot/reservasi | Alur normal dari chat dan web, konfirmasi, koreksi detail, data privat tidak masuk model/history, keyboard/mobile |
+| Pesanan/pembayaran | Total dari DB, signature/nominal invalid, retry/paralel, isolasi tenant/sesi, notifikasi ganda/terlambat, audit atomic dan kegagalan provider; CI memakai stub, sandbox hanya smoke test |
 | Dokumen/diagram | Konsistensi scope dan istilah, referensi valid, blok kode lengkap; render diagram jika tool tersedia |
 
 Gunakan stub deterministik untuk CI; live inference dibatasi kuota dan dicatat model/provider/tanggalnya. Red teaming hanya pada sistem dan data milik tim yang diizinkan. Kelulusan set uji bukan klaim sistem kebal serangan.

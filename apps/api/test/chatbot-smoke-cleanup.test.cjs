@@ -5,7 +5,7 @@ const { resolve } = require('node:path');
 const vm = require('node:vm');
 const { saveReportAndCleanup } = require('./chatbot-smoke-assertions.cjs');
 
-const source = readFileSync(resolve(__dirname, 'chatbot-live-browser.integration.cjs'), 'utf8');
+const source = readFileSync(resolve(__dirname, 'chatbot-live-browser.integration.cjs'), 'utf8').replace(/\r\n/g, '\n');
 const start = source.lastIndexOf('  } finally {');
 // The environment restoration has its own finally; select the report cleanup explicitly.
 const bodyStart = source.indexOf('    report.screenshot_directory=dir;');

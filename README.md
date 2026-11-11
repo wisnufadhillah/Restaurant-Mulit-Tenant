@@ -26,19 +26,18 @@ Isi konfigurasi database privat sebelum build API karena Prisma config memvalida
 
 ## Menjalankan layanan
 
-Jalankan di terminal terpisah:
+Jalankan API dahulu, lalu web di terminal terpisah:
 
 ```sh
-rtk proxy npx --yes pnpm@12.15.0 dev:web
 rtk proxy npx --yes pnpm@12.15.0 dev:api
-rtk proxy uv run --project apps/assistant --locked python apps/assistant/health.py
+rtk proxy npx --yes pnpm@12.15.0 dev:web
 ```
 
 - Web: http://127.0.0.1:3000
 - API liveness: http://127.0.0.1:3001/api/v1/health
-- Assistant liveness: http://127.0.0.1:8000/health
+- Assistant liveness: http://127.0.0.1:8001/health
 
-API dev mengompilasi saat mulai dan memantau output JavaScript. Untuk kompilasi ulang otomatis, jalankan `rtk proxy npx --yes pnpm@12.15.0 --filter @restaurant/api watch:types` di terminal terpisah; alternatifnya jalankan build setelah mengubah TypeScript. Smoke script memakai port 3001 dan 8000 yang harus kosong dan menghentikan proses yang dibuatnya setelah pemeriksaan. Semua service bind ke loopback. Health hanya membuktikan proses hidup, bukan database/model siap. Service assistant belum menerima chat, belum membuat agent runtime, dan tidak memanggil OpenRouter. Tes hanya memverifikasi dependency adapter dapat diimpor tanpa credential.
+API dev mengompilasi saat mulai, menjalankan API dan gateway Agno V2 pada port 8010, lalu memantau output JavaScript. Web menunggu API health sebelum memulai Next.js selama maksimal 60 detik. Untuk kompilasi ulang otomatis, jalankan `rtk proxy npx --yes pnpm@12.15.0 --filter @restaurant/api watch:types` di terminal terpisah; alternatifnya jalankan build setelah mengubah TypeScript. Semua service bind ke loopback. Health hanya membuktikan proses hidup, bukan database/model siap.
 
 ## Database lokal
 

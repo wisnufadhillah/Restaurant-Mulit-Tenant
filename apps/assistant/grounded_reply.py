@@ -42,6 +42,11 @@ def grounded_reply(output, cards):
 def source_reply(cards):
     """Use existing data without inventing completion when synthesis is unusable."""
     for card in cards:
+        if card['type'] == 'availability':
+            data = card['data']
+            if data['available']:
+                return 'Ada slot yang terlihat tersedia pada waktu tersebut. Slot belum ditahan; lanjutkan ke form reservasi untuk memeriksa dan mengonfirmasi.'
+            return 'Belum ada meja yang tersedia pada waktu tersebut. Coba pilih waktu lain melalui form reservasi.'
         if card['type'] == 'knowledge' and card['data']:
             return card['data'][0]['text']
     for card in cards:

@@ -90,3 +90,18 @@ class RestaurantResponse(StrictResponse):
     data: RestaurantInfo
     retrieved_at: AwareDatetime
     source: Literal["restaurant_api"]
+
+
+class AvailabilityInfo(StrictResponse):
+    startAt: AwareDatetime
+    endAt: AwareDatetime
+    timezone: Literal["Asia/Jakarta"]
+    held: Literal[False]
+    available: bool
+    reason: str | None = None
+
+
+class AvailabilityResponse(StrictResponse):
+    data: AvailabilityInfo
+    retrieved_at: AwareDatetime
+    source: Literal["restaurant_api"]

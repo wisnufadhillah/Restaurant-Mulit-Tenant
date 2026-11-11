@@ -6,7 +6,7 @@
     "node": ">=22.22.0 <23"
   },
   "scripts": {
-    "dev:web": "pnpm --filter @restaurant/web dev",
+    "dev:web": "node scripts/wait-for-api.cjs && pnpm --filter @restaurant/web dev",
     "dev:api": "pnpm --filter @restaurant/api dev",
     "typecheck": "pnpm -r typecheck",
     "build": "pnpm -r build",

@@ -26,12 +26,15 @@ export class ChatSessionController {
     const profile = await this.restaurant.info(SLUG);
     if (profile.data.outlets.length !== 1) throw new ForbiddenException();
     const existing = chatCookie(request);
+    let session;
     if (existing) {
-      const session = this.sessions.read(existing, SLUG);
-      return { data: { id: session.id, expiresAt: session.expiresAt } };
+      try { session = this.sessions.read(existing, SLUG); }
+      catch (error) { if (!(error instanceof ForbiddenException)) throw error; }
     }
-    const session = this.sessions.create(SLUG);
-    response.setHeader("Set-Cookie", `${COOKIE}=${session.token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
+    if (!session) {
+      session = this.sessions.create(SLUG);
+      response.setHeader("Set-Cookie", `${COOKIE}=${session.token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
+    }
     return { data: { id: session.id, expiresAt: session.expiresAt } };
   }
   @Get()

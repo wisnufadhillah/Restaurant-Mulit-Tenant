@@ -4,7 +4,7 @@
 
 Pemeriksaan ini membedakan browser dengan respons API stub, integrasi service dengan PostgreSQL nyata, dan inference provider live. Kelulusan stub tidak membuktikan model OpenRouter tersedia, kualitas Bahasa Indonesia, ketahanan semua prompt injection, atau kesiapan produksi.
 
-Gateway FastAPI di `agno-v2` memakai core percakapan bounded dari `apps/assistant`. Keduanya harus tersedia dalam checkout/artifact. Production agent hanya membaca informasi restoran, menu dan FAQ; reservasi memakai form privat.
+Gateway FastAPI di `agno-v2` memakai core percakapan bounded dari `apps/assistant`. Keduanya harus tersedia dalam checkout/artifact. Production agent membaca informasi restoran, menu, FAQ, dan availability tanpa menahan meja; konfirmasi reservasi tetap memakai form privat.
 
 ## Prasyarat
 

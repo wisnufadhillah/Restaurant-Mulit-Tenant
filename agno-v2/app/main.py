@@ -2,6 +2,7 @@ import logging
 import hmac
 import re
 from fastapi import FastAPI, Header, HTTPException
+from .reservation_intent import parse_reservation_intent
 
 from .runtime import run_turn
 from .config import settings
@@ -12,17 +13,26 @@ for _logger_name in ("agno", "agno.tools", "agno.tools.function"):
     logging.getLogger(_logger_name).disabled = True
 
 
-def build_actions(message: str, cards: list[dict], status: str) -> list[dict[str, str]]:
-    """Build allowlisted UI actions from application context, never model text."""
+def build_actions(message: str, cards: list[dict], status: str, proposals: list[dict] | None = None) -> list[dict[str, object]]:
+    """Build allowlisted UI actions from validated agent proposals and cards."""
     text = message.casefold()
-    actions: list[dict[str, str]] = []
+    actions: list[dict[str, object]] = []
 
-    def add(action: dict[str, str]) -> None:
+    def add(action: dict[str, object]) -> None:
         if action["id"] not in {item["id"] for item in actions} and len(actions) < 3:
             actions.append(action)
 
     if any(word in text for word in ("reservasi", "booking", "pesan meja", "meja")):
-        add({"id": "reservation-form", "type": "navigate", "label": "Buka form reservasi", "target": "#reservasi"})
+        details = parse_reservation_intent(message)
+        availability = next((card.get("data") for card in cards if card.get("type") == "availability"), None)
+        if details and (not isinstance(availability, dict) or availability.get("available") is not False):
+            add({"id": "reservation-details", "type": "reservation", "label": "Lanjutkan reservasi", "target": "#reservasi", **details})
+        else:
+            add({"id": "reservation-form", "type": "navigate", "label": "Buka form reservasi", "target": "#reservasi"})
+    for proposal in proposals or []:
+        item = proposal.get("item") if isinstance(proposal, dict) else None
+        if proposal.get("status") == "proposal" and isinstance(item, dict) and isinstance(item.get("id"), str) and isinstance(item.get("name"), str) and isinstance(item.get("quantity"), int):
+            add({"id": f"order-{item['id']}", "type": "order", "label": f"Tambah {item['name']} ke pesanan", "itemId": item["id"], "quantity": item["quantity"]})
     if any(card.get("type") == "menu" for card in cards) or any(word in text for word in ("menu", "harga", "makanan", "minuman")):
         add({"id": "menu-section", "type": "navigate", "label": "Lihat menu lengkap", "target": "#menu"})
     if any(word in text for word in ("jam buka", "buka jam", "operasional", "kapan buka")):
@@ -46,10 +56,10 @@ async def run_gateway(request: GatewayRequest, *, model_settings=None, model_tra
         raise HTTPException(status_code=400, detail="Invalid session")
     try:
         result = await run_turn(request, model_settings_override=model_settings,
-            model_transport=model_transport, api_transport=api_transport)
+            model_transport=model_transport, api_transport=api_transport, history=request.history)
     except Exception:
         result = {"status": "unavailable", "message": "Asisten belum tersedia. Silakan gunakan halaman restoran atau coba lagi nanti.", "cards": [], "attempted_requests": 0, "diagnostics": []}
-    result["actions"] = build_actions(request.message, result["cards"], result["status"])
+    result["actions"] = build_actions(request.message, result["cards"], result["status"], result.get("proposals"))
     return result
 
 

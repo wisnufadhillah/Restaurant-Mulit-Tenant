@@ -10,9 +10,9 @@ class OpeningHoursReplyTest(unittest.TestCase):
             self.assertFalse(hours_question(message), message)
 
     def test_booking_redirect_does_not_swallow_mixed_or_negative_intent(self):
-        for message in ['Mau reservasi', 'Saya ingin booking', 'Batalkan booking!', 'Reservasi 4 orang besok jam 7', 'untuk reservasi besok jam 10 pagi apakah bisa?']:
+        for message in ['Mau reservasi', 'Saya ingin booking', 'Batalkan booking!']:
             self.assertTrue(reservation_form_request(message))
-        for message in ['Tidak mau reservasi', 'Bisa reservasi berapa orang?', 'Mau reservasi dan harga rendang?', 'Jam buka untuk reservasi?', 'Apa aturan reservasi?']:
+        for message in ['Tidak mau reservasi', 'Bisa reservasi berapa orang?', 'Mau reservasi dan harga rendang?', 'Jam buka untuk reservasi?', 'Apa aturan reservasi?', 'Reservasi 4 orang besok jam 7', 'untuk reservasi besok jam 10 pagi apakah bisa?']:
             self.assertFalse(reservation_form_request(message))
 
     def test_answer_uses_only_api_values(self):

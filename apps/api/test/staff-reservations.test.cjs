@@ -1,7 +1,22 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { StaffReservationsService, staffReservationQuery } = require('../dist/restaurant/staff-reservations.service');
+const { StaffReservationsService, staffReservationQuery, staffTransitionInput, staffTransitionAllowed, staffAuditQuery } = require('../dist/restaurant/staff-reservations.service');
 
+test('staff transitions require exact bodies, normalized reasons and explicit attendance review', () => {
+  assert.deepEqual(staffTransitionInput({ status: 'cancelled', reason: '  Private reason  ' }), { status: 'cancelled', reason: 'Private reason' });
+  assert.equal(staffTransitionInput({ status: 'completed' }).reason, null);
+  assert.equal(staffTransitionInput({ status: 'no_show', reviewed: true }).status, 'no_show');
+  for (const body of [null, [], { status: 'confirmed' }, { status: 'cancelled', reason: ' ' }, { status: 'cancelled', reason: 'x'.repeat(501) }, { status: 'cancelled', reason: 'a\nb' }, { status: 'completed', reason: 'x' }, { status: 'completed', tenantId: 'foreign' }, { status: 'no_show' }, { status: 'no_show', reviewed: false }]) assert.throws(() => staffTransitionInput(body), e => e.getStatus() === 400);
+});
+test('staff terminal transitions reject exact end boundary and permit staff cancellation without customer cutoff', () => {
+  const end = new Date('2026-01-01T01:00:00Z');
+  for (const status of ['completed', 'no_show']) {
+    for (const offset of [-1, 0]) assert.throws(() => staffTransitionAllowed('confirmed', end, status, new Date(+end + offset)), e => e.getStatus() === 409);
+    assert.doesNotThrow(() => staffTransitionAllowed('confirmed', end, status, new Date(+end + 1)));
+  }
+  assert.doesNotThrow(() => staffTransitionAllowed('confirmed', end, 'cancelled', new Date(+end - 1)));
+  for (const status of ['cancelled', 'completed', 'no_show']) assert.throws(() => staffTransitionAllowed(status, end, 'cancelled', new Date(+end + 1)), e => e.getStatus() === 409);
+});
 test('staff reservation filters enforce strict calendar, status and pagination', () => {
   const value = staffReservationQuery({ date: '2026-11-07', status: 'confirmed', page: '2' });
   assert.equal(value.startAt.gte.toISOString(), '2026-11-06T17:00:00.000Z');

@@ -18,6 +18,7 @@ model Tenant {
   outlets Outlet[]
   staff Staff[]
   menuItems MenuItem[]
+  menuUploads MenuUpload[]
   orders Order[]
   chatSessions ChatSession[]
   reservationCreatorSessions ReservationCreatorSession[]
@@ -97,6 +98,16 @@ model DiningTable {
   @@map("dining_tables")
 }
 
+model MenuUpload {
+  key String
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  bytes Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  @@id([tenantId, key])
+  @@map("menu_uploads")
+}
+
 model MenuItem {
   id String @id @default(uuid()) @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid
@@ -104,6 +115,7 @@ model MenuItem {
   name String
   description String
   price Int
+  imageKey String? @map("image_key")
   isActive Boolean @default(true) @map("is_active")
   isAvailable Boolean @default(true) @map("is_available")
   @@unique([tenantId, id])

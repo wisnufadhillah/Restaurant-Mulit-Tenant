@@ -78,6 +78,12 @@ export default function ChatbotWidget() {
     if (orderLocked || busy.current) return;
     setCart(lines => { const found = lines.find(line => line.item.id === item.id); return found ? lines.map(line => line.item.id === item.id ? { ...line, quantity: Math.min(20, line.quantity + quantity) } : line) : [...lines, { item, quantity: Math.min(20, quantity) }]; });
   };
+  function reduceCartItem(id: string) {
+    if (orderLocked || busy.current) return;
+    setCart(lines => lines.flatMap(line => line.item.id !== id ? [line] : line.quantity > 1 ? [{ ...line, quantity: line.quantity - 1 }] : []));
+  }
+  const paymentLabel = (status: string) => ({ pending: "Menunggu pembayaran", unpaid: "Belum dibayar", settlement: "Pembayaran berhasil", expire: "Pembayaran kedaluwarsa", cancel: "Pembayaran dibatalkan", deny: "Pembayaran ditolak" }[status] ?? "Status belum dikenal; hubungi restoran");
+  const scrollToSection = (target: string) => document.querySelector(target)?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
   async function createOrder() {
     if (busy.current || order) return;
     if (!orderAttempt && (!customerName.trim() || !cart.length)) return setError("Isi nama dan pilih menu terlebih dahulu.");
@@ -114,12 +120,12 @@ export default function ChatbotWidget() {
     }
     if (action.type === "reservation") {
       window.dispatchEvent(new CustomEvent("restaurant-reservation-prefill", { detail: { date: action.date, time: action.time, partySize: action.partySize } }));
-      document.querySelector(action.target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollToSection(action.target);
       close();
       return;
     }
     if (action.type === "navigate") {
-      document.querySelector(action.target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollToSection(action.target);
       close();
       return;
     }
@@ -176,10 +182,10 @@ export default function ChatbotWidget() {
         {pending && <div className="sela-chat-bubble sela-chat-assistant sela-chat-loading"><span>{ready ? "Sedang mengetik…" : "Menyambungkan chat…"}</span></div>}
       </div>
       <footer className="sela-chat-footer">
-        {cart.length > 0 && <div className="sela-chat-card"><strong>Draft pesanan</strong>{cart.map(line => <p key={line.item.id}>{line.item.name} × {line.quantity} · {currency.format(line.item.price * line.quantity)}</p>)}{!order && <><input aria-label="Nama pemesan" placeholder="Nama pemesan" value={customerName} disabled={pending || orderLocked} onChange={event => { if (!orderLocked && !busy.current) setCustomerName(event.target.value); }} /><button type="button" disabled={pending} onClick={() => void createOrder()}>{orderAttempt ? "Coba ulang percobaan yang sama" : "Buat Pesanan"}</button></>}</div>}
+        {cart.length > 0 && <div className="sela-chat-card"><strong>Draft pesanan</strong>{cart.map(line => <div key={line.item.id} className="sela-order-line"><p>{line.item.name} × {line.quantity} · {currency.format(line.item.price * line.quantity)}</p>{!orderLocked && !pending && <button type="button" aria-label={`${line.quantity === 1 ? "Hapus" : "Kurangi satu"} ${line.item.name}`} onClick={() => reduceCartItem(line.item.id)}>{line.quantity === 1 ? "Hapus" : "Kurangi satu"}</button>}</div>)}{!order && <><label className="sela-order-name" htmlFor="order-customer-name">Nama pemesan</label><input id="order-customer-name" name="customerName" autoComplete="off" placeholder="Nama untuk pesanan ini" value={customerName} disabled={pending || orderLocked} onChange={event => { if (!orderLocked && !busy.current) setCustomerName(event.target.value); }} /><button type="button" disabled={pending} onClick={() => void createOrder()}>{orderAttempt ? "Coba ulang percobaan yang sama" : "Buat Pesanan"}</button></>}</div>}
         {orderAttempt && !order && <p role="status">Hasil pesanan belum pasti. Nama dan menu dikunci untuk percobaan ini. Jangan muat ulang atau tutup halaman: detail hanya tersimpan selama halaman ini terbuka. Coba ulang dengan detail yang sama tidak menjamin pemulihan; hubungi restoran jika tetap belum pasti.</p>}
         {order?.redirectUrl && order.paymentStatus !== "settlement" && <button type="button" disabled={pending} onClick={() => { window.open(order.redirectUrl, "_blank", "noopener,noreferrer"); void refreshOrder(); }}>Bayar Sekarang</button>}
-        {order && <p role="status">Pesanan {order.code} · Total {currency.format(order.orderTotal)}. Status pembayaran: {order.paymentStatus === "settlement" ? "Berhasil" : order.paymentStatus}</p>}
+        {order && <p role="status">Pesanan {order.code} · Total {currency.format(order.orderTotal)}. Status pembayaran: {paymentLabel(order.paymentStatus)}</p>}
         <p className="sela-chat-error" role="status">{error}</p>
         {!ready && !pending && <button className="senja-text-button" onClick={async () => {
           if (busy.current || orderLocked) return;

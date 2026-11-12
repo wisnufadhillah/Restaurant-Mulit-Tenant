@@ -38,14 +38,14 @@
 .sela-chat-welcome { text-align: start; }
 .sela-chat-panel .sela-chat-welcome p { font-size: 13px; margin: 0; }
 .sela-chat-panel .sela-chat-loading { font-size: 12px; color: #536358; margin: 0; }
-.sela-chat-footer { background: #fffdf7; border-top: 1px solid var(--senja-line); padding: 8px 12px max(8px, env(safe-area-inset-bottom)); flex-shrink: 0; }
+.sela-chat-footer { background: #fffdf7; border-top: 1px solid var(--senja-line); padding: 8px 12px max(8px, env(safe-area-inset-bottom)); flex-shrink: 1; min-height: 0; max-height: 65%; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .sela-chat-shortcuts { display: flex; flex-wrap: wrap; align-self: flex-start; flex-shrink: 0; gap: 6px; max-width: 100%; }
 .sela-chat-shortcuts[hidden] { display: none; }
 .sela-chat-shortcuts button { background: var(--senja-paper); border: 1px solid var(--senja-line); border-radius: 16px; padding: 6px 12px; min-height: 44px; font: inherit; font-size: 12px; cursor: pointer; }
 .sela-chat-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .sela-chat-actions button { background: var(--senja-paper); border: 1px solid var(--senja-line); border-radius: 16px; padding: 6px 12px; min-height: 40px; font: inherit; font-size: 12px; cursor: pointer; }
 .sela-chat-composer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 6px; margin-top: 0; }
-.sela-chat-composer textarea { width: 100%; min-width: 0; max-height: 112px; resize: none; overflow-y: hidden; scrollbar-width: thin; border: 1px solid var(--senja-line); border-radius: 8px; background: var(--senja-paper); font: inherit; font-size: 12px; line-height: 18px; padding: 10px 8px; color: #183e2c; box-sizing: border-box; min-height: 40px; }
+.sela-chat-composer textarea { width: 100%; min-width: 0; max-height: 112px; resize: none; overflow-y: hidden; scrollbar-width: thin; border: 1px solid var(--senja-muted); border-radius: 8px; background: var(--senja-paper); font: inherit; font-size: 12px; line-height: 18px; padding: 10px 8px; color: #183e2c; box-sizing: border-box; min-height: 40px; }
 .sela-chat-composer textarea::placeholder { color: #686d60; opacity: 1; }
 @media (pointer: coarse) { .sela-chat-composer textarea { font-size: 16px; min-height: 44px; line-height: 22px; } .sela-chat-composer textarea::placeholder { font-size: 12px; } .sela-chat-panel .sela-chat-composer button { min-height: 44px; } }
 .sela-chat-composer button { display: grid; place-items: center; flex-shrink: 0; min-height: 40px; padding: 6px 8px; background: var(--senja-rust); color: #fffdf5; border: 1px solid var(--senja-rust); border-radius: 8px; font: inherit; font-size: 11px; cursor: pointer; }
@@ -57,6 +57,14 @@
 .sela-chat-privacy a { text-decoration: underline; text-underline-offset: 2px; }
 .sela-chat-card { margin-top: 12px; border-top: 1px solid #dce3dd; padding-top: 8px; font-size: 12px; }
 .sela-chat-card summary { cursor: pointer; padding-block: 8px; font-weight: 600; }
+.sela-chat-card button,.sela-chat-footer > button { min-height: 44px; padding: 10px 12px; border: 1px solid var(--senja-rust); border-radius: 8px; background: var(--senja-paper); color: var(--senja-ink); font: inherit; line-height: 1.5; cursor: pointer; white-space: normal; }
+.sela-chat-footer .sela-chat-card { display: grid; gap: 8px; }
+.sela-order-line { display: grid; gap: 6px; padding-block: 8px; }
+.sela-order-line button { justify-self: start; }
+.sela-order-name { display: block; margin-top: 8px; font-size: 13px; font-weight: 600; }
+.sela-chat-footer input { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--senja-muted); border-radius: 8px; background: var(--senja-paper); color: var(--senja-ink); font: inherit; font-size: 16px; }
+.sela-chat-footer .sela-chat-card > button,.sela-chat-footer > button { width: 100%; margin-block: 8px; }
+@media (hover: hover) { .sela-chat-card button:hover,.sela-chat-footer > button:hover { background: #e5ebdc; } }
 .sela-chat-card small { display: block; margin-top: 12px; color: #536358; }
 .sela-chat-card dl { margin: 8px 0; }
 .sela-chat-card dl > div { display: flex; justify-content: space-between; gap: 12px; padding-block: 4px; }

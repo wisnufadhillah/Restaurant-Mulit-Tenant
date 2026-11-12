@@ -63,6 +63,16 @@ Server memilih tenant aktif dari slug dan satu outlet aktif; outlet tidak aktif/
 
 Respons berisi `data.startAt`, `endAt`, `timezone`, `held=false`, `available`, `source=restaurant_api` dan `retrieved_at`. Jika tidak tersedia, `data.reason` membedakan `hours_unconfigured`, `closed`, `outside_hours`, atau `no_table`. Tidak ada ID meja, ID tenant/outlet, nama customer, kontak, atau token privat. Respons menggunakan `Cache-Control: no-store`. Availability bukan jaminan booking: tidak ada write, hold atau transaksi create pada endpoint ini. Form reservasi dan tool availability chatbot belum diaktifkan.
 
+## Operasional reservasi dan audit
+
+Owner/staff membaca daftar melalui `GET /staff/tenants/{slug}/reservations` dan detail privat melalui `GET /staff/tenants/{slug}/reservations/{id}`. Transisi memakai `POST /staff/tenants/{slug}/reservations/{id}/transitions`, cookie aktif, Origin terpercaya, JSON dan `Idempotency-Key` UUID. Tenant dan aktor selalu dari sesi server dan diperiksa ulang dalam transaksi.
+
+Body tepat salah satu: `{ "status": "cancelled", "reason": "Alasan operasional" }`, `{ "status": "completed" }`, atau `{ "status": "no_show", "reviewed": true }`. Alasan dipangkas, wajib nonkosong, maksimal 500 karakter, tanpa karakter kontrol. `reviewed` merupakan pengakuan eksplisit staff setelah memeriksa kehadiran. Hanya `confirmed` boleh berubah; selesai/tidak hadir memerlukan jam server **lebih besar** dari `endAt`, bukan sama. Pembatalan staff tidak memakai cutoff customer. Tidak ada ubah jadwal, hapus, atau membuka kembali status akhir.
+
+Status dan satu event disimpan atomic dengan tenant advisory lock. UUID key menjadi ID event, terpisah dari key pembuatan reservasi. Retry key/payload normalisasi/reservasi/aktor sama mengembalikan receipt `{ data: { reservationId, status, eventId, changedAt } }`. Perbedaan payload, operasi, aktor atau sasaran menghasilkan 409; status akhir dengan key baru juga 409. Reservasi asing/tidak ada menghasilkan 404. Jika respons terputus atau 503, pertahankan key dan payload semula; jangan membuat key baru untuk percobaan belum pasti. Limiter proses membatasi 60 percobaan valid per aktor per menit.
+
+`GET /staff/tenants/{slug}/audit?page=1` hanya baca, 20 baris per halaman, `page` desimal tunggal 1–999. Snapshot konsisten menggabungkan audit operasional dan event reservasi tenant sesi. Urutan: timestamp menurun, sumber menaik, ID menurun. Respons `{ data, page, pageSize: 20, total }`; baris hanya berisi ID event, sumber, waktu, aksi dikenal, tipe pelaku dan ID/status reservasi bila relevan. Customer/sistem dilabeli tersendiri. Audit operasional tidak menyimpan ID sasaran, sehingga UI tidak mengarangnya. Tidak ada nama/kontak tamu, nama akun, alasan bebas, payload, token atau ekspor. Semua respons privat `no-store`. Dashboard audit memakai pagination; ikhtisar menampilkan lima aktivitas pertama dari endpoint sama.
+
 ## Status HTTP
 
 Scalar mencantumkan sukses dan error per operasi, bukan semua status pada semua route:

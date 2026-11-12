@@ -29,9 +29,8 @@ export default function HoursManager({ role }: { role: "owner" | "staff" }) {
       const result = await response.json();
       if (!response.ok) throw new Error(result.message);
       setRows(result.data);
-    } catch (error) {
+    } catch {
       setLoadFailed(true);
-      setMessage(error instanceof Error ? error.message : "Jadwal gagal dimuat. Coba lagi.");
     } finally {
       setLoading(false);
     }
@@ -43,12 +42,14 @@ export default function HoursManager({ role }: { role: "owner" | "staff" }) {
     <section>
       <h2>Jadwal mingguan</h2>
       <p className="senja-note">
-        Waktu lokal outlet. Satu interval per hari, tidak melewati tengah malam. Hari belum diatur
+        Waktu lokal restoran (WIB). Satu interval per hari, tidak melewati tengah malam. Hari belum diatur
         tidak dianggap buka. Pengecualian tanggal diatur pada bagian Hari khusus di bawah.
       </p>
       <p role="status">{message}</p>
       {loading ? (
         <p>Memuat jadwal…</p>
+      ) : loadFailed && !rows.length ? (
+        <p>Jadwal belum dapat diperiksa. Coba lagi untuk memuat data sebelum mengubah jadwal.</p>
       ) : (
         <div className="sela-hours-editor">
           {[1, 2, 3, 4, 5, 6, 0].map((day) => {
@@ -129,6 +130,7 @@ export default function HoursManager({ role }: { role: "owner" | "staff" }) {
           })}
         </div>
       )}
+      {loadFailed && <p role="alert">Jadwal gagal dimuat. Periksa koneksi lalu pilih Coba lagi. Data terakhir tetap ditampilkan jika tersedia.</p>}
       {loadFailed && (
         <button
           className="senja-text-button"

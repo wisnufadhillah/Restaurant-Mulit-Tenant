@@ -24,6 +24,9 @@ test('staff reservation HTTP authenticates role and tenant, validates filters an
     findFirst: async args => { reads++; assert.equal(args.where.tenantId, tenantId); return args.where.id === reservationId ? { ...row, guestPhone: '0000000000', source: 'web', createdAt: new Date() } : null; },
   } };
   reservations.db = { ...db, $transaction: callback => callback(db) };
+  let mutations = 0;
+  reservations.transition = async (scope, actor, hash, id, key, body) => { assert.equal(scope, tenantId); assert.equal(actor, staffId); assert.equal(hash, hashSessionToken(token)); mutations++; const { staffTransitionInput } = require('../dist/restaurant/staff-reservations.service'); staffTransitionInput(body); if (key === 'conflict') throw new (require('@nestjs/common').ConflictException)(); return { data: { reservationId: id, status: body.status, eventId: key, changedAt: new Date().toISOString() } }; };
+  reservations.audit = async (scope, input) => { assert.equal(scope, tenantId); const { staffAuditQuery } = require('../dist/restaurant/staff-reservations.service'); return { data: [], page: staffAuditQuery(input), pageSize: 20, total: 0 }; };
   class TestModule {}
   Module({ controllers: [StaffReservationsController], providers: [StaffService, { provide: StaffRepository, useValue: accounts }, { provide: StaffReservationsService, useValue: reservations }] })(TestModule);
   const app = await NestFactory.create(TestModule, { logger: false });
@@ -46,6 +49,23 @@ test('staff reservation HTTP authenticates role and tenant, validates filters an
       for (const field of ['guestPhone', 'managementTokenHash', 'requestHash', 'idempotencyKey', 'tenantId']) assert.equal(field in body.data[0], false);
       const detail = await send(`/${reservationId}`); assert.equal(detail.status, 200); assert.equal((await detail.json()).data.guestPhone, '0000000000');
     }
+    const post = (options = {}) => fetch(`${root}/demo-a/reservations/${reservationId}/transitions`, { method: 'POST', headers: { cookie: `restaurant_staff=${token}`, origin: 'http://127.0.0.1:3000', 'content-type': 'application/json', 'idempotency-key': randomUUID(), ...options.headers }, body: options.body ?? JSON.stringify({ status: 'completed' }) });
+    const oldOrigin = process.env.STAFF_ORIGIN; process.env.STAFF_ORIGIN = 'http://127.0.0.1:3000';
+    try {
+      assert.equal((await post({ headers: { cookie: '' } })).status, 401);
+      assert.equal((await post({ headers: { origin: 'https://foreign.invalid' } })).status, 403);
+      assert.equal((await post({ headers: { 'sec-fetch-site': 'cross-site' } })).status, 403);
+      assert.equal((await post({ headers: { 'content-type': 'text/plain' } })).status, 403);
+      session.staff.role = 'visitor'; assert.equal((await post()).status, 403); session.staff.role = 'staff';
+      assert.equal(mutations, 0);
+      assert.equal((await post({ body: '{' })).status, 400);
+      assert.equal((await post({ body: JSON.stringify({ status: 'no_show' }) })).status, 400);
+      for (const role of ['owner', 'staff']) { session.staff.role = role; const response = await post(); assert.equal(response.status, 200); assert.equal(response.headers.get('cache-control'), 'no-store'); }
+      assert.equal((await post({ headers: { 'idempotency-key': 'conflict' } })).status, 409);
+      const audit = await fetch(`${root}/demo-a/audit?page=1`, { headers: { cookie: `restaurant_staff=${token}` } }); assert.equal(audit.status, 200); assert.equal(audit.headers.get('cache-control'), 'no-store');
+      assert.equal((await fetch(`${root}/demo-a/audit?page=1&page=2`, { headers: { cookie: `restaurant_staff=${token}` } })).status, 400);
+      assert.equal((await fetch(`${root}/demo-a/audit`)).status, 401);
+    } finally { if (oldOrigin === undefined) delete process.env.STAFF_ORIGIN; else process.env.STAFF_ORIGIN = oldOrigin; }
     const before = reads;
     for (const suffix of ['?page=1&page=2', '?status=confirmed&status=cancelled', '?tenantId=other', '?date=2026-02-30', '?page=1000', '?pageSize=100']) {
       const response = await send(suffix); assert.equal(response.status, 400); assert.equal(response.headers.get('cache-control'), 'no-store');

@@ -1,19 +1,21 @@
 import Navbar from "./components/Navbar";
+import SectionNavigation from "./components/SectionNavigation";
 import MenuSection from "./components/MenuSection";
 import ReservationSection from "./components/ReservationSection";
 import ChatbotWidget from "./components/ChatbotWidget";
 import OpeningHours from "./components/OpeningHours";
+import { API_ORIGIN } from "./staff-session";
 
 export default async function HomePage() {
-  let name = "Rumah makan", address = "Alamat belum dapat dimuat.", contact = "", profileUnavailable = false;
+  let name = "Dapur Sela", address = "Jl. Sawo No. 18, Cikini, Jakarta Pusat (alamat demo sintetis)", contact = "", profileUnavailable = false;
   try {
-    const response = await fetch("http://127.0.0.1:3001/api/v1/public/tenants/demo-padang/restaurant", { cache: "no-store", signal: AbortSignal.timeout(5000) });
+    const response = await fetch(`${API_ORIGIN}/api/v1/public/tenants/demo-padang/restaurant`, { cache: "no-store", signal: AbortSignal.timeout(5000) });
     if (!response.ok) throw new Error("Profile unavailable");
     const { data } = await response.json();
     if (typeof data.name !== "string" || !Array.isArray(data.outlets) || data.outlets.length !== 1) throw new Error("Profile invalid");
     name = data.name; address = data.outlets[0].address; contact = data.outlets[0].contactPhone;
   } catch { profileUnavailable = true; }
-  return <div className="senja-site">
+  return <SectionNavigation>
     <a className="senja-skip" href="#main-content">Lewati ke konten</a>
     <div className="sela-header-wrap"><div className="senja-shell"><Navbar name={name} /></div></div>
     <main id="main-content">
@@ -39,12 +41,12 @@ export default async function HomePage() {
       <div className="senja-shell">
         <ReservationSection />
         <section className="senja-section sela-location" id="lokasi" aria-labelledby="location-heading">
-          <div><p className="senja-eyebrow">RENCANAKAN KUNJUNGAN</p><h2 id="location-heading">Ketemu di {name}.</h2><p>{address}</p>{contact && <p>Kontak restoran: {contact}</p>}{profileUnavailable && <p role="status">Profil restoran belum tersedia. Muat ulang halaman untuk mencoba lagi.</p>}</div>
+          <div><p className="senja-eyebrow">RENCANAKAN KUNJUNGAN</p><h2 id="location-heading">Ketemu di {name}.</h2><p>{address}</p>{contact && <p>Kontak restoran: {contact}</p>}{profileUnavailable && <p role="status">Informasi kunjungan belum dapat diperbarui. Alamat yang tampil merupakan ilustrasi. Muat ulang halaman untuk mencoba lagi.</p>}</div>
           <OpeningHours />
         </section>
       </div>
-      <section className="sela-faq"><div className="senja-shell sela-faq-grid"><div><p className="senja-eyebrow">SEBELUM MAMPIR</p><h2>Ada yang ingin<br />ditanyakan?</h2><p>Informasi dasar untuk merencanakan kunjungan.</p></div><div>{[["Perlu akun untuk reservasi?", "Tidak. Customer dapat membuat reservasi tanpa akun. Kontak diisi melalui form privat, lalu detail diperiksa sebelum konfirmasi. Periksa meja, tinjau ringkasan, lalu konfirmasi melalui form reservasi."], ["Berapa lama waktu makan?", "Durasi reservasi 90 menit. Pemesanan paling lambat 60 menit sebelum kedatangan, hingga 30 hari ke depan. Satu reservasi memakai satu meja yang cukup untuk 1–12 tamu."], ["Bagaimana jika ingin membatalkan?", "Pembatalan mandiri paling lambat dua jam sebelum mulai dan memerlukan bukti akses privat. Kode referensi saja tidak memberi akses. Gunakan akses privat pada browser pembuat reservasi untuk melihat status dan membatalkan."]].map(([question, answer], index) => <details key={question} open={index === 0}><summary>{question}</summary><p>{answer}</p></details>)}</div></div></section>
+      <section className="sela-faq"><div className="senja-shell sela-faq-grid"><div><p className="senja-eyebrow">SEBELUM MAMPIR</p><h2>Ada yang ingin<br />ditanyakan?</h2><p>Informasi dasar untuk merencanakan kunjungan.</p></div><div>{[["Perlu akun untuk reservasi?", "Tidak perlu akun. Isi waktu kunjungan dan kontak melalui form privat, periksa ketersediaan serta ringkasannya, lalu tekan konfirmasi reservasi."], ["Berapa lama waktu makan?", "Durasi reservasi 90 menit. Pemesanan paling lambat 60 menit sebelum kedatangan, hingga 30 hari ke depan. Satu reservasi memakai satu meja yang cukup untuk 1–12 tamu."], ["Bagaimana jika ingin membatalkan?", "Pembatalan mandiri paling lambat dua jam sebelum mulai dan memerlukan bukti akses privat. Kode referensi saja tidak memberi akses. Gunakan akses privat pada browser pembuat reservasi untuk melihat status dan membatalkan."]].map(([question, answer], index) => <details key={question} open={index === 0}><summary>{question}</summary><p>{answer}</p></details>)}</div></div></section>
     </main>
-    <footer className="senja-footer"><div className="senja-shell"><div className="sela-footer-top"><div><p className="senja-footer-title">{name}</p><p>Masakan Padang. Waktu yang lapang.</p></div><div><p className="senja-eyebrow">ALAMAT RESTORAN</p><p>{address}</p></div></div><div className="sela-footer-bottom"><span>© 2026 {name} · Masakan Padang</span><span>Konsep demo · Menu, harga, alamat dan jadwal contoh</span><span>WIB · Asia/Jakarta</span></div></div></footer>
-  </div>;
+    <footer className="senja-footer"><div className="senja-shell"><div className="sela-footer-top"><div><p className="senja-footer-title">{name}</p><p>Masakan Padang. Waktu yang lapang.</p></div><div><p className="senja-eyebrow">{profileUnavailable ? "ALAMAT DEMO" : "ALAMAT RESTORAN"}</p><address>{address}</address>{profileUnavailable && <p>Alamat ilustrasi untuk restoran fiktif.</p>}</div></div><div className="sela-footer-bottom"><span>© 2026 {name} · Masakan Padang</span><span>WIB · Asia/Jakarta</span></div></div></footer>
+  </SectionNavigation>;
 }

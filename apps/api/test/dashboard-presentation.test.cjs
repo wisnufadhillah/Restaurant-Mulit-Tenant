@@ -17,6 +17,7 @@ function dashboard(session) {
     if (name === '../staff-session') return { staffSession: session };
     if (name === './dashboard.css') return {};
     if (name === './LogoutButton') return { default: () => react.createElement('button', null, 'Keluar') };
+    if (name === './DashboardShell') return { default: ({ children, sidebar, topbar }) => react.createElement('div', null, react.createElement('a', { href: '#staff-content' }, 'Lewati navigasi'), sidebar, topbar, children) };
     if (name === './DashboardViews') return { default: ({ view }) => react.createElement('div', { 'data-view': view }) };
     if (name.startsWith('./')) return { default: () => react.createElement('div', { 'data-manager': name.slice(2) }) };
     throw new Error('Unexpected import');
@@ -25,7 +26,7 @@ function dashboard(session) {
   return async tab => renderToStaticMarkup(await instance.exports.default({ searchParams: Promise.resolve({ tab }) }));
 }
 
-test('dashboard navigation keeps existing managers and exposes honest unwired screens', async () => {
+test('dashboard navigation keeps existing managers and connects read only audit', async () => {
   const render = dashboard(async () => ({ username: 'Synthetic operator', slug: 'synthetic-restaurant', role: 'owner' }));
   for (const [tab, target] of [['menu', 'MenuManager'], ['tables', 'TableManager'], ['hours', 'HoursManager'], ['profile', 'ProfileManager'], ['reservations', 'ReservationManager']]) {
     const html = await render(tab);
@@ -35,14 +36,13 @@ test('dashboard navigation keeps existing managers and exposes honest unwired sc
   assert.ok((await render(undefined)).includes('data-view="overview"'));
   assert.ok((await render('outlets')).includes('data-view="outlets"'));
   assert.ok((await render('unknown')).includes('data-view="overview"'));
-  for (const tab of ['categories', 'audit']) {
-    const html = await render(tab);
-    assert.ok(html.includes('Belum terhubung'));
-    assert.ok(html.includes('Data tidak ditampilkan sampai layanan ini terhubung.'));
-    assert.ok(!html.includes('data-manager='));
-  }
+  assert.ok((await render('categories')).includes('data-manager="MenuManager"'));
+  const audit = await render('audit');
+  assert.ok(audit.includes('data-manager="AuditManager"'));
+  assert.ok(!audit.includes('Belum terhubung'));
   const html = await render('menu');
-  for (const label of ['Ikhtisar', 'Reservasi', 'Cabang restoran', 'Menu masakan', 'Kategori menu', 'Audit aktivitas']) assert.ok(html.includes(label));
+  for (const label of ['Ikhtisar', 'Reservasi', 'Lokasi restoran', 'Menu masakan', 'Audit aktivitas']) assert.ok(html.includes(label));
+  assert.ok(!html.includes('Kategori menu'));
   assert.ok(html.includes('href="#staff-content"'));
 });
 

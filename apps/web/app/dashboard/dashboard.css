@@ -1,6 +1,10 @@
-.sela-admin { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100dvh; }
+.sela-admin { display: grid; grid-template-columns: 272px minmax(0, 1fr); grid-template-rows: auto 1fr; min-height: 100dvh; font-size: 14px; line-height: 1.5; }
+.sela-admin-navigation-toggle { display: none; }
+.sela-admin a[href],.sela-admin button,.sela-admin select,.sela-admin label:has(input[type="checkbox"]) { cursor: pointer; }
+.sela-admin button:disabled,.sela-admin input:disabled,.sela-admin select:disabled { cursor: not-allowed; opacity: .6; }
+.sela-admin button:active:not(:disabled),.sela-admin a:active { text-decoration: underline; text-underline-offset: 4px; }
 .sela-admin h1,.sela-admin h2,.sela-admin h3 { font-family: Arial, Helvetica, sans-serif; font-weight: 600; letter-spacing: -.02em; }
-.sela-admin-sidebar { position: sticky; top: 0; height: 100dvh; overflow-y: auto; background: var(--senja-ink); color: var(--senja-paper); display: flex; flex-direction: column; min-width: 0; padding: 24px 12px 16px; }
+.sela-admin-sidebar { grid-column: 1; grid-row: 1 / -1; position: sticky; top: 0; height: 100dvh; overflow-y: auto; background: var(--senja-ink); color: var(--senja-paper); display: flex; flex-direction: column; min-width: 0; padding: 24px 12px 16px; }
 .sela-admin-brand { display: flex; align-items: center; gap: 12px; padding: 0 8px 22px; border-bottom: 1px solid #526654; }
 .sela-admin-monogram { display: grid; place-items: center; width: 38px; height: 42px; border: 1px solid #81937e; border-radius: 4px; font: 20px Georgia,serif; flex-shrink: 0; }
 .sela-admin-brand strong { display: block; font-size: 15px; }
@@ -23,7 +27,8 @@
 .sela-admin-account > div:last-child { margin-left: auto; }
 .sela-admin-account .senja-button { background: transparent; color: inherit; border-color: #81937e; min-height: 40px; padding: 8px; font-size: 11px; }
 .sela-admin-account [role="alert"]:empty { display: none; }
-.sela-admin-workspace { min-width: 0; }
+.sela-admin-workspace { grid-column: 2; grid-row: 2; min-width: 0; }
+.sela-admin-topline { grid-column: 2; grid-row: 1; position: sticky; top: 0; z-index: 10; }
 .sela-admin-topline { display: flex; justify-content: space-between; gap: 16px; align-items: center; min-height: 66px; padding: 16px 32px; border-bottom: 1px solid var(--senja-line); background: #fffdf7; font-size: 10px; }
 .sela-admin-topline > p { letter-spacing: .08em; color: var(--senja-muted); }
 .sela-admin-topline > p span { margin-inline: 10px; }
@@ -86,27 +91,49 @@
 .sela-admin-table thead { background: #e8e1cf; }
 .sela-admin-table thead th { font: 600 10px/1.5 Arial,sans-serif; text-transform: uppercase; letter-spacing: .025em; }
 .sela-admin-table tbody th { width: 32%; font-weight: 400; }
+.sela-menu-photo-cell { width: 112px; }
+.sela-menu-photo-cell img { display: block; width: 88px; height: 64px; object-fit: cover; border-radius: 4px; }
+.sela-menu-no-photo { display: grid; place-items: center; width: 88px; min-height: 64px; border: 1px solid var(--senja-line); border-radius: 4px; color: var(--senja-muted); font-size: 11px; }
+.sela-menu-dialog { width: min(680px, calc(100% - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 0; border: 1px solid var(--senja-line); border-radius: 10px; background: var(--senja-paper); color: var(--senja-ink); overflow-y: auto; overscroll-behavior: contain; }
+.sela-menu-dialog::backdrop { background: rgb(20 40 30 / .45); }
+.sela-admin .sela-menu-dialog .sela-menu-editor { max-width: none; margin: 0; border: 0; border-radius: 0; padding: 24px; }
+.sela-menu-dialog [role="status"]:empty { display: none; }
+.sela-menu-dialog [role="status"]:not(:empty) { padding: 12px; background: var(--senja-footer); }
+@media (max-width: 40rem) { .sela-admin .sela-menu-dialog .sela-menu-editor { padding: 20px; } }
 .sela-admin-table tbody th strong { font-weight: 600; }
 .sela-admin-table tbody th p { font-size: 11px; color: var(--senja-muted); margin-top: 5px; max-width: 48ch; }
 .sela-admin-table tbody tr:last-child > * { border-bottom: 0; }
 .sela-price-cell { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
 .sela-row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .sela-row-actions button { text-decoration: underline; text-underline-offset: 4px; white-space: nowrap; font-size: 11px; }
-.sela-table-caption { text-align: start; padding: 10px 16px; font-size: 11px; color: var(--senja-muted); caption-side: bottom; background: #e8e1cf; }
+.sela-table-caption { text-align: start; padding: 10px 16px; font-size: 11px; color: var(--senja-ink); caption-side: bottom; background: #e8e1cf; }
 .sela-table-empty { padding: 24px; border-bottom: 1px solid var(--senja-line); font-size: 12px; }
 .sela-menu-manager > [role="status"]:empty { display: none; }
 .sela-menu-manager > [role="status"]:not(:empty) { background: #e5ebdc; padding: 14px 18px; }
 .sela-admin .sela-menu-editor { max-width: 720px; padding: 24px; border: 1px solid var(--senja-line); border-radius: 6px; background: #fffdf7; scroll-margin-top: 24px; }
 .sela-admin .sela-menu-editor h2,.sela-admin section > h2 { font-size: 18px; line-height: 1.4; margin-bottom: 12px; }
 .sela-admin .sela-menu-editor h3 { font-size: 18px; }
+.sela-menu-image-preview { display: block; max-width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; }
 .sela-admin .senja-form { gap: 18px; }
-.sela-admin .senja-form label { font-size: 12px; }
-.sela-admin .senja-form input { min-height: 44px; }
-.sela-admin .senja-form input[type="checkbox"] { min-height: 18px; }
+.sela-admin .senja-form label { font-size: 14px; }
+.sela-admin .senja-form input:not([type="checkbox"]),.sela-admin .senja-form textarea,.sela-admin .senja-form select,.sela-admin .sela-menu-toolbar input,.sela-admin .sela-menu-toolbar select { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid #858d7d; border-radius: 4px; background: #fffdf7; color: inherit; font: 16px/1.5 Arial,Helvetica,sans-serif; }
+.sela-admin .senja-form textarea { min-height: 120px; resize: vertical; }
+.sela-admin .senja-form > label:has(input[type="checkbox"]),.sela-hours-row label:has(input[type="checkbox"]) { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.sela-admin input[type="checkbox"] { width: 20px; height: 20px; min-height: 20px; flex-shrink: 0; accent-color: var(--senja-ink); cursor: pointer; }
+.sela-admin .senja-field { min-width: 0; }
+.sela-admin .senja-hero-actions { flex-wrap: wrap; gap: 12px; }
+.sela-admin .senja-text-button { min-height: 44px; padding: 10px 8px; }
+.sela-admin .senja-note { max-width: 75ch; }
+.sela-admin .sela-menu-editor { margin-block: 24px; }
+.sela-special-hours-list { list-style: none; padding: 0; margin-block: 20px; }
+.sela-special-hours-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-block: 12px; border-bottom: 1px solid var(--senja-line); }
+.sela-admin-recovery { margin-block: 16px; padding: 16px; border: 1px solid var(--senja-line); border-radius: 4px; background: var(--senja-footer); }
+.sela-admin-recovery p { margin-bottom: 8px; }
 .sela-hours-row { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; border-bottom: 1px solid var(--senja-line); padding: 18px; background: #fffdf7; }
-.sela-hours-row > strong { width: 70px; font-size: 12px; }
-.sela-hours-row label { display: grid; gap: 6px; font-size: 11px; }
-.sela-hours-row input:not([type="checkbox"]) { min-height: 44px; max-width: 180px; padding: 8px; border: 1px solid #858d7d; border-radius: 3px; background: #fffdf7; color: inherit; font-size: 16px; }
+.sela-hours-row > strong { flex: 1 1 100%; font-size: 16px; }
+.sela-hours-row > .senja-note { flex: 1 1 100%; }
+.sela-hours-row label { display: grid; gap: 6px; min-width: 0; flex: 1 1 180px; font-size: 14px; }
+.sela-hours-row input:not([type="checkbox"]) { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid #858d7d; border-radius: 4px; background: #fffdf7; color: inherit; font-size: 16px; }
 .sela-reservations .sela-reservation-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; padding: 20px; margin-block: 20px; border: 1px solid var(--senja-line); border-radius: 6px; background: #fffdf7; }
 .sela-reservation-filters label { display: grid; gap: 8px; flex: 1 1 220px; font-size: 12px; font-weight: 600; }
 .sela-reservation-filters input,.sela-reservation-filters select { width: 100%; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border: 1px solid #858d7d; border-radius: 4px; background: #fffdf7; color: inherit; font: 16px Arial,sans-serif; }
@@ -138,8 +165,34 @@
 .sela-reservation-detail footer { border-top: 1px solid var(--senja-line); padding-top: 20px; }
 .sela-reservations button:disabled { opacity: .55; cursor: not-allowed; }
 @media (max-width: 40rem) { .sela-reservation-detail { padding: 18px; } .sela-reservation-detail dl { grid-template-columns: 1fr; gap: 20px; } .sela-reservation-filters > button { width: 100%; } }
+.sela-admin.senja-site :is(p,small,dt,dd,span,label,button,a,th,td) { font-size: 14px; }
+.sela-admin .sela-admin-sidebar strong,.sela-admin .sela-admin-quick-actions strong { font-size: 14px; }
+.sela-admin .sela-admin-table thead th { font-size: 14px; text-transform: none; letter-spacing: normal; }
+.sela-admin .sela-admin-topline > p,.sela-admin .sela-admin-brand small,.sela-admin .sela-admin-outlet > span { letter-spacing: normal; }
+.sela-admin .sela-admin-topline a { min-height: 44px; }
+.sela-admin .sela-admin-account { flex-wrap: wrap; }
+.sela-admin .sela-admin-account > div:last-child { margin-inline-start: 0; }
+.sela-admin .sela-admin-surface > header { flex-wrap: wrap; }
+.sela-admin .sela-admin-heading > div > p:last-child { max-width: 75ch; font-size: 14px; }
+.sela-admin .sela-admin-main { scroll-margin-top: 100px; }
+.sela-admin .sela-admin-table-wrap::before { content: "Geser tabel untuk melihat semua kolom. Fokus lalu gunakan tombol panah."; display: block; padding: 12px 16px; border-bottom: 1px solid var(--senja-line); color: var(--senja-muted); background: var(--senja-paper); font-size: 14px; }
 .sela-admin :focus-visible { outline: 3px solid #a26124; outline-offset: 3px; }
+.sela-admin-sidebar :focus-visible { outline-color: var(--senja-paper); }
 @media (hover: hover) { .sela-admin-sidebar nav a:hover { background: #2c533d; } .sela-admin-quick-actions a:hover { background: #e5ebdc; } .sela-admin-topline a:hover,.sela-admin-location-actions a:hover { text-decoration: underline; text-underline-offset: 4px; } }
-@media (max-width: 75rem) { .sela-admin { grid-template-columns: 224px minmax(0, 1fr); } .sela-admin-main { padding: 24px; } .sela-admin-quick-actions > div { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sela-admin-overview-grid { grid-template-columns: 1fr; } .sela-admin-outlet-grid { grid-template-columns: 1fr; } }
-@media (max-width: 52rem) { .sela-admin { grid-template-columns: 1fr; } .sela-admin-sidebar { position: static; height: auto; padding: 16px; overflow: visible; } .sela-admin-brand { padding-bottom: 12px; } .sela-admin-outlet { display: none; } .sela-admin-sidebar nav { display: flex; overflow-x: auto; padding: 12px 2px; gap: 8px; } .sela-admin-sidebar nav a { flex-shrink: 0; min-height: 44px; padding: 10px 12px; } .sela-admin-sidebar nav small { display: none; } .sela-admin-account { margin-top: 0; padding-top: 12px; } .sela-admin-topline { padding: 12px 20px; } .sela-admin-timezone { display: none; } .sela-admin-main { padding: 24px 20px 48px; } .sela-admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 75rem) { .sela-admin { grid-template-columns: 256px minmax(0, 1fr); } .sela-admin-main { padding: 24px; } .sela-admin-quick-actions > div { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sela-admin-overview-grid { grid-template-columns: 1fr; } .sela-admin-outlet-grid { grid-template-columns: 1fr; } }
+@media (max-width: 64rem) {
+  .sela-admin { display: flex; flex-direction: column; }
+  .sela-admin-topline { flex-wrap: wrap; gap: 8px 16px; padding: 12px 20px; }
+  .sela-admin-topline > p { display: none; }
+  .sela-admin-topline > div { margin-inline-start: auto; }
+  .sela-admin-navigation-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 10px; border: 1px solid var(--senja-line); border-radius: 4px; background: var(--senja-paper); color: var(--senja-ink); font: inherit; font-weight: 600; }
+  .sela-admin-sidebar { display: none; position: static; height: auto; max-height: none; padding: 20px 16px max(20px, env(safe-area-inset-bottom)); }
+  .sela-admin[data-navigation-open="true"] .sela-admin-sidebar { display: flex; }
+  .sela-admin-sidebar nav { gap: 8px; }
+  .sela-admin-account { margin-top: 24px; }
+  .sela-admin-timezone { display: none; }
+  .sela-admin-main { padding: 24px 20px 48px; }
+  .sela-admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sela-admin-sidebar :focus-visible { outline-color: var(--senja-paper); }
+}
 @media (max-width: 30rem) { .sela-admin-main { padding-inline: 16px; } .sela-admin-topline { padding-inline: 16px; } .sela-admin-quick-actions > div { grid-template-columns: 1fr; } .sela-admin-notice { flex-direction: column; } .sela-admin-surface > header { align-items: start; flex-direction: column; } .sela-menu-toolbar > .senja-field { flex: 1 1 100%; } .sela-admin .sela-menu-editor { padding: 18px; } }

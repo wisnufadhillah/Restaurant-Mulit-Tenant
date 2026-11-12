@@ -12,6 +12,34 @@
     }
   ],
   "paths": {
+    "/staff/tenants/{slug}/reservations/{id}/transitions": {
+      "post": {
+        "operationId": "transitionStaffReservation", "summary": "Finalize a confirmed reservation as owner or staff",
+        "description": "Trusted Origin and JSON required. Tenant and actor come from active staff session, revalidated inside transaction. completed and no_show require server time strictly after endAt; exact boundary rejects. Staff cancellation has no customer cutoff. UUID key durably identifies event; identical normalized payload, actor and reservation replay same receipt. Changed operation/payload/actor/resource or different key on terminal reservation returns 409. Missing or foreign reservation returns 404. Status and event commit atomically. Rate limit: 60 valid attempts per actor per minute per process.",
+        "security": [{"staffCookie": []}],
+        "parameters": [{"name":"slug","in":"path","required":true,"schema":{"type":"string"}},{"name":"id","in":"path","required":true,"schema":{"type":"string","format":"uuid"}},{"name":"Origin","in":"header","required":true,"schema":{"type":"string"}},{"name":"Idempotency-Key","in":"header","required":true,"schema":{"type":"string","format":"uuid"}}],
+        "requestBody": {"required":true,"content":{"application/json":{"schema":{"oneOf":[{"type":"object","additionalProperties":false,"required":["status","reason"],"properties":{"status":{"const":"cancelled"},"reason":{"type":"string","minLength":1,"maxLength":500,"description":"Trimmed, nonblank; control characters rejected"}}},{"type":"object","additionalProperties":false,"required":["status"],"properties":{"status":{"const":"completed"}}},{"type":"object","additionalProperties":false,"required":["status","reviewed"],"properties":{"status":{"const":"no_show"},"reviewed":{"const":true,"description":"Explicit staff attendance acknowledgment"}}}]}}}},
+        "responses": {
+          "200":{"description":"Committed or replayed minimized event receipt","headers":{"Cache-Control":{"schema":{"type":"string","const":"no-store"}}},"content":{"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["data"],"properties":{"data":{"type":"object","additionalProperties":false,"required":["reservationId","status","eventId","changedAt"],"properties":{"reservationId":{"type":"string","format":"uuid"},"status":{"enum":["cancelled","completed","no_show"]},"eventId":{"type":"string","format":"uuid"},"changedAt":{"type":"string","format":"date-time"}}}}}}}},
+          "400":{"description":"Invalid body or key","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"INVALID_REQUEST","message":"Request rejected"}}}}},
+          "401":{"description":"Session unavailable or inactive","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"UNAUTHORIZED","message":"Request rejected"}}}}},
+          "403":{"description":"Role, Origin or content type rejected","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"FORBIDDEN","message":"Request rejected"}}}}},
+          "404":{"description":"Reservation not found","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"NOT_FOUND","message":"Request rejected"}}}}},
+          "409":{"description":"Terminal, time or replay conflict","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"CONFLICT","message":"Request rejected"}}}}},
+          "429":{"description":"Actor rate limit","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"RATE_LIMITED","message":"Request rejected"}}}}},
+          "500":{"description":"Unexpected server error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"INTERNAL_ERROR","message":"Request rejected"}}}}},
+          "503":{"description":"Uncertain dependency failure; retain original key and payload","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"SERVICE_UNAVAILABLE","message":"Request rejected"}}}}}
+        }
+      }
+    },
+    "/staff/tenants/{slug}/audit": {
+      "get": {
+        "operationId":"listStaffAudit","summary":"Read tenant operational and reservation activity",
+        "description":"Read-only owner/staff feed from one RepeatableRead snapshot. Newest timestamp first, source ascending then ID descending. Operational actions allowlisted; no target IDs invented. Customer and system reservation events included with actor type. No guest/contact/account name/reason/payload/token fields. Strict single page parameter; unknown parameters rejected.",
+        "security":[{"staffCookie":[]}],"parameters":[{"name":"slug","in":"path","required":true,"schema":{"type":"string"}},{"name":"page","in":"query","schema":{"type":"integer","minimum":1,"maximum":999,"default":1}}],
+        "responses":{"200":{"description":"Bounded activity page","headers":{"Cache-Control":{"schema":{"type":"string","const":"no-store"}}},"content":{"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["data","page","pageSize","total"],"properties":{"page":{"type":"integer"},"pageSize":{"const":20},"total":{"type":"integer","minimum":0},"data":{"type":"array","maxItems":20,"items":{"type":"object","additionalProperties":false,"required":["id","source","createdAt","action","actorType","reservationId","fromStatus","toStatus"],"properties":{"id":{"type":"string","format":"uuid"},"source":{"enum":["operational","reservation"]},"createdAt":{"type":"string","format":"date-time"},"action":{"type":"string"},"actorType":{"enum":["staff","customer","system"]},"reservationId":{"type":["string","null"],"format":"uuid"},"fromStatus":{"type":["string","null"]},"toStatus":{"type":["string","null"]}}}}}}}}},"400":{"description":"Invalid pagination","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"INVALID_REQUEST","message":"Request rejected"}}}}},"401":{"description":"Session unavailable","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"UNAUTHORIZED","message":"Request rejected"}}}}},"403":{"description":"Role rejected","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"FORBIDDEN","message":"Request rejected"}}}}},"500":{"description":"Unexpected server error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"INTERNAL_ERROR","message":"Request rejected"}}}}},"503":{"description":"Activity unavailable","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"SERVICE_UNAVAILABLE","message":"Request rejected"}}}}}}
+      }
+    },
     "/staff/tenants/{slug}/reservations": {"get":{"operationId":"listStaffReservations","summary":"List tenant reservations for authenticated owner or staff","security":[{"staffCookie":[]}],"parameters":[{"name":"slug","in":"path","required":true,"schema":{"type":"string"}},{"name":"date","in":"query","schema":{"type":"string","format":"date"},"description":"Arrival date in Asia/Jakarta"},{"name":"status","in":"query","schema":{"enum":["confirmed","cancelled","completed","no_show"]}},{"name":"page","in":"query","schema":{"type":"integer","minimum":1,"maximum":999,"default":1}}],"responses":{"200":{"description":"Twenty rows per page, ordered by startAt and id; no phone or credential hashes in list","headers":{"Cache-Control":{"schema":{"type":"string","const":"no-store"}}},"content":{"application/json":{"schema":{"type":"object","required":["data","page","pageSize","total"],"properties":{"data":{"type":"array","maxItems":20,"items":{"type":"object"}},"page":{"type":"integer"},"pageSize":{"const":20},"total":{"type":"integer"}}}}}},"400":{"description":"INVALID_REQUEST","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"INVALID_REQUEST","message":"Request rejected"}}}}},"401":{"description":"UNAUTHORIZED","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"UNAUTHORIZED","message":"Request rejected"}}}}},"403":{"description":"FORBIDDEN","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"FORBIDDEN","message":"Request rejected"}}}}},"404":{"description":"NOT_FOUND","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"NOT_FOUND","message":"Request rejected"}}}}},"500":{"description":"INTERNAL_ERROR","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"INTERNAL_ERROR","message":"Request rejected"}}}}},"503":{"description":"SERVICE_UNAVAILABLE","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"SERVICE_UNAVAILABLE","message":"Request rejected"}}}}}}}},
     "/staff/tenants/{slug}/reservations/{id}": {"get":{"operationId":"getStaffReservation","summary":"Read private reservation detail for own tenant","security":[{"staffCookie":[]}],"parameters":[{"name":"slug","in":"path","required":true,"schema":{"type":"string"}},{"name":"id","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}],"responses":{"200":{"description":"Private operational detail; includes guest phone, excludes tokens and hashes; missing and foreign records return 404","headers":{"Cache-Control":{"schema":{"type":"string","const":"no-store"}}},"content":{"application/json":{"schema":{"type":"object","required":["data"],"properties":{"data":{"type":"object"}}}}}},"400":{"description":"INVALID_REQUEST","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"INVALID_REQUEST","message":"Request rejected"}}}}},"401":{"description":"UNAUTHORIZED","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"UNAUTHORIZED","message":"Request rejected"}}}}},"403":{"description":"FORBIDDEN","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"FORBIDDEN","message":"Request rejected"}}}}},"404":{"description":"NOT_FOUND","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"NOT_FOUND","message":"Request rejected"}}}}},"500":{"description":"INTERNAL_ERROR","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"INTERNAL_ERROR","message":"Request rejected"}}}}},"503":{"description":"SERVICE_UNAVAILABLE","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"SERVICE_UNAVAILABLE","message":"Request rejected"}}}}}}}},
     "/public/tenants/{slug}/reservations": {"post":{"operationId":"createReservation","summary":"createReservation","description":"Exact trusted Origin, JSON, and private cookies required. Cookie names contain server-selected tenant slug. Never place credentials in URLs. Session creation alone permits no existing creator cookie.","parameters":[{"name":"slug","in":"path","required":true,"schema":{"type":"string"}},{"name":"Origin","in":"header","required":true,"schema":{"type":"string"}},{"name":"Idempotency-Key","in":"header","required":true,"schema":{"type":"string","minLength":16,"maxLength":128}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["reservation","nonce"],"properties":{"reservation":{"type":"object","additionalProperties":false,"required":["date","time","partySize","guestName","guestPhone"],"properties":{"date":{"type":"string","format":"date"},"time":{"type":"string","pattern":"^([01]\\d|2[0-3]):[0-5]\\d$"},"partySize":{"type":"integer","minimum":1,"maximum":12},"guestName":{"type":"string","minLength":1,"maxLength":120},"guestPhone":{"type":"string","maxLength":40}}},"nonce":{"type":"string","minLength":43,"maxLength":43}}}}}},"responses":{"200":{"description":"Private response after commit where applicable","headers":{"Cache-Control":{"schema":{"const":"no-store","type":"string"}}},"content":{"application/json":{"schema":{"type":"object","required":["data"],"properties":{"data":{"type":"object","required":["referenceCode","startAt","endAt","timezone","partySize","status"],"properties":{"referenceCode":{"type":"string"},"startAt":{"type":"string","format":"date-time"},"endAt":{"type":"string","format":"date-time"},"timezone":{"const":"Asia/Jakarta"},"partySize":{"type":"integer","minimum":1,"maximum":12},"status":{"enum":["confirmed","cancelled","completed","no_show"]}}}}}}}},"400":{"description":"INVALID_REQUEST","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"INVALID_REQUEST","message":"Request rejected"},"request_id":"synthetic-request"}}}},"403":{"description":"FORBIDDEN","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"FORBIDDEN","message":"Request rejected"},"request_id":"synthetic-request"}}}},"404":{"description":"NOT_FOUND","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"NOT_FOUND","message":"Request rejected"},"request_id":"synthetic-request"}}}},"409":{"description":"CONFLICT","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"CONFLICT","message":"Request rejected"},"request_id":"synthetic-request"}}}},"429":{"description":"RATE_LIMITED","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"RATE_LIMITED","message":"Request rejected"},"request_id":"synthetic-request"}}},"headers":{"Retry-After":{"schema":{"type":"integer","minimum":1}}}},"500":{"description":"INTERNAL_ERROR","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"INTERNAL_ERROR","message":"Request rejected"},"request_id":"synthetic-request"}}}},"503":{"description":"SERVICE_UNAVAILABLE","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"SERVICE_UNAVAILABLE","message":"Request rejected"},"request_id":"synthetic-request"}}}}}}},
@@ -829,6 +857,58 @@
         }
       }
     },
+    "/staff/tenants/{slug}/menu/images": {
+      "post": {
+        "operationId": "uploadMenuImage",
+        "summary": "Owner uploads raw JPEG PNG or WebP bytes, maximum 5 MiB; exact Origin required. Re-encoded metadata-free WebP, 16 million input pixels, at most 1600px. Returns data.imageKey owned by session tenant. Local storage quotas and upload rate limits apply.",
+        "security": [{ "staffCookie": [] }],
+        "parameters": [{ "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "image/jpeg": { "schema": { "type": "string", "format": "binary" } }, "image/png": { "schema": { "type": "string", "format": "binary" } }, "image/webp": { "schema": { "type": "string", "format": "binary" } } } },
+        "responses": {
+          "201": { "description": "Tenant-owned data.imageKey; attach with menu create/update" },
+          "default": { "description": "400 invalid raster, 401 invalid session, 403 denied role or Origin, 413 oversized, 429 bounded rate or storage quota, 503 unavailable" },
+          "500": { "description": "Unexpected server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" }, "example": { "error": { "code": "INTERNAL_ERROR", "message": "Terjadi gangguan layanan." } } } } }
+        }
+      }
+    },
+    "/staff/tenants/{slug}/menu/images/{key}": {
+      "get": {
+        "operationId": "getStaffMenuImage",
+        "summary": "Authenticated same-tenant staff photo read, including hidden menu photos. image/webp, nosniff, no-store.",
+        "security": [{ "staffCookie": [] }],
+        "parameters": [{ "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "key", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^upload-[a-f0-9]{48}\\.webp$" } }],
+        "responses": {
+          "200": { "description": "Immutable WebP file bytes", "content": { "image/webp": { "schema": { "type": "string", "format": "binary" } } } },
+          "default": { "description": "401 invalid session, 404 inaccessible or missing file, 503 unavailable" },
+          "500": { "description": "Unexpected server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" }, "example": { "error": { "code": "INTERNAL_ERROR", "message": "Terjadi gangguan layanan." } } } } }
+        }
+      }
+    },
+    "/public/tenants/{slug}/menu/images/{key}": {
+      "get": {
+        "operationId": "getPublicMenuImage",
+        "summary": "WebP bytes only while active tenant has active menu reference. Missing, unreferenced or hidden image returns 404. nosniff and no-store allow publication changes to take effect.",
+        "parameters": [{ "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "key", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^upload-[a-f0-9]{48}\\.webp$" } }],
+        "responses": {
+          "200": { "description": "Immutable WebP file bytes", "content": { "image/webp": { "schema": { "type": "string", "format": "binary" } } } },
+          "default": { "description": "404 inaccessible or missing file, 503 unavailable" },
+          "500": { "description": "Unexpected server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" }, "example": { "error": { "code": "INTERNAL_ERROR", "message": "Terjadi gangguan layanan." } } } } }
+        }
+      }
+    },
+    "/public/tenants/{slug}/menu/catalogue": {
+      "get": {
+        "operationId": "getPublicMenuCatalogue",
+        "summary": "Public web menu with optional static or uploaded photo key; tool menu resource remains unchanged",
+        "parameters": [{ "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "data array: id, name, description, integer Rupiah price, isAvailable, nullable imageKey; source restaurant_api" },
+          "404": { "description": "NOT_FOUND", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" }, "example": { "error": { "code": "NOT_FOUND", "message": "Informasi tidak ditemukan." }, "request_id": "00000000-0000-4000-8000-000000000000" } } } },
+          "500": { "description": "INTERNAL_ERROR", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" }, "example": { "error": { "code": "INTERNAL_ERROR", "message": "Terjadi gangguan layanan." }, "request_id": "00000000-0000-4000-8000-000000000000" } } } },
+          "503": { "description": "SERVICE_UNAVAILABLE", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" }, "example": { "error": { "code": "SERVICE_UNAVAILABLE", "message": "Layanan belum tersedia. Silakan coba lagi." }, "request_id": "00000000-0000-4000-8000-000000000000" } } } }
+        }
+      }
+    },
     "/staff/tenants/{slug}/menu": {
       "get": {
         "operationId": "getStaffMenu",
@@ -924,7 +1004,7 @@
       },
       "post": {
         "operationId": "createMenu",
-        "summary": "Owner creates menu; exact Origin required",
+        "summary": "Owner creates menu with optional static or tenant-owned uploaded imageKey; exact Origin required",
         "security": [
           {
             "staffCookie": []
@@ -1054,7 +1134,7 @@
     "/staff/tenants/{slug}/menu/{id}": {
       "patch": {
         "operationId": "updateMenu",
-        "summary": "Owner edits menu; isActive=false removes from public catalogue without deletion",
+        "summary": "Owner edits menu; omitted imageKey preserves photo, null clears it; isActive=false hides without deletion",
         "security": [
           {
             "staffCookie": []
@@ -4234,6 +4314,11 @@
           },
           "isAvailable": {
             "type": "boolean"
+          },
+          "imageKey": {
+            "type": ["string", "null"],
+            "anyOf": [{ "enum": [null, "padang-rendang.webp", "padang-gulai.webp", "padang-dendeng.webp", "ayam-pop.jpg", "es-jeruk.jpg", "es-teh.jpg", "gulai-kepala-ikan.jpg", "nasi.jpg", "telur-balado.jpg"] }, { "type": "string", "pattern": "^upload-[a-f0-9]{48}\\.webp$" }],
+            "description": "Static photo or opaque upload key owned by current tenant. Omit to preserve existing value; null clears photo. URLs and paths are rejected."
           }
         }
       }

@@ -9,6 +9,7 @@ const errors: Record<number, [string, string]> = {
   404: ["NOT_FOUND", "Informasi tidak ditemukan."],
   405: ["METHOD_NOT_ALLOWED", "Metode tidak diizinkan."],
   409: ["CONFLICT", "Permintaan bertentangan dengan kondisi saat ini."],
+  413: ["PAYLOAD_TOO_LARGE", "Data terlalu besar."],
   422: ["VALIDATION_FAILED", "Data permintaan tidak valid."],
   429: ["RATE_LIMITED", "Terlalu banyak permintaan."],
   503: ["SERVICE_UNAVAILABLE", "Layanan belum tersedia. Silakan coba lagi."],

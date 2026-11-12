@@ -34,7 +34,7 @@ test('staff reservation HTTP uses real PostgreSQL tenant scope, pagination and p
         const staff = await tx.staff.create({ data: { tenantId, username: 'synthetic.operator', role: i ? 'staff' : 'owner', passwordHash: randomBytes(32).toString('hex') } });
         const token = createSessionToken();
         await tx.staffSession.create({ data: { tenantId, staffId: staff.id, tokenHash: hashSessionToken(token), expiresAt: new Date(Date.now() + 180000) } });
-        actors.push({ slug, token });
+        actors.push({ slug, token, staffId: staff.id });
         for (let n = 0; n < (i ? 1 : 21); n++) {
           const startAt = new Date(Date.UTC(2026, 10, 10 + n, 3));
           const endAt = new Date(startAt.getTime() + 90 * 60000);
@@ -45,6 +45,7 @@ test('staff reservation HTTP uses real PostgreSQL tenant scope, pagination and p
       const service = Object.create(StaffReservationsService.prototype);
       // Actual queries share the fixture transaction; no nested transaction or committed fixtures.
       service.db = { reservation: tx.reservation, $transaction: callback => callback(tx) };
+      service.attempts = new Map();
       const accounts = Object.create(StaffRepository.prototype); accounts.database = tx;
       class TestModule {}
       Module({ controllers: [StaffReservationsController, StaffController], providers: [StaffService, { provide: StaffRepository, useValue: accounts }, { provide: StaffReservationsService, useValue: service }] })(TestModule);
@@ -65,6 +66,29 @@ test('staff reservation HTTP uses real PostgreSQL tenant scope, pagination and p
         const own = await (await get(actors[0], `/${bookings[0].id}`)).json(); assert.equal(own.data.guestPhone, '0000000000');
         const other = await (await get(actors[1])).json(); assert.equal(other.total, 1); assert.equal(other.data[0].guestName, 'Foreign Synthetic Guest');
         assert.equal(await tx.reservation.count({ where: { tenantId: { in: tenants } } }), 22);
+        // Savepoints model service transaction boundaries without committing fixtures.
+        const transitions = Object.create(StaffReservationsService.prototype); transitions.attempts = new Map();
+        let failEvent = false;
+        transitions.db = { $transaction: async callback => {
+          await tx.$executeRaw`SAVEPOINT staff_transition`;
+          try {
+            const result = await callback({ ...tx, reservationEvent: { findUnique: args => tx.reservationEvent.findUnique(args), create: args => { if (failEvent) throw new Error('Synthetic event failure'); return tx.reservationEvent.create(args); } } });
+            await tx.$executeRaw`RELEASE SAVEPOINT staff_transition`; return result;
+          } catch (error) { await tx.$executeRaw`ROLLBACK TO SAVEPOINT staff_transition`; throw error; }
+        } };
+        const eventKey = randomUUID(), selected = bookings[20];
+        const transition = (key = eventKey, body = { status: 'cancelled', reason: 'Synthetic reason' }, id = selected.id) => transitions.transition(tenants[0], actors[0].staffId, hashSessionToken(actors[0].token), id, key, body);
+        failEvent = true; await assert.rejects(transition(), error => error.getStatus() === 503);
+        assert.equal((await tx.reservation.findUnique({ where: { id: selected.id } })).status, 'confirmed');
+        assert.equal(await tx.reservationEvent.count({ where: { id: eventKey } }), 0);
+        failEvent = false;
+        const receipt = await transition(); assert.deepEqual(await transition(), receipt);
+        assert.equal(await tx.reservationEvent.count({ where: { id: eventKey } }), 1);
+        await assert.rejects(transition(randomUUID()), error => error.getStatus() === 409);
+        await assert.rejects(transition(eventKey, { status: 'cancelled', reason: 'Other reason' }), error => error.getStatus() === 409);
+        await assert.rejects(transition(eventKey, undefined, bookings[21].id), error => error.getStatus() === 404);
+        const activity = await transitions.audit(tenants[0], {}); assert.equal(activity.total, 1); assert.equal(activity.data[0].id, eventKey);
+        assert.ok(!JSON.stringify(activity).includes('Synthetic reason')); assert.ok(!JSON.stringify(activity).includes('Own Synthetic Guest'));
         if (process.env.RUN_STAFF_RESERVATION_BROWSER === '1') {
           let child, browser;
           try {
@@ -99,7 +123,7 @@ test('staff reservation HTTP uses real PostgreSQL tenant scope, pagination and p
               await page.getByText('0000000000', { exact: true }).waitFor();
               assert.equal(await page.locator('#reservation-detail-heading').evaluate(element => element === document.activeElement), true);
               assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
-              assert.equal(await page.getByRole('button', { name: /batalkan|selesaikan|no.show/i }).count(), 0);
+              assert.equal(await page.getByRole('button', { name: 'Batalkan reservasi', exact: true }).count(), 1);
               const foreignStatus = await page.evaluate(async id => (await fetch(`/staff/reservations?id=${id}`)).status, index ? bookings[0].id : bookings[21].id);
               assert.equal(foreignStatus, 404);
               await page.getByRole('button', { name: 'Tutup detail', exact: true }).click();

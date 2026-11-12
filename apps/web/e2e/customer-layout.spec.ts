@@ -1,0 +1,35 @@
+import { test, expect } from '@playwright/test';
+
+test('customer footer and order controls remain readable on a narrow viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.route('**/reservation/*', route => route.fulfill({ status: 403, contentType: 'application/json', body: '{}' }));
+  await page.route('**/chat/session', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+  await page.route('**/chat/catalogue/menu', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [{ id: '00000000-0000-4000-8000-000000000001', name: 'Rendang demo', price: 35000, description: 'Menu sintetis', isAvailable: true }] }) }));
+  await page.goto('/');
+  await expect(page.locator('.senja-footer address')).not.toBeEmpty();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Tanya restoran', exact: true }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  const add = page.getByRole('button', { name: 'Tambah', exact: true });
+  expect((await add.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await add.click();
+  await add.click();
+  await expect(page.locator('.sela-order-line')).toContainText('× 2');
+  await page.getByRole('button', { name: 'Kurangi satu Rendang demo', exact: true }).click();
+  await expect(page.locator('.sela-order-line')).toContainText('× 1');
+  const name = page.getByLabel('Nama pemesan', { exact: true });
+  await expect(name).toBeVisible();
+  expect(await name.evaluate(element => getComputedStyle(element).fontSize)).toBe('16px');
+  expect((await name.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  const create = page.getByRole('button', { name: 'Buat Pesanan', exact: true });
+  await create.scrollIntoViewIfNeeded();
+  expect((await create.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  const send = page.getByRole('button', { name: 'Kirim', exact: true });
+  await send.scrollIntoViewIfNeeded();
+  await expect(send).toBeVisible();
+  const bounds = (await send.boundingBox())!;
+  expect(bounds.y).toBeGreaterThanOrEqual(0);
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(640);
+  await page.getByRole('button', { name: 'Hapus Rendang demo', exact: true }).click();
+  await expect(page.getByLabel('Nama pemesan', { exact: true })).toHaveCount(0);
+});

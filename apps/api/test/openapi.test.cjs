@@ -4,7 +4,7 @@ const spec = require('../../../docs/api/openapi.json');
 
 test('OpenAPI documents implemented routes, session security and schema references', () => {
   assert.equal(spec.openapi, '3.1.1');
-  assert.deepEqual(Object.keys(spec.paths).filter(path => !path.startsWith('/public/tenants/{slug}/reservations')).sort(), ['/chat/catalogue/{resource}', '/chat/messages', '/chat/session', '/health', '/internal/tenants/{slug}/menu', '/internal/tenants/{slug}/restaurant', '/public/tenants/{slug}/availability', '/public/tenants/{slug}/hours', '/public/tenants/{slug}/menu', '/public/tenants/{slug}/restaurant', '/staff/login', '/staff/tenants/{slug}/hours', '/staff/tenants/{slug}/logout', '/staff/tenants/{slug}/menu', '/staff/tenants/{slug}/menu/{id}', '/staff/tenants/{slug}/menu/{id}/availability', '/staff/tenants/{slug}/profile', '/staff/tenants/{slug}/reservations', '/staff/tenants/{slug}/reservations/{id}', '/staff/tenants/{slug}/session', '/staff/tenants/{slug}/special-hours', '/staff/tenants/{slug}/special-hours/{date}', '/staff/tenants/{slug}/tables', '/staff/tenants/{slug}/tables/{id}']);
+  assert.deepEqual(Object.keys(spec.paths).filter(path => !path.startsWith('/public/tenants/{slug}/reservations')).sort(), ['/chat/catalogue/{resource}', '/chat/messages', '/chat/session', '/health', '/internal/tenants/{slug}/menu', '/internal/tenants/{slug}/restaurant', '/public/tenants/{slug}/availability', '/public/tenants/{slug}/hours', '/public/tenants/{slug}/menu', '/public/tenants/{slug}/menu/catalogue', '/public/tenants/{slug}/menu/images/{key}', '/public/tenants/{slug}/restaurant', '/staff/login', '/staff/tenants/{slug}/audit', '/staff/tenants/{slug}/hours', '/staff/tenants/{slug}/logout', '/staff/tenants/{slug}/menu', '/staff/tenants/{slug}/menu/images', '/staff/tenants/{slug}/menu/images/{key}', '/staff/tenants/{slug}/menu/{id}', '/staff/tenants/{slug}/menu/{id}/availability', '/staff/tenants/{slug}/profile', '/staff/tenants/{slug}/reservations', '/staff/tenants/{slug}/reservations/{id}', '/staff/tenants/{slug}/reservations/{id}/transitions', '/staff/tenants/{slug}/session', '/staff/tenants/{slug}/special-hours', '/staff/tenants/{slug}/special-hours/{date}', '/staff/tenants/{slug}/tables', '/staff/tenants/{slug}/tables/{id}']);
   for (const suffix of ['', '/session', '/confirmations', '/recovery', '/management-session', '/receipt', '/cancel', '/management-session/logout']) assert.ok(spec.paths['/public/tenants/{slug}/reservations' + suffix].post);
   const recovery = spec.paths['/public/tenants/{slug}/reservations/recovery'].post;
   for (const [status, response] of Object.entries(recovery.responses)) if (Number(status) >= 400) {
@@ -42,6 +42,11 @@ test('OpenAPI documents implemented routes, session security and schema referenc
     for (const child of Object.values(value)) check(child);
   }
   check(spec);
+  const menu = spec.components.schemas.MenuInput;
+  assert.deepEqual(menu.required, ['name', 'description', 'price', 'isActive', 'isAvailable']);
+  assert.equal(menu.additionalProperties, false);
+  assert.ok(menu.properties.imageKey.anyOf[0].enum.includes(null));
+  assert.ok(menu.properties.imageKey.anyOf[0].enum.includes('ayam-pop.jpg'));
   assert.ok(spec.paths['/staff/login'].post.responses['429']);
   assert.ok(spec.paths['/staff/tenants/{slug}/tables'].post.responses['201']);
   assert.equal(spec.paths['/staff/tenants/{slug}/tables'].post.responses['200'], undefined);

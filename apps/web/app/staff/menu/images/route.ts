@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { API_ORIGIN, SESSION_COOKIE, TENANT_COOKIE, trustedOrigin } from "../../../staff-session";
 import { uploadedMenuImage } from "../../../../../api/src/menu/menu-images";
 
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_BYTES = 4_000_000;
 let receiving = false;
 const headers = { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
 
@@ -30,7 +30,7 @@ async function forward(request: Request) {
     const type = request.headers.get("content-type") ?? "";
     if (!["image/jpeg", "image/png", "image/webp"].includes(type)) return NextResponse.json({ message: "Gunakan JPEG, PNG atau WebP." }, { status: 400, headers });
     const length = request.headers.get("content-length");
-    if (length && (!/^\d+$/.test(length) || Number(length) > MAX_BYTES)) return NextResponse.json({ message: "Foto maksimal 5 MB." }, { status: 413, headers });
+    if (length && (!/^\d+$/.test(length) || Number(length) > MAX_BYTES)) return NextResponse.json({ message: "Foto maksimal 4 MB." }, { status: 413, headers });
     if (receiving) return NextResponse.json({ message: "Unggahan sedang sibuk. Coba lagi." }, { status: 429, headers });
     if (!request.body) return NextResponse.json({ message: "Pilih foto." }, { status: 400, headers });
     receiving = true; acquired = true;
@@ -43,7 +43,7 @@ async function forward(request: Request) {
         const { done, value } = await reader.read();
         if (done) { complete = true; break; }
         size += value.byteLength;
-        if (size > MAX_BYTES) { await reader.cancel(); return NextResponse.json({ message: "Foto maksimal 5 MB." }, { status: 413, headers }); }
+        if (size > MAX_BYTES) { await reader.cancel(); return NextResponse.json({ message: "Foto maksimal 4 MB." }, { status: 413, headers }); }
         chunks.push(value);
       }
     } finally { clearTimeout(timeout); reader.releaseLock(); }

@@ -47,7 +47,7 @@ Base API: http://127.0.0.1:3001/api/v1
 | GET | /public/tenants/:slug/menu/catalogue | Katalog website dengan imageKey; tanpa data staff atau tenant ID |
 | GET | /staff/tenants/:slug/menu | Daftar menu tenant sesi |
 | POST | /staff/tenants/:slug/menu | Pemilik menambah menu |
-| POST | /staff/tenants/:slug/menu/images | Pemilik mengunggah byte JPEG/PNG/WebP mentah, maksimal 5 MiB; bukan multipart/JSON |
+| POST | /staff/tenants/:slug/menu/images | Pemilik mengunggah byte JPEG/PNG/WebP mentah, maksimal 4 MB (4.000.000 byte); bukan multipart/JSON/base64 |
 | GET | /staff/tenants/:slug/menu/images/:key | Foto tenant sesi, termasuk menu tersembunyi |
 | GET | /public/tenants/:slug/menu/images/:key | Foto tenant aktif yang masih dirujuk menu aktif |
 | PATCH | /staff/tenants/:slug/menu/:id | Pemilik mengirim seluruh field menu |
@@ -62,7 +62,7 @@ Route browser /staff/menu hanya meneruskan endpoint menu ke API tetap. Cookie me
 Jalankan BE dan FE seperti panduan lokal, lalu buka http://127.0.0.1:3000/login. Akun demo sudah tersedia; password dibaca privat dari file lokal, tidak disalin ke dokumentasi. Pada dashboard:
 
 1. Owner melihat menu, form tambah dan tombol edit.
-2. Isi nama, deskripsi, harga; pilih visibilitas dan ketersediaan. Unggah JPEG/PNG/WebP maksimal 5 MB dan periksa preview lokal, atau pilih aset statis/tanpa foto.
+2. Isi nama, deskripsi, harga; pilih visibilitas dan ketersediaan. Unggah JPEG/PNG/WebP maksimal 4 MB (4.000.000 byte) dan periksa preview lokal, atau pilih aset statis/tanpa foto.
 3. Tekan Simpan menu; sukses baru tampil setelah respons API.
 4. Muat ulang beranda: menu aktif tampil dengan harga dari DB.
 5. Staff hanya melihat aksi Tandai habis/Tandai tersedia, tanpa form harga.
@@ -70,7 +70,7 @@ Jalankan BE dan FE seperti panduan lokal, lalu buka http://127.0.0.1:3000/login.
 
 Seed menu memakai ID sintetis stabil untuk dua tenant. Retry tidak menimpa perubahan pemilik. Foto dibaca dari referensi `imageKey` pada menu, bukan dari nama hidangan. Mengganti nama tidak mengubah foto. Menu tanpa referensi valid memakai placeholder. Sembilan aset statis tetap didukung. Unggahan berjalan saat Simpan menu: sesi owner dan Origin diverifikasi sebelum pembacaan byte di BFF maupun API. Backend mendekode raster maksimal 16 juta piksel, menolak animasi/SVG, mengubah orientasi dan ukuran maksimal 1600×1600, lalu menyimpan WebP tanpa metadata maksimal 1 MiB dengan nama acak.
 
-File disimpan di `.local/menu-images` pada workspace backend, bukan `public` atau source. Satu unggahan diproses sekaligus, maksimal 10 percobaan/menit/tenant/proses, 200 record/tenant, dan 1000 file global. Batas disk output sekitar 1 GiB. File yatim dari pembatalan/gagal simpan tetap memakan kuota; tidak ada cleanup destruktif otomatis. Operasional perlu backup file bersama DB dan prosedur rekonsiliasi manual. Deployment beberapa proses perlu storage bersama dan limiter terkoordinasi; konfigurasi ini untuk backend lokal satu proses. BFF membatasi body mentah 5 MiB tanpa base64 dan memverifikasi sesi sebelum parse. Pembacaan foto memeriksa tenant dan publikasi tiap permintaan, memakai `image/webp`, `nosniff`, `no-store`; nama file tidak pernah ditimpa.
+File disimpan di `.local/menu-images` pada root workspace (hasil kompilasi `apps/api/dist/menu` naik empat direktori), bukan `public` atau source. Satu unggahan diproses sekaligus, maksimal 10 percobaan/menit/tenant/proses, 200 record/tenant, dan 1000 file global. Batas disk output sekitar 1 GiB. File yatim dari pembatalan/gagal simpan tetap memakan kuota; tidak ada cleanup destruktif otomatis. Operasional perlu backup file bersama DB dan prosedur rekonsiliasi manual. Deployment beberapa proses perlu storage bersama dan limiter terkoordinasi; konfigurasi ini untuk backend lokal satu proses. BFF dan API membatasi body mentah 4 MB (4.000.000 byte) tanpa base64, di bawah batas payload Vercel Function 4,5 MB dan memverifikasi sesi sebelum parse. Pembacaan foto memeriksa tenant dan publikasi tiap permintaan, memakai `image/webp`, `nosniff`, `no-store`; nama file tidak pernah ditimpa.
 
 ## Verifikasi
 

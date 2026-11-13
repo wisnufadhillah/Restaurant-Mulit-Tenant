@@ -860,7 +860,7 @@
     "/staff/tenants/{slug}/menu/images": {
       "post": {
         "operationId": "uploadMenuImage",
-        "summary": "Owner uploads raw JPEG PNG or WebP bytes, maximum 5 MiB; exact Origin required. Re-encoded metadata-free WebP, 16 million input pixels, at most 1600px. Returns data.imageKey owned by session tenant. Local storage quotas and upload rate limits apply.",
+        "summary": "Owner uploads raw JPEG PNG or WebP bytes, maximum 4 MB (4,000,000 bytes), never base64; exact Origin required. Re-encoded metadata-free WebP, 16 million input pixels, at most 1600px. Returns data.imageKey owned by session tenant. Local storage quotas and upload rate limits apply.",
         "security": [{ "staffCookie": [] }],
         "parameters": [{ "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }],
         "requestBody": { "required": true, "content": { "image/jpeg": { "schema": { "type": "string", "format": "binary" } }, "image/png": { "schema": { "type": "string", "format": "binary" } }, "image/webp": { "schema": { "type": "string", "format": "binary" } } } },

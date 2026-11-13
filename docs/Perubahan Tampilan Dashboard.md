@@ -30,7 +30,7 @@ Perbandingan ini menunjukkan perubahan antarmuka, bukan kesetaraan jumlah menu a
 
 Tambah/edit menu menggunakan modal agar pemilik tidak perlu mencari form di bawah daftar. Modal memuat input menu, unggah foto, preview, serta tindakan simpan/batal. Foto lama dipertahankan kecuali diganti atau dilepas. Dropdown galeri bawaan dihilangkan; alur utama adalah pilih file dari perangkat, preview, lalu simpan.
 
-Ketentuan upload: JPEG/PNG/WebP maksimal 5 MiB; server memeriksa isi, membatasi piksel dan mengubah ulang menjadi WebP. File disimpan lokal, sedangkan DB menyimpan referensi beserta kepemilikan tenant. Batas tersebut berlaku di backend, bukan hanya atribut input browser.
+Ketentuan upload: JPEG/PNG/WebP maksimal 4 MB (4.000.000 byte); server memeriksa isi, membatasi piksel dan mengubah ulang menjadi WebP. File disimpan lokal, sedangkan DB menyimpan referensi beserta kepemilikan tenant. Batas tersebut berlaku di backend, bukan hanya atribut input browser.
 
 ![Popup edit menu dan preview foto lokal, belum disimpan](images/dashboard-comparison/after-menu-edit-desktop.png)
 

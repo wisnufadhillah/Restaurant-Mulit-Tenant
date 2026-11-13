@@ -6,7 +6,7 @@ import { Readable } from "node:stream";
 import sharp from "sharp";
 import { uploadedMenuImage } from "./menu-images";
 
-export const MENU_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const MENU_UPLOAD_BYTES = 4_000_000;
 const OUTPUT_BYTES = 1024 * 1024;
 const STORAGE_FILES = 1000;
 

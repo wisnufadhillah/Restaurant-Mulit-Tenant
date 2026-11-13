@@ -1,0 +1,163 @@
+name: restaurant-staging
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  database:
+    image: pgvector/pgvector:0.8.1-pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: restaurant
+      POSTGRES_DB: restaurant
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [private]
+    mem_limit: 384m
+    cpus: 0.50
+    pids_limit: 128
+    shm_size: 64m
+    command: [postgres, -c, max_connections=80, -c, shared_buffers=96MB]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U restaurant -d restaurant]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    logging: *logging
+
+  api:
+    image: restaurant-staging-api:${STAGING_IMAGE_TAG:?Set STAGING_IMAGE_TAG}
+    build:
+      context: .
+      dockerfile: infra/staging/api.Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=256
+      API_HOST: 0.0.0.0
+      PORT: "3001"
+      STAFF_ORIGIN: ${STAFF_ORIGIN:?Set exact HTTPS frontend origin}
+      API_ALLOWED_ORIGINS: ${STAFF_ORIGIN:?Set exact HTTPS frontend origin}
+      ASSISTANT_ORIGIN: http://127.0.0.1:8010
+      MIDTRANS_IS_PRODUCTION: "false"
+      DATABASE_RUNTIME_PASSWORD_FILE: /run/secrets/database_runtime_password
+      ASSISTANT_GATEWAY_TOKEN_FILE: /run/secrets/assistant_gateway_token
+      INTERNAL_TOOL_SERVICE_TOKEN_FILE: /run/secrets/internal_tool_service_token
+      INTERNAL_CONTEXT_SECRET_FILE: /run/secrets/internal_context_secret
+      MIDTRANS_SERVER_KEY_FILE: /run/secrets/midtrans_server_key
+    secrets: [database_runtime_password, assistant_gateway_token, internal_tool_service_token, internal_context_secret, midtrans_server_key]
+    volumes:
+      - menu_images:/app/.local/menu-images
+    networks: [private]
+    depends_on:
+      database:
+        condition: service_healthy
+    mem_limit: 384m
+    cpus: 0.50
+    pids_limit: 128
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3001/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging: *logging
+
+  assistant:
+    image: restaurant-staging-assistant:${STAGING_IMAGE_TAG:?Set STAGING_IMAGE_TAG}
+    build:
+      context: .
+      dockerfile: infra/staging/assistant.Dockerfile
+    restart: unless-stopped
+    init: true
+    network_mode: service:api
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      RESTAURANT_API_BASE_URL: http://127.0.0.1:3001
+      AGNO_MODEL_ID: ${AGNO_MODEL_ID:?Select verified free model}
+      AGNO_ALLOWED_MODELS: ${AGNO_ALLOWED_MODELS:?Set exact free model allowlist}
+      ASSISTANT_GATEWAY_TOKEN_FILE: /run/secrets/assistant_gateway_token
+      INTERNAL_TOOL_SERVICE_TOKEN_FILE: /run/secrets/internal_tool_service_token
+      OPENROUTER_API_KEY_FILE: /run/secrets/openrouter_api_key
+    secrets: [assistant_gateway_token, internal_tool_service_token, openrouter_api_key]
+    mem_limit: 512m
+    cpus: 0.50
+    pids_limit: 128
+    healthcheck:
+      test: [CMD, /app/agno-v2/.venv/bin/python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging: *logging
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?Set confirmed API DNS hostname}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/staging/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [private]
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 128m
+    cpus: 0.25
+    pids_limit: 128
+    logging: *logging
+
+  migrate:
+    image: restaurant-staging-api:${STAGING_IMAGE_TAG:?Set STAGING_IMAGE_TAG}
+    profiles: [tools]
+    command: [migrate]
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    networks: [private]
+    depends_on:
+      database:
+        condition: service_healthy
+    mem_limit: 256m
+    cpus: 0.50
+    pids_limit: 128
+    logging: *logging
+
+networks:
+  private:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  menu_images:
+  caddy_data:
+  caddy_config:
+
+secrets:
+  database_runtime_password:
+    file: ./.local/staging/database_runtime_password
+  postgres_password:
+    file: ./.local/staging/postgres_password
+  assistant_gateway_token:
+    file: ./.local/staging/assistant_gateway_token
+  internal_tool_service_token:
+    file: ./.local/staging/internal_tool_service_token
+  internal_context_secret:
+    file: ./.local/staging/internal_context_secret
+  midtrans_server_key:
+    file: ./.local/staging/midtrans_server_key
+  openrouter_api_key:
+    file: ./.local/staging/openrouter_api_key

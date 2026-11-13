@@ -50,7 +50,7 @@ test('menu HTTP saves owner photos, preserves omitted metadata and restricts sta
     assert.equal((await upload({ origin: 'https://untrusted.invalid' })).status, 403);
     session.staff.role = 'staff'; assert.equal((await upload()).status, 403); session.staff.role = 'owner';
     assert.equal((await upload({}, Buffer.from('not an image'))).status, 400);
-    assert.equal((await upload({}, Buffer.alloc(5 * 1024 * 1024 + 1))).status, 413);
+    assert.equal((await upload({}, Buffer.alloc(4_000_001))).status, 413);
     const uploaded = await upload(); assert.equal(uploaded.status, 201);
     const uploadedKey = (await uploaded.json()).data.imageKey;
     assert.match(uploadedKey, /^upload-[a-f0-9]{48}\.webp$/);

@@ -39,6 +39,17 @@ test('raster uploads decode JPEG PNG WebP, strip metadata, bound pixels bytes qu
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test('upload byte ceiling rejects declared and streamed overflow while boundary reaches raster validation', async () => {
+  assert.equal(MENU_UPLOAD_BYTES, 4_000_000);
+  const storage = new MenuImageStorage('unused-upload-root');
+  const save = async () => assert.fail('Invalid raster must not save');
+  await assert.rejects(storage.upload('header-overflow', request(Buffer.from('x'), 'image/png', { 'content-length': '4000001' }), save), { status: 413 });
+  await assert.rejects(storage.upload('stream-overflow', request(Buffer.alloc(4_000_001)), save), { status: 413 });
+  for (const size of [3_999_999, 4_000_000]) {
+    await assert.rejects(storage.upload(`boundary-${size}`, request(Buffer.alloc(size), 'image/png', { 'content-length': String(size) }), save), { status: 400 });
+  }
+});
+
 test('saved upload references require same tenant; public reads require active published reference', async () => {
   assert.equal(menuInput(body).imageKey, key);
   const service = Object.create(MenuService.prototype);

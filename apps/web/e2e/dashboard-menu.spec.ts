@@ -86,7 +86,7 @@ test('upload BFF rejects missing session, bad Origin, staff, large bytes and uns
   const request = page.request;
   const origin = 'http://127.0.0.1:3100';
   expect((await request.post('/staff/menu/images', { headers: { origin: 'https://untrusted.invalid', 'content-type': 'image/png' }, data: Buffer.from('invalid') })).status()).toBe(403);
-  expect((await request.post('/staff/menu/images', { headers: { origin, 'content-type': 'image/png' }, data: Buffer.alloc(5 * 1024 * 1024 + 1) })).status()).toBe(413);
+  expect((await request.post('/staff/menu/images', { headers: { origin, 'content-type': 'image/png' }, data: Buffer.alloc(4_000_001) })).status()).toBe(413);
   expect((await request.get('/staff/menu/images?key=../unsafe.webp')).status()).toBe(404);
   await request.post('http://127.0.0.1:3311/fixture/staff');
   expect((await request.post('/staff/menu/images', { headers: { origin, 'content-type': 'image/png' }, data: Buffer.from('invalid') })).status()).toBe(403);

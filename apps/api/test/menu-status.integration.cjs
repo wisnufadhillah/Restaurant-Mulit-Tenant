@@ -147,7 +147,7 @@ test('local HTTP menu storage and PostgreSQL reservation competition', { timeout
     await check('raster upload, ownership, attach/reload, replace/clear and negative HTTP/DB checks', async () => {
       const image = await sharp({ create: { width: 16, height: 12, channels: 3, background: '#aabbcc' } }).png().toBuffer();
       const upload = (actor = owner, bytes = image, headers = {}) => fetch(base + menuPath(owner) + '/images', { method: 'POST', headers: { cookie: actor ? `restaurant_staff=${actor.token}` : '', origin, 'content-type': 'image/png', ...headers }, body: bytes, signal: AbortSignal.timeout(20000) });
-      for (const [actor, bytes, headers, expected] of [[null, image, {}, 401], [foreign, image, {}, 401], [staff, image, {}, 403], [owner, image, { origin: 'https://untrusted.invalid' }, 403], [owner, image, { origin: '' }, 403], [owner, Buffer.from('not a raster'), {}, 400], [owner, image, { 'content-type': 'image/svg+xml' }, 400], [owner, Buffer.alloc(5 * 1024 * 1024 + 1), {}, 413]]) {
+      for (const [actor, bytes, headers, expected] of [[null, image, {}, 401], [foreign, image, {}, 401], [staff, image, {}, 403], [owner, image, { origin: 'https://untrusted.invalid' }, 403], [owner, image, { origin: '' }, 403], [owner, Buffer.from('not a raster'), {}, 400], [owner, image, { 'content-type': 'image/svg+xml' }, 400], [owner, Buffer.alloc(4_000_001), {}, 413]]) {
         assert.equal((await upload(actor, bytes, headers)).status, expected);
       }
       assert.equal(await db.menuUpload.count({ where: { tenantId: owner.tenantId } }), 0);

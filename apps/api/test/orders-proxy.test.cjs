@@ -6,8 +6,8 @@ const Module = require('node:module');
 const ts = require('typescript');
 const { randomUUID } = require('node:crypto');
 
-function route(cookieValues) {
-  const filename = resolve(__dirname, '../../web/app/chat/orders/[id]/route.ts');
+function route(cookieValues, capability = false) {
+  const filename = resolve(__dirname, capability ? '../../web/app/chat/orders/capabilities/route.ts' : '../../web/app/chat/orders/[id]/route.ts');
   const instance = new Module(filename);
   instance.require = name => {
     if (name === 'next/server') return { NextResponse: { json: Response.json } };
@@ -45,6 +45,40 @@ test('private order GET permits missing Origin, forwards only actual trusted Ori
     assert.equal(result.headers.get('cache-control'), 'no-store');
   }
   assert.equal(calls, 2);
+});
+
+test('capability GET preserves private cookie and backend boolean, rejects foreign reads and fails closed', async t => {
+  const original = global.fetch;
+  t.after(() => { global.fetch = original; });
+  const token = 's'.repeat(43), get = route([{ value: token }], true);
+  let calls = 0;
+  global.fetch = async (url, options) => {
+    calls++;
+    assert.equal(url, 'http://127.0.0.1:3001/api/v1/chat/orders/capabilities');
+    assert.equal(options.headers.cookie, `restaurant_chat=${token}`);
+    assert.equal(options.cache, 'no-store');
+    assert.equal(options.redirect, 'error');
+    return Response.json({ data: { paymentsEnabled: false } });
+  };
+  for (const headers of [{}, { origin: 'http://127.0.0.1:3000' }]) {
+    const result = await get(new Request('http://127.0.0.1:3000/chat/orders/capabilities', { headers }));
+    assert.equal(result.status, 200);
+    assert.equal(result.headers.get('cache-control'), 'no-store');
+    assert.deepEqual(await result.json(), { data: { paymentsEnabled: false } });
+  }
+  for (const headers of [{ origin: 'https://evil.example' }, { 'sec-fetch-site': 'cross-site' }]) {
+    assert.equal((await get(new Request('http://127.0.0.1:3000/chat/orders/capabilities', { headers }))).status, 403);
+  }
+  for (const values of [[], [{ value: token }, { value: token }], [{ value: 'invalid' }]]) {
+    const result = await route(values, true)(new Request('http://127.0.0.1:3000/chat/orders/capabilities'));
+    assert.equal(result.status, 403);
+    assert.equal(result.headers.get('cache-control'), 'no-store');
+  }
+  assert.equal(calls, 2);
+  global.fetch = async () => { throw new Error('Synthetic unavailable API'); };
+  const unavailable = await get(new Request('http://127.0.0.1:3000/chat/orders/capabilities'));
+  assert.equal(unavailable.status, 503);
+  assert.equal(unavailable.headers.get('cache-control'), 'no-store');
 });
 
 test('private order GET errors remain no-store and never retry provider', async t => {

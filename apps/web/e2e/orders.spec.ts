@@ -13,7 +13,7 @@ const menuId = '00000000-0000-4000-8000-000000000001';
 const menu = { id: menuId, name: 'Menu Sintetis', description: 'Menu uji', price: 5000, isAvailable: true };
 const receipt = { id: '00000000-0000-4000-8000-000000000002', code: 'Pesanan Sintetis', orderTotal: 5000, paymentStatus: 'pending', redirectUrl: 'https://app.sandbox.midtrans.com/snap/demo' };
 
-async function draft(page: Page) {
+async function draft(page: Page, paymentsEnabled: boolean | null = true) {
   const modelRequests: string[] = [], sessionMethods: string[] = [];
   await page.route('**/reservation/*', route => route.fulfill({ status: 403, contentType: 'application/json', body: '{}' }));
   await page.route('**/chat/session', route => {
@@ -26,14 +26,75 @@ async function draft(page: Page) {
     return route.fulfill({ status: 403, contentType: 'application/json', body: '{}' });
   });
   await page.route('**/chat/orders/*', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: receipt }) }));
+  await page.route('**/chat/orders/capabilities', route => paymentsEnabled === null ? route.abort('failed') : route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { paymentsEnabled } }) }));
   await page.goto('/');
   await page.getByRole('button', { name: 'Tanya restoran', exact: true }).click();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('button', { name: 'Tambah', exact: true }).click();
-  await page.getByLabel('Nama pemesan').fill('Tamu Privat Sintetis');
+  if (paymentsEnabled) await page.getByLabel('Nama pemesan').fill('Tamu Privat Sintetis');
   await capture(page, 'order-draft');
   return { modelRequests, sessionMethods };
 }
+
+test('disabled payments preserve editable draft without checkout or write requests', async ({ page }) => {
+  let writes = 0;
+  await page.route('**/chat/orders', route => { writes++; return route.abort(); });
+  await draft(page, false);
+  await expect(page.getByText('Pembayaran belum tersedia. Menu dan draft tetap bisa dilihat; pesanan belum dapat dibuat atau dibayar.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Buat Pesanan', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Bayar Sekarang', exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Nama pemesan')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Tambah', exact: true }).click();
+  await expect(page.getByText('Menu Sintetis × 2', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Kurangi satu Menu Sintetis' }).click();
+  await expect(page.getByRole('button', { name: 'Hapus Menu Sintetis' })).toBeVisible();
+  await expect(page.getByText(/Hasil pesanan belum pasti/)).toHaveCount(0);
+  expect(writes).toBe(0);
+});
+
+test('unavailable capability leaves draft usable but checkout hidden', async ({ page }) => {
+  await draft(page, null);
+  await expect(page.getByText('Ketersediaan pembayaran belum dapat diperiksa. Pesanan belum dapat dibuat atau dibayar.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Buat Pesanan', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Bayar Sekarang', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Hapus Menu Sintetis' })).toBeVisible();
+});
+
+test('definitive disabled rejection unlocks first draft', async ({ page }) => {
+  await draft(page);
+  await page.route('**/chat/orders', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'PAYMENTS_DISABLED', message: 'Pembayaran belum tersedia.' } }) }));
+  await page.getByRole('button', { name: 'Buat Pesanan', exact: true }).click();
+  await expect(page.getByText('Pembayaran belum tersedia. Pesanan tidak dibuat; draft masih bisa diubah.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Hapus Menu Sintetis' })).toBeVisible();
+  await expect(page.getByText(/Hasil pesanan belum pasti/)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Buat Pesanan', exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  })).toBe(false);
+});
+
+test('disabled rejection after unknown outcome never discards earlier intent', async ({ page }) => {
+  await draft(page);
+  let attempts = 0;
+  await page.route('**/chat/orders', route => {
+    attempts++;
+    return attempts === 1 ? route.abort('failed') : route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'PAYMENTS_DISABLED' } }) });
+  });
+  await page.getByRole('button', { name: 'Buat Pesanan', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Coba ulang percobaan yang sama' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Coba ulang percobaan yang sama' }).click();
+  await expect(page.getByText('Pembayaran belum tersedia. Hasil percobaan sebelumnya belum pasti; hubungi restoran untuk pemeriksaan manual.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Hapus Menu Sintetis' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Buat Pesanan', exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  })).toBe(true);
+  expect(attempts).toBe(2);
+});
 
 test('lost order response retries immutable payload while edits and session reset stay guarded', async ({ page }) => {
   const { modelRequests, sessionMethods } = await draft(page);

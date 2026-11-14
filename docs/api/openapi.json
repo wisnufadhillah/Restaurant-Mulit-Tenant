@@ -12,6 +12,23 @@
     }
   ],
   "paths": {
+    "/chat/orders/capabilities": {
+      "get": {
+        "operationId": "getOrderCapabilities",
+        "summary": "Read backend payment capability for an active chat session",
+        "description": "Active tenant/session cookie required. Rejects cross-site reads and foreign Origin; same-origin GET may omit Origin. Returns paymentsEnabled true only when PAYMENTS_ENABLED is active and both MIDTRANS_SERVER_KEY and MIDTRANS_SIGNATURE_SECRET are configured; exposes no secret values or diagnostics, and does not check credential validity or provider readiness. Unset flag preserves enabled local behavior; staging explicitly enables sandbox and requires both mounted secret files. Missing credentials reject create and notification with HTTP 503 before session, database or provider access. Disabled create and notification return HTTP 503 with error.code PAYMENTS_DISABLED before session, database or provider access. Existing order status reads remain tenant/session-scoped.",
+        "security": [{"chatCookie": []}],
+        "responses": {
+          "200": {
+            "description": "Backend capability, not proof provider is ready",
+            "headers": {"Cache-Control": {"schema": {"type": "string", "const": "no-store"}}},
+            "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "required": ["data"], "properties": {"data": {"type": "object", "additionalProperties": false, "required": ["paymentsEnabled"], "properties": {"paymentsEnabled": {"type": "boolean"}}}}}}}
+          },
+          "403": {"description": "Session or request origin rejected", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}}}},
+          "429": {"description": "Session read limit exceeded", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}}}}
+        }
+      }
+    },
     "/staff/tenants/{slug}/reservations/{id}/transitions": {
       "post": {
         "operationId": "transitionStaffReservation", "summary": "Finalize a confirmed reservation as owner or staff",

@@ -31,10 +31,15 @@ rtk proxy npx --yes pnpm@12.15.0 dev:api
 | PATCH | /staff/tenants/{slug}/menu/{id} | Owner + Origin | Edit/aktif/nonaktif menu |
 | PATCH | /staff/tenants/{slug}/menu/{id}/availability | Owner/staff + Origin | Tersedia/habis saja |
 | GET | /health | Publik lokal | Proses API hidup, bukan DB/model readiness |
+| GET | /chat/orders/capabilities | Cookie chat aktif, Origin terpercaya bila ada; bukan cross-site | `{data:{paymentsEnabled:boolean}}`, no-store; flag aktif dan kedua credential terkonfigurasi, bukan provider readiness |
 | GET | /public/tenants/{slug}/restaurant | Katalog publik | Profil tenant active dan outlet isActive |
 | POST | /staff/login | Origin terpercaya + credential privat | Cookie sesi HttpOnly; body tenantSlug, username, password |
 | GET | /staff/tenants/{slug}/session | Cookie sesi + tenant cocok | Identitas dan role dari DB |
 | POST | /staff/tenants/{slug}/logout | Cookie sesi + Origin terpercaya | Cabut sesi dan hapus cookie |
+
+`PAYMENTS_ENABLED=false` menolak create pesanan dan notifikasi dengan HTTP 503, `error.code=PAYMENTS_DISABLED`, pesan `Pembayaran belum tersedia.`, dan `Cache-Control: no-store` sebelum akses sesi/DB/provider. Status pesanan lama tetap read-only dan tenant/session-scoped. String `true` mengaktifkan perilaku sandbox existing; unset tetap enabled demi kompatibilitas lokal/test. Nilai lain menggagalkan startup. Capability memerlukan sesi sah dan mengembalikan true hanya bila flag aktif serta `MIDTRANS_SERVER_KEY` dan `MIDTRANS_SIGNATURE_SECRET` keduanya terkonfigurasi. Ini bukan pemeriksaan validitas credential atau provider readiness; tidak ada nilai/diagnostik secret dalam respons. Credential kurang menolak create/notifikasi dengan HTTP 503 sebelum akses sesi/DB/provider. UI menyembunyikan checkout ketika disabled atau capability belum terverifikasi; BFF same-origin meneruskan cookie server-side.
+
+Midtrans hanya sandbox (`MIDTRANS_IS_PRODUCTION=false`). `MIDTRANS_SERVER_KEY` mengotorisasi Snap dan Get Status melalui Basic Auth; `MIDTRANS_SIGNATURE_SECRET` wajib terpisah untuk notifikasi, tanpa fallback ke Server Key. Signature adalah SHA512 biasa dari `order_id + status_code + gross_amount + SignatureSecretKey`, bukan HMAC. Get Status tetap otoritatif: order ID, nominal tersimpan, IDR, status dan fraud tetap divalidasi sebelum transisi/audit atomic. Callback browser bukan bukti lunas. Lihat [Midtrans Access Keys](https://docs.midtrans.com/docs/access-keys.md).
 
 Auth memakai Cache-Control: no-store. STAFF_ORIGIN berisi exact origin web; production wajib HTTPS dan NODE_ENV=production untuk cookie Secure. Development default http://127.0.0.1:3000. UI login tersedia di http://127.0.0.1:3000/login melalui route server same-origin /staff/login dan /staff/logout. Dashboard memverifikasi sesi ke API saat render; cookie web HttpOnly ber-path / agar diterima pada dashboard. Cookie tenant hanya memilih konteks yang tetap diverifikasi backend, bukan izin. Tidak ada credential bawaan atau endpoint registrasi. Detail batas limiter dan sesi terdapat pada panduan keamanan sesi staff.
 

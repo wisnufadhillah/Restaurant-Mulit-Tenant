@@ -5,7 +5,7 @@ const cwd = resolve(__dirname, '../../..');
 
 export default defineConfig({
   testDir: '.',
-  testMatch: ['dashboard-menu.spec.ts', 'dashboard-layout.spec.ts', 'dashboard-reservations.spec.ts'],
+  testMatch: ['dashboard-menu.spec.ts', 'dashboard-layout.spec.ts', 'dashboard-reservations.spec.ts', 'orders.spec.ts'],
   workers: 1,
   retries: 0,
   reporter: 'list',

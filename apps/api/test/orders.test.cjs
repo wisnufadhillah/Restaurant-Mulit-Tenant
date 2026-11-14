@@ -62,8 +62,11 @@ function boundary(options = {}) {
 function sandbox(t) {
   const env = { ...process.env };
   process.env.MIDTRANS_SERVER_KEY = randomUUID();
+  process.env.MIDTRANS_SIGNATURE_SECRET = randomUUID();
+  assert.notEqual(process.env.MIDTRANS_SERVER_KEY, process.env.MIDTRANS_SIGNATURE_SECRET);
   process.env.MIDTRANS_IS_PRODUCTION = 'false';
   process.env.NODE_ENV = 'test';
+  delete process.env.PAYMENTS_ENABLED;
   delete process.env.STAFF_ORIGIN;
   const original = global.fetch;
   t.after(() => { global.fetch = original; process.env = env; });
@@ -89,7 +92,7 @@ function snapFetch(b, handler) {
 }
 function notification(order, changes = {}) {
   const value = { order_id: order.midtransOrderId, status_code: '200', gross_amount: '10000.00', transaction_status: 'settlement', ...changes };
-  value.signature_key = createHash('sha512').update(`${value.order_id}${value.status_code}${value.gross_amount}${process.env.MIDTRANS_SERVER_KEY}`).digest('hex');
+  value.signature_key = createHash('sha512').update(`${value.order_id}${value.status_code}${value.gross_amount}${process.env.MIDTRANS_SIGNATURE_SECRET}`).digest('hex');
   return value;
 }
 function remoteFetch(b, changes = {}, status = 200) {
@@ -112,6 +115,83 @@ async function created(t, options) {
   await b.controller.create(body(), request(), response());
   return b;
 }
+
+test('payments flag defaults enabled, rejects invalid settings and disabled writes touch no session, DB or provider', async t => {
+  sandbox(t);
+  const { paymentsEnabled } = require('../dist/restaurant/payments');
+  assert.equal(paymentsEnabled(), true);
+  process.env.PAYMENTS_ENABLED = 'true';
+  assert.equal(paymentsEnabled(), true);
+  const b = boundary();
+  for (const value of ['', 'FALSE', '0', ' true ']) {
+    process.env.PAYMENTS_ENABLED = value;
+    assert.throws(() => b.controller.onModuleInit(), /Invalid PAYMENTS_ENABLED/);
+    await assert.rejects(b.controller.create(body(), request(), response()), /Invalid PAYMENTS_ENABLED/);
+    await assert.rejects(b.controller.notification({}), /Invalid PAYMENTS_ENABLED/);
+  }
+  process.env.PAYMENTS_ENABLED = 'false';
+  assert.equal(paymentsEnabled(), false);
+  delete process.env.MIDTRANS_SERVER_KEY;
+  b.controller.sessions.readForOrders = async () => assert.fail('No session DB read for disabled writes');
+  global.fetch = async () => assert.fail('No provider call');
+  const disabled = error => error.getStatus?.() === 503 && error.constructor.name === 'PaymentsDisabledException';
+  await assert.rejects(b.controller.create(body(), request(), response()), disabled);
+  await assert.rejects(b.controller.notification({}), disabled);
+  assert.equal(b.transactions(), 0);
+  assert.equal(b.menuReads(), 0);
+  assert.deepEqual(b.state(), { orders: [], events: [] });
+});
+
+test('disabled payments retain tenant and session scoped status reads and authenticated capabilities without key', async t => {
+  const b = await created(t);
+  const id = b.state().orders[0].id;
+  process.env.PAYMENTS_ENABLED = 'false';
+  delete process.env.MIDTRANS_SERVER_KEY;
+  assert.deepEqual(await b.controller.capabilities(request(), response()), { data: { paymentsEnabled: false } });
+  assert.equal((await b.controller.status(id, request(), response())).data.id, id);
+  b.session.tenantId = randomUUID();
+  assert.equal((await b.controller.status(id, request(), response())).data, null);
+  b.session.tenantId = tenantId;
+  b.session.id = randomUUID();
+  assert.equal((await b.controller.status(id, request(), response())).data, null);
+  b.controller.sessions.readForOrders = async () => { throw new (require('@nestjs/common').ForbiddenException)(); };
+  await assert.rejects(b.controller.capabilities(request(), response()), badStatus(403));
+});
+
+test('capabilities require both configured credentials and flag without provider readiness checks', async t => {
+  sandbox(t);
+  const b = boundary();
+  global.fetch = async () => assert.fail('No provider readiness check');
+  assert.deepEqual(await b.controller.capabilities(request(), response()), { data: { paymentsEnabled: true } });
+  for (const name of ['MIDTRANS_SERVER_KEY', 'MIDTRANS_SIGNATURE_SECRET']) {
+    const saved = process.env[name];
+    for (const value of [undefined, '', '   ']) {
+      if (value === undefined) delete process.env[name]; else process.env[name] = value;
+      assert.deepEqual(await b.controller.capabilities(request(), response()), { data: { paymentsEnabled: false } });
+    }
+    process.env[name] = saved;
+  }
+  process.env.PAYMENTS_ENABLED = 'false';
+  assert.deepEqual(await b.controller.capabilities(request(), response()), { data: { paymentsEnabled: false } });
+});
+
+test('missing either credential rejects create and notification before session, DB or provider', async t => {
+  sandbox(t);
+  for (const name of ['MIDTRANS_SERVER_KEY', 'MIDTRANS_SIGNATURE_SECRET']) {
+    const saved = process.env[name];
+    delete process.env[name];
+    const b = boundary();
+    b.controller.sessions.readForOrders = async () => assert.fail('No session DB read');
+    b.controller.db = new Proxy({}, { get: () => assert.fail('No DB access') });
+    global.fetch = async () => assert.fail('No provider call');
+    const signed = notification({ midtransOrderId: randomUUID() });
+    await assert.rejects(b.controller.create(body(), request(), response()), badStatus(503));
+    await assert.rejects(b.controller.notification(signed), badStatus(503));
+    assert.equal(b.transactions(), 0);
+    assert.equal(b.menuReads(), 0);
+    process.env[name] = saved;
+  }
+});
 
 test('durable order intent replays canonical payload without menu revalidation or second Snap call', async t => {
   sandbox(t);
@@ -184,11 +264,13 @@ test('order validation rejects extra prices, empty key and aggregate quantity be
   assert.equal(b.state().orders.length, 0);
 });
 
-test('ordinary SHA512 accepts decimal nominal and rejects HMAC, malformed signatures and wrong nominal', async t => {
+test('ordinary SHA512 accepts only signature secret and rejects server key, HMAC and invalid fields', async t => {
   const b = await created(t), row = b.state().orders[0], calls = remoteFetch(b);
   const valid = notification(row);
-  const hmac = createHmac('sha512', process.env.MIDTRANS_SERVER_KEY).update(`${valid.order_id}${valid.status_code}${valid.gross_amount}${process.env.MIDTRANS_SERVER_KEY}`).digest('hex');
-  for (const bad of [null, [], { ...valid, signature_key: [] }, { ...valid, signature_key: 'z'.repeat(128) }, { ...valid, signature_key: 'a'.repeat(126) }, { ...valid, signature_key: hmac }, notification(row, { gross_amount: '10000.01' }), notification(row, { gross_amount: '1e4' }), notification(row, { transaction_status: [] }), notification(row, { status_code: 200 }), notification(row, { currency: 'USD' }), notification(row, { fraud_status: 'unknown' }), notification({ midtransOrderId: randomUUID() })]) {
+  const message = `${valid.order_id}${valid.status_code}${valid.gross_amount}`;
+  const hmac = createHmac('sha512', process.env.MIDTRANS_SIGNATURE_SECRET).update(`${message}${process.env.MIDTRANS_SIGNATURE_SECRET}`).digest('hex');
+  const serverSigned = createHash('sha512').update(`${message}${process.env.MIDTRANS_SERVER_KEY}`).digest('hex');
+  for (const bad of [{ ...valid, signature_key: serverSigned }, null, [], { ...valid, signature_key: [] }, { ...valid, signature_key: 'z'.repeat(128) }, { ...valid, signature_key: 'a'.repeat(126) }, { ...valid, signature_key: hmac }, notification(row, { gross_amount: '10000.01' }), notification(row, { gross_amount: '1e4' }), notification(row, { transaction_status: [] }), notification(row, { status_code: 200 }), notification(row, { currency: 'USD' }), notification(row, { fraud_status: 'unknown' }), notification({ midtransOrderId: randomUUID() })]) {
     await assert.rejects(b.controller.notification(bad), badStatus(400));
   }
   assert.equal(calls(), 0);

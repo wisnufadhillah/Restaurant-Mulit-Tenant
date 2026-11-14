@@ -8,6 +8,7 @@ import { ChatSessionsService } from "./chat-sessions.service";
 import { chatCookie } from "./chat-session.controller";
 import { ReservationLimiter } from "./reservation-limiter";
 import { lockReservationTenant } from "./reservation-lock";
+import { paymentsEnabled, paymentsConfigured, PaymentsDisabledException } from "./payments";
 
 const OPTIONS = { isolationLevel: "ReadCommitted" as const, maxWait: 10_000, timeout: 10_000 };
 const SNAP_ORIGIN = "https://app.sandbox.midtrans.com";
@@ -50,13 +51,17 @@ export class OrdersController implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly sessions: ChatSessionsService) {}
 
   onModuleInit() {
+    paymentsEnabled();
     if (process.env.MIDTRANS_IS_PRODUCTION !== undefined && process.env.MIDTRANS_IS_PRODUCTION !== "false") throw new Error("Only sandbox payments are supported");
+  }
+  private requirePayments() {
+    if (!paymentsEnabled()) throw new PaymentsDisabledException();
+    this.key();
   }
   private key() {
     this.onModuleInit();
-    const key = process.env.MIDTRANS_SERVER_KEY;
-    if (!key) throw new ServiceUnavailableException("Payment unavailable");
-    return key;
+    if (!paymentsConfigured()) throw new ServiceUnavailableException("Payment unavailable");
+    return process.env.MIDTRANS_SERVER_KEY!;
   }
   private prepare(req: StaffRequest, res: StaffResponse, mutation: boolean) {
     // Explicit foreign origins and cross-site reads are rejected; same-origin GET may omit Origin.
@@ -78,8 +83,16 @@ export class OrdersController implements OnModuleInit, OnModuleDestroy {
     if (!await tx.chatSession.findFirst({ where: { id: session.id, tenantId: session.tenantId, revokedAt: null, expiresAt: { gt: new Date() }, tenant: { status: "active" } }, select: { id: true } })) throw new ForbiddenException();
   }
 
+  @Get("capabilities")
+  async capabilities(@Req() req: StaffRequest, @Res({ passthrough: true }) res: StaffResponse) {
+    await this.sessions.readForOrders(this.prepare(req, res, false));
+    return { data: { paymentsEnabled: paymentsConfigured() } };
+  }
+
   @Post()
   async create(@Body() body: unknown, @Req() req: StaffRequest, @Res({ passthrough: true }) res: StaffResponse) {
+    res.setHeader("Cache-Control", "no-store");
+    this.requirePayments();
     const token = this.prepare(req, res, true);
     const session = await this.sessions.readForOrders(token);
     const input = record(body);
@@ -142,13 +155,14 @@ export class OrdersController implements OnModuleInit, OnModuleDestroy {
   @Post("notification")
   @HttpCode(200)
   async notification(@Body() body: unknown) {
+    this.requirePayments();
     let fields: PaymentFields, key: string;
     try {
       const input = record(body);
       if (Buffer.byteLength(JSON.stringify(input)) > 16384) throw new BadRequestException();
       fields = paymentFields(input); key = this.key();
       if (typeof input.signature_key !== "string" || !/^[a-fA-F0-9]{128}$/.test(input.signature_key)) throw new BadRequestException();
-      const expected = createHash("sha512").update(`${fields.order_id}${fields.status_code}${fields.gross_amount}${key}`).digest();
+      const expected = createHash("sha512").update(`${fields.order_id}${fields.status_code}${fields.gross_amount}${process.env.MIDTRANS_SIGNATURE_SECRET!}`).digest();
       if (!timingSafeEqual(expected, Buffer.from(input.signature_key, "hex"))) throw new BadRequestException();
     } catch (error) {
       // Rejected ingress has its own budget; it cannot starve customers or signed work.

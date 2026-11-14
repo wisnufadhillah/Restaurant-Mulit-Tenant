@@ -1,5 +1,5 @@
 {$API_DOMAIN} {
-	@allowed path_regexp routes ^/api/v1/(health|public/tenants/[a-z0-9-]+/(restaurant|hours|availability|menu(/catalogue|/images/[A-Za-z0-9.-]+)?|reservations(/(session|confirmations|recovery|management-session(/logout)?|receipt|cancel))?)|staff/(login|tenants/[a-z0-9-]+/(session|logout|menu(/images(/[A-Za-z0-9.-]+)?|/[A-Za-z0-9-]+(/availability)?)?|tables(/[A-Za-z0-9-]+)?|hours|profile|special-hours(/[0-9-]+)?|reservations(/[A-Za-z0-9-]+(/transitions)?)?|audit))|chat/(session|messages|catalogue/(restaurant|menu|hours)|orders(/notification|/[A-Za-z0-9-]+/status)?))$
+	@allowed path_regexp routes ^/api/v1/(health|public/tenants/[a-z0-9-]+/(restaurant|hours|availability|menu(/catalogue|/images/[A-Za-z0-9.-]+)?|reservations(/(session|confirmations|recovery|management-session(/logout)?|receipt|cancel))?)|staff/(login|tenants/[a-z0-9-]+/(session|logout|menu(/images(/[A-Za-z0-9.-]+)?|/[A-Za-z0-9-]+(/availability)?)?|tables(/[A-Za-z0-9-]+)?|hours|profile|special-hours(/[0-9-]+)?|reservations(/[A-Za-z0-9-]+(/transitions)?)?|audit))|chat/(session|messages|catalogue/(restaurant|menu|hours)|orders(/capabilities|/notification|/[A-Za-z0-9-]+/status)?))$
 	handle @allowed {
 		reverse_proxy api:3001
 	}

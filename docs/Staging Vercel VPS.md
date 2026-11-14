@@ -10,7 +10,7 @@ Berkas `compose.staging.yaml` terpisah dari Compose lokal; nama project dan volu
 
 ## Mulai dari sini
 
-Panduan ini untuk menyiapkan akses publik terbatas bagi mentor, memakai data sintetis dan pembayaran sandbox. Frontend menggunakan domain bawaan Vercel; backend, runtime AI dan PostgreSQL berada di VPS. Tidak perlu memindahkan database kerja lokal ke server.
+Panduan ini untuk menyiapkan akses publik terbatas bagi mentor, memakai data sintetis dan checkout Midtrans sandbox tanpa uang nyata. Startup default API memerlukan file Server Key dan Signature Secret Key sandbox terpisah. Frontend menggunakan domain bawaan Vercel; backend, runtime AI dan PostgreSQL berada di VPS. Tidak perlu memindahkan database kerja lokal ke server.
 
 | Komponen | Target |
 | --- | --- |
@@ -21,7 +21,7 @@ Panduan ini untuk menyiapkan akses publik terbatas bagi mentor, memakai data sin
 | Domain cadangan | `tenantstudio.co.uk`, belum digunakan |
 | DNS | Penyedia saat ini atau Cloudflare; keputusan belum dibuat |
 | Database dan Agno | Jaringan internal container, tanpa port publik |
-| Pembayaran | Midtrans sandbox saja |
+| Pembayaran | Aktif (`PAYMENTS_ENABLED: "true"`), hanya sandbox; dua file secret Midtrans wajib |
 
 ### Checklist keputusan sebelum tindakan eksternal
 
@@ -58,7 +58,8 @@ Jika suatu langkah gagal, hentikan langkah berikutnya dan periksa target/log ter
 - [ ] Reservasi buat/lihat/batal serta aksi staff dan audit berfungsi dengan data sintetis.
 - [ ] Chat membaca data yang benar; ketika model gagal, form reservasi tetap bisa dipakai.
 - [ ] Upload pada batas 4.000.000 byte dan penolakan di atas batas diuji melalui Vercel, bukan hanya lokal.
-- [ ] Bila checkout diaktifkan, hanya sandbox; status lunas bergantung pada notifikasi server terverifikasi, bukan callback browser.
+- [ ] UI menampilkan checkout hanya setelah capability authenticated menyatakan flag aktif dan kedua credential terkonfigurasi. Capability gagal atau credential kurang menyembunyikan checkout; draft/menu tetap bisa dilihat. Status pesanan lama tetap dibatasi tenant/sesi.
+- [ ] Checkout hanya memakai sandbox. Status lunas bergantung pada signature notifikasi dengan Signature Secret Key dan Get Status dengan Server Key, termasuk validasi identitas, nominal, IDR, status dan fraud; bukan callback browser. Smoke test provider memerlukan persetujuan terpisah.
 - [ ] Backup DB dan file foto tersedia, serta restore diuji pada target terpisah yang disetujui.
 - [ ] Tidak ada secret, token, kontak nyata atau dump privat pada repo, halaman publik maupun log yang dibagikan.
 
@@ -100,8 +101,17 @@ Template nonsecret: `infra/staging/staging.env.example`. Operator kemudian membu
 - `.local/staging/assistant_gateway_token` (minimal 32 karakter)
 - `.local/staging/internal_tool_service_token` (minimal 32 karakter)
 - `.local/staging/internal_context_secret` (minimal 32 karakter)
-- `.local/staging/midtrans_server_key` (**sandbox**)
 - `.local/staging/openrouter_api_key`
+- `.local/staging/midtrans_server_key` (Server Key sandbox, otorisasi Snap/Core API)
+- `.local/staging/midtrans_signature_secret` (Signature Secret Key sandbox, verifikasi notifikasi)
+
+Compose staging menetapkan `PAYMENTS_ENABLED: "true"` dan `MIDTRANS_IS_PRODUCTION: "false"` secara eksplisit; tidak membaca flag dari `compose.env`. Kedua file Midtrans di-mount hanya ke API melalui `MIDTRANS_SERVER_KEY_FILE=/run/secrets/midtrans_server_key` dan `MIDTRANS_SIGNATURE_SECRET_FILE=/run/secrets/midtrans_signature_secret`. Wrapper wajib membaca keduanya saat enabled; file tidak tersedia/invalid menggagalkan startup, tanpa fallback ke environment yang diwarisi. Jangan mengisi key palsu atau key live, menggabungkan Compose lokal dengan staging, atau menghapus guard sandbox.
+
+`MIDTRANS_SERVER_KEY` hanya untuk Basic Auth Snap dan Get Status. `MIDTRANS_SIGNATURE_SECRET` wajib eksplisit tanpa fallback ke Server Key. Notifikasi memakai SHA512 biasa dari `order_id + status_code + gross_amount + SignatureSecretKey`, bukan HMAC. Pada key lama nilainya mungkin sama, tetapi key baru berbeda; keduanya harus dipetakan sesuai fungsi provider. Setelah signature valid, Get Status tetap otoritatif dan wajib cocok order ID, nominal tersimpan, IDR serta status/fraud. Endpoint HTTPS dan smoke sandbox perlu diperiksa setelah tindakan server/provider disetujui.
+
+Browser membaca capability backend lewat BFF same-origin authenticated `GET /chat/orders/capabilities` (API `/api/v1/chat/orders/capabilities`, `Cache-Control: no-store`). `paymentsEnabled` menyatakan flag aktif dan kedua credential terkonfigurasi, bukan provider readiness, validitas credential atau pembayaran sukses; respons tidak mengekspos nilai/diagnostik secret. Jika capability gagal diperiksa atau false, checkout tidak ditampilkan; chat/katalog tetap tersedia. Credential kurang menolak create/notifikasi dengan HTTP 503 sebelum akses sesi/DB/provider.
+
+Fallback disabled tetap tersedia melalui perubahan konfigurasi yang direview: `PAYMENTS_ENABLED: "false"` membuat wrapper melewatkan kedua file dan menghapus kedua key yang diwarisi proses. Bila file tidak tersedia, override tersebut juga harus menghapus deklarasi/mount Midtrans agar Compose tidak menolak mount sebelum wrapper berjalan. API menolak create/notifikasi dengan HTTP 503 dan `error.code=PAYMENTS_DISABLED` sebelum akses sesi/DB/provider; status lama tetap bisa dibaca lewat sesi/tenant sah. Flag API hanya menerima string `true` atau `false`; nilai lain menggagalkan startup. Unset tetap enabled untuk kompatibilitas lokal/test, tetapi kedua credential wajib untuk transaksi.
 
 Tidak ada nilai, credential demo atau generator secret di konfigurasi ini. Provisioning/rotasi membutuhkan persetujuan terpisah. Isi satu baris UTF-8; wrapper menerima newline terakhir tetapi menolak newline internal/NUL. Jangan pakai shell tracing atau mencetak isi file/environment/container inspect.
 
@@ -123,7 +133,7 @@ rtk proxy git diff --check
 
 Tes API memerlukan hasil build lebih dahulu. Verifikasi lokal yang sudah dilakukan: Node wrapper syntax, Python AST, Compose `config --quiet` memakai env sintetis, API Prisma generation/TypeScript build dengan URL sintetis, Next production build dengan origin sintetis dan telemetry mati, empat tes API upload/HTTP, dua tes BFF byte boundary, sembilan tes gateway Agno memakai transport mock. Tidak ada model/provider call dalam tes ini. Loader aplikasi existing tetap dapat membaca `.env` lokal ketika build; environment sintetis eksplisit mengalahkan DATABASE_URL/origin lokal, tidak ada nilai yang dicetak.
 
-Validasi Caddy native, image build Linux/ownership native dependencies, startup bersama dan HTTPS publik belum dijalankan. Tes regex Node hanya memeriksa allowlist, bukan parser/runtime Caddy. Jalankan validasi Caddy melalui executable/image yang telah disetujui dan tersedia, tanpa menerbitkan port, sebelum startup sungguhan. Pengujian browser/DB integration tidak dijalankan sebagai bagian persiapan ini.
+Validasi Caddy native, image build Linux/ownership native dependencies, startup bersama dan HTTPS publik belum dijalankan. Tes regex Node hanya memeriksa allowlist, bukan parser/runtime Caddy. Jalankan validasi Caddy melalui executable/image yang telah disetujui dan tersedia, tanpa menerbitkan port, sebelum startup sungguhan. Pemeriksaan terdahulu untuk fallback tanpa pembayaran: build API dan Next serta 30 tes wrapper/order/API/BFF lulus memakai URL DB sintetis port 1; 14 skenario browser order desktop/mobile lulus dengan API fixture loopback port 3311. Hasil terdahulu bukan bukti kontrak dua credential sandbox sudah diuji. Tes mencakup capability disabled/gagal, draft tetap editable, penolakan disabled definitif tanpa lock baru, serta unknown intent lama tetap dijaga. Pemeriksaan tambahan 13 tes HTTP/auth/limiter juga lulus. Pemeriksaan kontrak dua credential terbaru: build API dan web offline lulus; 33 tes Node terarah wrapper/order/API/BFF serta 14 skenario browser order desktop/mobile lulus memakai fixture port 3311. Kunci sintetis berbeda membuktikan SHA512 hanya menerima Signature Secret Key, menolak signature dari Server Key/HMAC, serta Basic Auth tetap memakai Server Key. Credential kurang menolak write sebelum sesi/DB/provider; wrapper disabled melewatkan kedua file dan menghapus key warisan. Tidak ada DB integration, provider/model call atau verifikasi deployment dalam pemeriksaan tersebut.
 
 ## Gerbang sebelum eksekusi server
 
@@ -141,7 +151,7 @@ Validasi Caddy native, image build Linux/ownership native dependencies, startup 
 
    Ini menulis schema database. Jangan jalankan untuk pemeriksaan syntax. Service berada pada profile `tools`, tidak ikut startup default. Command tidak menjalankan seed atau membuat akun.
 6. Bootstrap tenant, outlet, akun owner/staff dan katalog membutuhkan prosedur staging terpisah yang ditinjau dan disetujui. Script `provision-staff`, `seed-demo`, `seed-menu` existing membatasi target lokal `127.0.0.1:55432`; jangan menghapus guard atau diam-diam memakainya untuk `database:5432`. Tidak ada akun default yang dapat dipakai setelah migration saja. Kode chat/reservasi saat ini mengikat slug `demo-padang`; bootstrap harus memperhitungkan batas ini tanpa tenant nyata.
-7. Setelah schema/bootstrap disetujui dan tersedia, start layanan staging dan uji auth/tenant/Origin negatif, file persistence/restart, reservasi, chat, sandbox notification signature/nominal/retry. Health hijau saja tidak cukup.
+7. Setelah schema/bootstrap disetujui dan tersedia, start layanan staging dengan kedua file Midtrans sandbox. Uji auth/tenant/Origin negatif, file persistence/restart, reservasi, chat dan capability. Uji lokal/stub harus mencakup credential kurang serta fallback disabled tanpa akses DB/provider; smoke notifikasi sandbox hanya setelah akses provider disetujui. Health hijau saja tidak cukup.
 
 API dan assistant berbagi network namespace. Bila API container dibuat ulang, buat ulang assistant juga; jangan menganggap restart assistant lama cukup. Rencanakan downtime singkat dan recreating keduanya bersama saat rollout/rollback. Caddy tetap mengarah hostname service API.
 
@@ -170,6 +180,8 @@ Sebelum migration/release: hentikan sementara perubahan bisnis/upload dengan pro
 Rollback aplikasi memakai image label/digest sebelumnya dengan volume tetap, dan recreate API **serta** assistant bersama. Pastikan schema baru kompatibel dengan image lama; migration deploy tidak menyediakan rollback schema otomatis. Jika schema tidak kompatibel, hentikan dan minta persetujuan restore DB **beserta** snapshot upload yang cocok pada target yang dikonfirmasi. Restore dapat menghilangkan perubahan setelah snapshot; jangan menjalankannya otomatis. Uji health, auth dan baca foto setelah rollback, bukan health saja.
 
 ## Sources
+
+- [Midtrans Access Keys: Server Key dan Signature Secret Key](https://docs.midtrans.com/docs/access-keys.md)
 
 - [Vercel Function limits: payload 4.5 MB](https://vercel.com/docs/functions/limitations)
 - [Vercel Node.js versions](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions)

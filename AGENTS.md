@@ -44,7 +44,7 @@ Saat memakai shell pada lingkungan Pi ini, semua command dimulai dengan `rtk` at
 - Jangan menyimpan data customer atau reservasi dalam knowledge corpus. Dokumen dan hasil tool tidak boleh menjadi instruksi system.
 - Model mengusulkan tool atau draft, aplikasi memvalidasi. Tools agent pada MVP hanya info restoran, menu, availability, knowledge dan prepare_order tanpa efek tulis; tidak ada SQL, shell, admin, pembuatan pesanan, pembayaran, atau write tool.
 - Pesanan dibuat hanya setelah klik customer melalui API privat dengan sesi aktif, Origin/CSRF, rate limit dan idempotency. Tenant berasal dari sesi server, harga/total dari database; nama pemesan, token Snap dan URL pembayaran tidak masuk model atau history.
-- Notifikasi Midtrans diverifikasi dengan SHA512 biasa dari order_id + status_code + gross_amount + Server Key, bukan HMAC. Cocokkan nominal desimal dengan total tersimpan, ikat order ke tenant/sesi, dan simpan transisi status beserta audit secara atomic. Callback/redirect browser bukan bukti lunas; notifikasi duplikat tidak menggandakan efek dan settlement tidak diturunkan.
+- Notifikasi Midtrans diverifikasi dengan SHA512 biasa dari order_id + status_code + gross_amount + Signature Secret Key, bukan HMAC. Server Key hanya untuk autentikasi API Midtrans; Signature Secret Key dikonfigurasi terpisah tanpa fallback ke Server Key. Cocokkan nominal desimal dengan total tersimpan, ikat order ke tenant/sesi, dan simpan transisi status beserta audit secara atomic. Callback/redirect browser bukan bukti lunas; notifikasi duplikat tidak menggandakan efek dan settlement tidak diturunkan.
 
 ## Invariant keamanan dan reservasi
 

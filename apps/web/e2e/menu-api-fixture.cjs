@@ -15,6 +15,7 @@ function startMenuFixture() {
     const path = new URL(request.url, 'http://127.0.0.1').pathname;
     const reply = (status, data) => { response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }); response.end(JSON.stringify(data)); };
     if (path === '/health') return reply(200, { ready: true });
+    if (path === '/api/v1/chat/orders/capabilities' && request.method === 'GET') return reply(200, { data: { paymentsEnabled: true } });
     if (path === '/fixture/reset' && request.method === 'POST') { role = 'owner'; reservationStatus = 'confirmed'; events = []; attempts.clear(); reset(); return reply(200, { ok: true }); }
     if (path === '/fixture/staff' && request.method === 'POST') { role = 'staff'; return reply(200, { ok: true }); }
     if (path.endsWith('/session')) return reply(200, { data: { username: `synthetic.${role}`, role } });

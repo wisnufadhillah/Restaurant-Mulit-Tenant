@@ -53,6 +53,7 @@ export default function ChatbotWidget() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]), [customerName, setCustomerName] = useState(""), [order, setOrder] = useState<{ id: string; code: string; orderTotal: number; paymentStatus: string; redirectUrl?: string } | null>(null);
   const [orderAttempt, setOrderAttempt] = useState<OrderAttempt | null>(null);
+  const [paymentsEnabled, setPaymentsEnabled] = useState<boolean | null>(null);
   const orderLocked = orderAttempt !== null || order !== null;
   useEffect(() => {
     if (!orderAttempt || order) return;
@@ -85,7 +86,7 @@ export default function ChatbotWidget() {
   const paymentLabel = (status: string) => ({ pending: "Menunggu pembayaran", unpaid: "Belum dibayar", settlement: "Pembayaran berhasil", expire: "Pembayaran kedaluwarsa", cancel: "Pembayaran dibatalkan", deny: "Pembayaran ditolak" }[status] ?? "Status belum dikenal; hubungi restoran");
   const scrollToSection = (target: string) => document.querySelector(target)?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
   async function createOrder() {
-    if (busy.current || order) return;
+    if (busy.current || order || paymentsEnabled !== true) return;
     if (!orderAttempt && (!customerName.trim() || !cart.length)) return setError("Isi nama dan pilih menu terlebih dahulu.");
     const attempt = orderAttempt ?? Object.freeze({ key: crypto.randomUUID(), payload: Object.freeze({ customerName, items: Object.freeze(cart.map(line => Object.freeze({ id: line.item.id, quantity: line.quantity }))) }) });
     const retrying = orderAttempt !== null;
@@ -95,6 +96,16 @@ export default function ChatbotWidget() {
       const response = await fetch("/chat/orders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...attempt.payload, idempotencyKey: attempt.key }), signal: AbortSignal.timeout(20000) });
       // Only a first, definitive validation rejection proves no intent was created.
       if (response.status === 400 && !retrying) { setOrderAttempt(null); setError("Detail pesanan ditolak. Periksa nama dan menu sebelum mencoba lagi."); return; }
+      if (response.status === 503) {
+        const rejected = await response.json();
+        if (rejected.error?.code === "PAYMENTS_DISABLED") {
+          setPaymentsEnabled(false);
+          if (!retrying) setOrderAttempt(null);
+          setError(retrying ? "Pembayaran belum tersedia. Hasil percobaan sebelumnya belum pasti; hubungi restoran untuk pemeriksaan manual." : "Pembayaran belum tersedia. Pesanan tidak dibuat; draft masih bisa diubah.");
+          return;
+        }
+        throw new Error();
+      }
       if (!response.ok) throw new Error();
       const body = await response.json();
       if (!body.data || typeof body.data.id !== "string" || typeof body.data.code !== "string" || typeof body.data.orderTotal !== "number" || typeof body.data.paymentStatus !== "string") throw new Error();
@@ -135,7 +146,17 @@ export default function ChatbotWidget() {
   async function initialize() {
     if (busy.current || ready || orderLocked) return;
     busy.current = true; setPending(true); setError("");
-    try { const response = await fetch("/chat/session", { method: "POST" }); if (!response.ok) throw new Error(); setReady(true); }
+    setPaymentsEnabled(null);
+    try {
+      const response = await fetch("/chat/session", { method: "POST" });
+      if (!response.ok) throw new Error();
+      setReady(true);
+      try {
+        const capability = await fetch("/chat/orders/capabilities", { cache: "no-store", signal: AbortSignal.timeout(5000) });
+        const body = await capability.json();
+        if (capability.ok && typeof body.data?.paymentsEnabled === "boolean") setPaymentsEnabled(body.data.paymentsEnabled);
+      } catch { /* Catalogue and chat remain available when checkout cannot be checked. */ }
+    }
     catch { setReady(false); setError("Chat belum tersambung. Coba mulai sesi baru."); }
     finally { busy.current = false; setPending(false); }
   }
@@ -182,9 +203,10 @@ export default function ChatbotWidget() {
         {pending && <div className="sela-chat-bubble sela-chat-assistant sela-chat-loading"><span>{ready ? "Sedang mengetik…" : "Menyambungkan chat…"}</span></div>}
       </div>
       <footer className="sela-chat-footer">
-        {cart.length > 0 && <div className="sela-chat-card"><strong>Draft pesanan</strong>{cart.map(line => <div key={line.item.id} className="sela-order-line"><p>{line.item.name} × {line.quantity} · {currency.format(line.item.price * line.quantity)}</p>{!orderLocked && !pending && <button type="button" aria-label={`${line.quantity === 1 ? "Hapus" : "Kurangi satu"} ${line.item.name}`} onClick={() => reduceCartItem(line.item.id)}>{line.quantity === 1 ? "Hapus" : "Kurangi satu"}</button>}</div>)}{!order && <><label className="sela-order-name" htmlFor="order-customer-name">Nama pemesan</label><input id="order-customer-name" name="customerName" autoComplete="off" placeholder="Nama untuk pesanan ini" value={customerName} disabled={pending || orderLocked} onChange={event => { if (!orderLocked && !busy.current) setCustomerName(event.target.value); }} /><button type="button" disabled={pending} onClick={() => void createOrder()}>{orderAttempt ? "Coba ulang percobaan yang sama" : "Buat Pesanan"}</button></>}</div>}
+        {cart.length > 0 && <div className="sela-chat-card"><strong>Draft pesanan</strong>{cart.map(line => <div key={line.item.id} className="sela-order-line"><p>{line.item.name} × {line.quantity} · {currency.format(line.item.price * line.quantity)}</p>{!orderLocked && !pending && <button type="button" aria-label={`${line.quantity === 1 ? "Hapus" : "Kurangi satu"} ${line.item.name}`} onClick={() => reduceCartItem(line.item.id)}>{line.quantity === 1 ? "Hapus" : "Kurangi satu"}</button>}</div>)}{!order && paymentsEnabled === true && <><label className="sela-order-name" htmlFor="order-customer-name">Nama pemesan</label><input id="order-customer-name" name="customerName" autoComplete="off" placeholder="Nama untuk pesanan ini" value={customerName} disabled={pending || orderLocked} onChange={event => { if (!orderLocked && !busy.current) setCustomerName(event.target.value); }} /><button type="button" disabled={pending} onClick={() => void createOrder()}>{orderAttempt ? "Coba ulang percobaan yang sama" : "Buat Pesanan"}</button></>}</div>}
+        {ready && paymentsEnabled !== true && <p role="status">{paymentsEnabled === false ? "Pembayaran belum tersedia. Menu dan draft tetap bisa dilihat; pesanan belum dapat dibuat atau dibayar." : "Ketersediaan pembayaran belum dapat diperiksa. Pesanan belum dapat dibuat atau dibayar."}</p>}
         {orderAttempt && !order && <p role="status">Hasil pesanan belum pasti. Nama dan menu dikunci untuk percobaan ini. Jangan muat ulang atau tutup halaman: detail hanya tersimpan selama halaman ini terbuka. Coba ulang dengan detail yang sama tidak menjamin pemulihan; hubungi restoran jika tetap belum pasti.</p>}
-        {order?.redirectUrl && order.paymentStatus !== "settlement" && <button type="button" disabled={pending} onClick={() => { window.open(order.redirectUrl, "_blank", "noopener,noreferrer"); void refreshOrder(); }}>Bayar Sekarang</button>}
+        {paymentsEnabled === true && order?.redirectUrl && order.paymentStatus !== "settlement" && <button type="button" disabled={pending} onClick={() => { window.open(order.redirectUrl, "_blank", "noopener,noreferrer"); void refreshOrder(); }}>Bayar Sekarang</button>}
         {order && <p role="status">Pesanan {order.code} · Total {currency.format(order.orderTotal)}. Status pembayaran: {paymentLabel(order.paymentStatus)}</p>}
         <p className="sela-chat-error" role="status">{error}</p>
         {!ready && !pending && <button className="senja-text-button" onClick={async () => {

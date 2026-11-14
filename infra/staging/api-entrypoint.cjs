@@ -21,7 +21,12 @@ try {
     const origin = new URL(process.env.STAFF_ORIGIN);
     if (origin.protocol !== 'https:' || origin.origin !== process.env.STAFF_ORIGIN || origin.username || origin.password || process.env.API_ALLOWED_ORIGINS !== origin.origin) throw new Error('Invalid staff origin');
     for (const name of ['ASSISTANT_GATEWAY_TOKEN', 'INTERNAL_TOOL_SERVICE_TOKEN', 'INTERNAL_CONTEXT_SECRET']) process.env[name] = secret(name, 32);
-    process.env.MIDTRANS_SERVER_KEY = secret('MIDTRANS_SERVER_KEY');
+    const payments = process.env.PAYMENTS_ENABLED;
+    if (payments !== undefined && payments !== 'true' && payments !== 'false') throw new Error('Invalid payments flag');
+    for (const name of ['MIDTRANS_SERVER_KEY', 'MIDTRANS_SIGNATURE_SECRET']) {
+      if (payments === 'false') delete process.env[name];
+      else process.env[name] = secret(name);
+    }
     if (process.env.MIDTRANS_IS_PRODUCTION !== 'false') throw new Error('Sandbox required');
   }
   const args = mode === 'serve' ? ['dist/main.js'] : ['node_modules/prisma/build/index.js', 'migrate', 'deploy'];

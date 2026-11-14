@@ -45,13 +45,15 @@ services:
       STAFF_ORIGIN: ${STAFF_ORIGIN:?Set exact HTTPS frontend origin}
       API_ALLOWED_ORIGINS: ${STAFF_ORIGIN:?Set exact HTTPS frontend origin}
       ASSISTANT_ORIGIN: http://127.0.0.1:8010
+      PAYMENTS_ENABLED: "true"
       MIDTRANS_IS_PRODUCTION: "false"
+      MIDTRANS_SERVER_KEY_FILE: /run/secrets/midtrans_server_key
+      MIDTRANS_SIGNATURE_SECRET_FILE: /run/secrets/midtrans_signature_secret
       DATABASE_RUNTIME_PASSWORD_FILE: /run/secrets/database_runtime_password
       ASSISTANT_GATEWAY_TOKEN_FILE: /run/secrets/assistant_gateway_token
       INTERNAL_TOOL_SERVICE_TOKEN_FILE: /run/secrets/internal_tool_service_token
       INTERNAL_CONTEXT_SECRET_FILE: /run/secrets/internal_context_secret
-      MIDTRANS_SERVER_KEY_FILE: /run/secrets/midtrans_server_key
-    secrets: [database_runtime_password, assistant_gateway_token, internal_tool_service_token, internal_context_secret, midtrans_server_key]
+    secrets: [database_runtime_password, assistant_gateway_token, internal_tool_service_token, internal_context_secret, midtrans_server_key, midtrans_signature_secret]
     volumes:
       - menu_images:/app/.local/menu-images
     networks: [private]
@@ -157,7 +159,9 @@ secrets:
     file: ./.local/staging/internal_tool_service_token
   internal_context_secret:
     file: ./.local/staging/internal_context_secret
-  midtrans_server_key:
-    file: ./.local/staging/midtrans_server_key
   openrouter_api_key:
     file: ./.local/staging/openrouter_api_key
+  midtrans_server_key:
+    file: ./.local/staging/midtrans_server_key
+  midtrans_signature_secret:
+    file: ./.local/staging/midtrans_signature_secret

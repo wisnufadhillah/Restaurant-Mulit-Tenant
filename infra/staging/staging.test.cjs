@@ -37,6 +37,28 @@ test('API wrapper encodes mounted database password and never passes secrets in 
   }
 });
 
+test('bootstrap wrapper requires explicit opt-in and production before reading runtime secret', () => {
+  for (const override of [{}, { NODE_ENV: 'production' }, { ALLOW_STAGING_BOOTSTRAP: '1', NODE_ENV: 'development' }, { ALLOW_STAGING_BOOTSTRAP: 'true', NODE_ENV: 'production' }]) {
+    const result = wrapper('bootstrap', override);
+    assert.equal(result.calls.length, 0);
+    assert.equal(result.filesRead.length, 0);
+    assert.equal(result.process.exitCode, 1);
+  }
+  const result = wrapper('bootstrap', { ALLOW_STAGING_BOOTSTRAP: '1', NODE_ENV: 'production', STAFF_ORIGIN: undefined, MIDTRANS_IS_PRODUCTION: undefined, OPENROUTER_API_KEY: randomBytes(24).toString('hex') });
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.calls.length, 1);
+  assert.deepEqual(result.filesRead, ['/run/secrets/database_runtime_password']);
+  assert.equal(result.calls[0].args.join(' '), '/app/infra/staging/bootstrap.cjs');
+  const env = result.calls[0].options.env;
+  assert.equal(new URL(env.DATABASE_URL).username, 'restaurant_runtime');
+  assert.equal(decodeURIComponent(new URL(env.DATABASE_URL).password), result.value);
+  assert.deepEqual(Object.keys(env).sort(), ['ALLOW_STAGING_BOOTSTRAP', 'DATABASE_URL', 'NODE_ENV']);
+  assert.equal(result.calls[0].args.join(' ').includes(result.value), false);
+  const invalid = wrapper('bootstrap', { ALLOW_STAGING_BOOTSTRAP: '1', NODE_ENV: 'production', DATABASE_RUNTIME_PASSWORD_FILE: '/outside/secret' });
+  assert.equal(invalid.calls.length, 0);
+  assert.deepEqual(invalid.errors, ['Staging configuration invalid; details suppressed']);
+});
+
 test('API wrapper fails closed on invalid origin, live payment or secret path without logging values', () => {
   for (const override of [{ STAFF_ORIGIN: 'http://frontend.example.invalid' }, { API_ALLOWED_ORIGINS: '*' }, { MIDTRANS_IS_PRODUCTION: 'true' }, { DATABASE_RUNTIME_PASSWORD_FILE: '/outside/secret' }, { PAYMENTS_ENABLED: '' }, { PAYMENTS_ENABLED: 'FALSE' }, { PAYMENTS_ENABLED: '0' }]) {
     const { calls, errors, process } = wrapper('serve', override);

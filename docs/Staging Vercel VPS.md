@@ -150,10 +150,41 @@ Validasi Caddy native, image build Linux/ownership native dependencies, startup 
    ```
 
    Ini menulis schema database. Jangan jalankan untuk pemeriksaan syntax. Service berada pada profile `tools`, tidak ikut startup default. Command tidak menjalankan seed atau membuat akun.
-6. Bootstrap tenant, outlet, akun owner/staff dan katalog membutuhkan prosedur staging terpisah yang ditinjau dan disetujui. Script `provision-staff`, `seed-demo`, `seed-menu` existing membatasi target lokal `127.0.0.1:55432`; jangan menghapus guard atau diam-diam memakainya untuk `database:5432`. Tidak ada akun default yang dapat dipakai setelah migration saja. Kode chat/reservasi saat ini mengikat slug `demo-padang`; bootstrap harus memperhitungkan batas ini tanpa tenant nyata.
+6. Bootstrap tenant, outlet, akun owner/staff dan katalog memakai prosedur terkontrol di bawah setelah persetujuan khusus. Script `provision-staff`, `seed-demo`, `seed-menu` existing tetap khusus target lokal `127.0.0.1:55432`; jangan menghapus guard atau memakainya untuk `database:5432`. Migration saja tidak membuat akun dashboard.
 7. Setelah schema/bootstrap disetujui dan tersedia, start layanan staging dengan kedua file Midtrans sandbox. Uji auth/tenant/Origin negatif, file persistence/restart, reservasi, chat dan capability. Uji lokal/stub harus mencakup credential kurang serta fallback disabled tanpa akses DB/provider; smoke notifikasi sandbox hanya setelah akses provider disetujui. Health hijau saja tidak cukup.
 
 API dan assistant berbagi network namespace. Bila API container dibuat ulang, buat ulang assistant juga; jangan menganggap restart assistant lama cukup. Rencanakan downtime singkat dan recreating keduanya bersama saat rollout/rollback. Caddy tetap mengarah hostname service API.
+
+## Bootstrap katalog dan akun staging
+
+Kode bootstrap tersedia; belum dijalankan terhadap DB dalam perubahan ini. Hanya operator setelah persetujuan target boleh menjalankan command berikut. Prasyarat: 18 migration terpasang, role `restaurant_runtime` sudah diverifikasi memiliki DML aplikasi tanpa DDL/admin, backup privat tersedia, dan pemeriksaan read-only memastikan tenant ID `10000000-0000-4000-8000-000000000001` maupun slug `demo-padang` belum ada. `menu_count=0` saja tidak membuktikan tenant kosong. Jika tenant sudah ada, **berhenti**; script menolak tenant lama meskipun belum punya menu/akun. Tidak ada upsert atau penggantian profil lama.
+
+Service `bootstrap` memakai image API yang sama, profile `tools`, hanya mount password runtime dan direktori output privat. Tidak ada published port, password administrator, key model/Midtrans, atau kebutuhan Origin. Launcher menetapkan target `database:5432/restaurant` dengan role `restaurant_runtime`; script memeriksa URL serta identitas DB aktual. `ALLOW_STAGING_BOOTSTRAP` kosong secara default dan tidak dibaca dari `compose.env`; opt-in hanya diberikan pada satu command run.
+
+Pada Ubuntu, pastikan operator memiliki UID 1000 yang sama dengan runtime image (`id -u` harus menghasilkan `1000`). Siapkan direktori output baru mode 0700; bila direktori/file sudah ada, berhenti dan rekonsiliasi terlebih dahulu. Jangan membuat world-readable atau menyalin `.local` dari mesin lain. Jalankan dari root repository pada mesin build/server yang sudah disetujui:
+
+```sh
+rtk proxy id -u
+rtk proxy mkdir -m 700 .local/staging/bootstrap-output
+rtk proxy stat -c '%u %a' .local/staging/bootstrap-output
+rtk proxy docker compose --env-file .local/staging/compose.env -f compose.staging.yaml build api
+rtk proxy docker compose --env-file .local/staging/compose.env -f compose.staging.yaml --profile tools run -e ALLOW_STAGING_BOOTSTRAP=1 --rm bootstrap
+```
+
+Output `stat` wajib `1000 700`. Build image dilakukan di mesin yang disetujui dan cukup RAM, bukan otomatis di VPS 2 GB. Jika build di mesin lain, kirim image yang sama melalui alur image privat yang disetujui; jangan memindahkan `.local`. Bind mount memakai `create_host_path: false` agar Docker tidak membuat direktori root secara diam-diam. Script juga menolak UID/izin direktori yang tidak cocok. Jangan menjalankan service sebagai root atau mengisi opt-in permanen.
+
+Transaksi dengan advisory lock tenant membuat satu brand **Dapur Sela — Masakan Padang**, outlet Cikini dengan alamat sintetis dan kontak kosong, sembilan menu dengan gambar registry existing, jam 10.00–22.00 setiap hari, serta empat meja berkapasitas 2/4/6/12. ID tenant/outlet/menu tetap; benturan ID resource atau tenant ditolak sebelum membuat credential. Tidak ada reservasi, pesanan, rating, sertifikasi, kontak nyata, atau publikasi FAQ. Slug `demo-padang` cocok dengan konteks chat/reservasi existing.
+
+Akun owner `pemilik.sela` dan staff `operasional.sela` memakai password acak 24 byte terpisah dan hash scrypt existing. Credential hanya ditulis ke **`.local/staging/bootstrap-output/dashboard-accounts.json`**, terlihat di container sebagai `/app/.local/staging-bootstrap/dashboard-accounts.json`, mode 0600. File dibuat eksklusif dan di-fsync bersama direktori **sebelum commit**, bukan dicetak ke stdout, log, argumen command, atau chat. Buka file lewat editor privat; bagikan akun hanya melalui saluran privat yang disetujui. Jangan memakai `cat`, shell tracing, atau membagikan dump environment.
+
+**Retry tidak menimpa atau merotasi apa pun.** Output lama (termasuk file parsial), akun lama, tenant lama, atau ID bentrok menghentikan bootstrap dengan pesan rekonsiliasi nonsecret. Jika proses gagal setelah file dibuat atau hasil commit tidak jelas, **pertahankan file**; DB mungkin rollback atau sudah commit. Operator harus mencocokkan target, tenant, akun dan private output melalui akses privat/read-only sebelum tindakan pemulihan yang disetujui. Jangan hapus output agar script dapat dijalankan ulang. Sesudah sukses, verifikasi jumlah dan scope data secara read-only serta login owner/staff lewat HTTPS; tes mock bukan bukti DB/native image siap.
+
+Pemeriksaan offline terarah (tidak menjalankan bootstrap/DB):
+
+```sh
+rtk proxy node --check infra/staging/bootstrap.cjs
+rtk proxy node --test infra/staging/bootstrap.test.cjs infra/staging/staging.test.cjs apps/api/test/auth-crypto.test.cjs
+```
 
 ## Pemisahan role database sebelum startup API
 

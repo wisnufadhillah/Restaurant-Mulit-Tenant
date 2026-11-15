@@ -19,6 +19,7 @@ WORKDIR /app
 COPY --from=build /app /app
 RUN chown node:node /app/.local/menu-images && chmod 700 /app/.local/menu-images
 COPY infra/staging/api-entrypoint.cjs /app/infra/staging/api-entrypoint.cjs
+COPY infra/staging/bootstrap.cjs /app/infra/staging/bootstrap.cjs
 USER node
 WORKDIR /app/apps/api
 ENTRYPOINT ["node", "/app/infra/staging/api-entrypoint.cjs"]

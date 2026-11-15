@@ -122,6 +122,31 @@ services:
     pids_limit: 128
     logging: *logging
 
+  bootstrap:
+    image: restaurant-staging-api:${STAGING_IMAGE_TAG:?Set STAGING_IMAGE_TAG}
+    profiles: [tools]
+    command: [bootstrap]
+    init: true
+    environment:
+      NODE_ENV: production
+      ALLOW_STAGING_BOOTSTRAP: ""
+      DATABASE_RUNTIME_PASSWORD_FILE: /run/secrets/database_runtime_password
+    secrets: [database_runtime_password]
+    volumes:
+      - type: bind
+        source: ./.local/staging/bootstrap-output
+        target: /app/.local/staging-bootstrap
+        bind:
+          create_host_path: false
+    networks: [private]
+    depends_on:
+      database:
+        condition: service_healthy
+    mem_limit: 384m
+    cpus: 0.50
+    pids_limit: 128
+    logging: *logging
+
   migrate:
     image: restaurant-staging-api:${STAGING_IMAGE_TAG:?Set STAGING_IMAGE_TAG}
     profiles: [tools]

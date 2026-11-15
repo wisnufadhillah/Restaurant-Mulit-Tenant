@@ -12,10 +12,11 @@ function secret(name, minimum = 1) {
 
 try {
   const mode = process.argv[2];
-  if (!['serve', 'migrate'].includes(mode)) throw new Error('Invalid startup mode');
+  if (!['serve', 'migrate', 'bootstrap'].includes(mode)) throw new Error('Invalid startup mode');
+  if (mode === 'bootstrap' && (process.env.ALLOW_STAGING_BOOTSTRAP !== '1' || process.env.NODE_ENV !== 'production')) throw new Error('Bootstrap opt-in required');
   const url = new URL('postgresql://database:5432/restaurant');
-  url.username = mode === 'serve' ? 'restaurant_runtime' : 'restaurant';
-  url.password = encodeURIComponent(secret(mode === 'serve' ? 'DATABASE_RUNTIME_PASSWORD' : 'POSTGRES_PASSWORD'));
+  url.username = mode === 'migrate' ? 'restaurant' : 'restaurant_runtime';
+  url.password = encodeURIComponent(secret(mode === 'migrate' ? 'POSTGRES_PASSWORD' : 'DATABASE_RUNTIME_PASSWORD'));
   process.env.DATABASE_URL = url.href;
   if (mode === 'serve') {
     const origin = new URL(process.env.STAFF_ORIGIN);
@@ -29,8 +30,9 @@ try {
     }
     if (process.env.MIDTRANS_IS_PRODUCTION !== 'false') throw new Error('Sandbox required');
   }
-  const args = mode === 'serve' ? ['dist/main.js'] : ['node_modules/prisma/build/index.js', 'migrate', 'deploy'];
-  const child = spawn(process.execPath, args, { stdio: ['ignore', 'inherit', 'inherit'], env: process.env });
+  const args = mode === 'serve' ? ['dist/main.js'] : mode === 'bootstrap' ? ['/app/infra/staging/bootstrap.cjs'] : ['node_modules/prisma/build/index.js', 'migrate', 'deploy'];
+  const env = mode === 'bootstrap' ? { NODE_ENV: 'production', ALLOW_STAGING_BOOTSTRAP: '1', DATABASE_URL: process.env.DATABASE_URL } : process.env;
+  const child = spawn(process.execPath, args, { stdio: ['ignore', 'inherit', 'inherit'], env });
   for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => child.kill(signal));
   child.on('error', () => { console.error('Staging process failed; details suppressed'); process.exitCode = 1; });
   child.on('exit', code => { process.exitCode = code ?? 1; });

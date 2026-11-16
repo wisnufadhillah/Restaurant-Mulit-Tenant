@@ -69,11 +69,13 @@ for (const failure of ['503', 'network', 'hung']) {
     await page.clock.runFor(2);
     if (failure !== 'hung') release();
     if (failure === 'hung') await page.clock.runFor(1000);
-    await expect(page.getByRole('heading', { name: 'Sesi berakhir', exact: true })).toBeVisible();
+    await expect(page).toHaveURL('/login');
+    await expect(page.getByRole('heading', { name: 'Selamat datang kembali.', exact: true })).toBeVisible();
     await expect(page.getByText('Pemesan sintetis privat')).toHaveCount(0);
     if (failure === 'hung') release();
     await page.clock.runFor(15000);
-    await expect(page.getByRole('heading', { name: 'Sesi berakhir', exact: true })).toBeVisible();
+    await expect(page).toHaveURL('/login');
+    await expect(page.locator('#staff-content')).toHaveCount(0);
     await expect(page.getByText('Pemesan sintetis privat')).toHaveCount(0);
   });
 }
@@ -98,9 +100,10 @@ test('deadline check accepts server-confirmed extension from another tab', async
   await new Promise(resolve => setTimeout(resolve, 50));
   await page.clock.runFor(1000);
   await expect(page.getByRole('rowheader', { name: 'SYNTHETIC-ORDER', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Sesi berakhir', exact: true })).toHaveCount(0);
+  await expect(page).toHaveURL('/dashboard?tab=orders');
 });
 test('expired wake clears all tabs and late private response cannot restore data', async ({ page, context, request }) => {
+  await page.goto('/login?view=before-session');
   await page.goto('/dashboard?tab=orders');
   await page.getByRole('button', { name: 'Lihat detail SYNTHETIC-ORDER', exact: true }).click();
   await expect(page.getByText('Pemesan sintetis privat')).toBeVisible();
@@ -108,12 +111,18 @@ test('expired wake clears all tabs and late private response cannot restore data
   let release!: () => void;
   const pending = new Promise<void>(resolve => { release = resolve; });
   await page.route('**/staff/orders?*', async route => { await pending; await route.fulfill({ contentType:'application/json', body:JSON.stringify({data:[{id:'late',code:'LATE-PRIVATE-ORDER',createdAt:'2026-11-10T05:00:00Z',orderTotal:1,status:'pending',paymentStatus:'pending'}],page:1,total:1}) }); });
-  await page.bringToFront(); await page.getByRole('button', { name: 'Muat ulang', exact: true }).click();
+  const loading = page.waitForRequest('**/staff/orders?*');
+  await page.bringToFront(); await page.getByRole('button', { name: 'Muat ulang', exact: true }).click(); await loading;
   await request.post('http://127.0.0.1:3311/fixture/expire');
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await expect(page.getByRole('heading', { name: 'Sesi berakhir', exact: true })).toBeVisible();
-  await expect(other.getByRole('heading', { name: 'Sesi berakhir', exact: true })).toBeVisible();
+  await expect(page).toHaveURL('/login');
+  await expect(other).toHaveURL('/login');
   release(); await expect(page.getByText('LATE-PRIVATE-ORDER')).toHaveCount(0);
   await expect(page.getByText('Pemesan sintetis privat')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Masuk kembali', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Selamat datang kembali.', exact: true })).toBeVisible();
+  await expect(other.locator('#staff-content')).toHaveCount(0);
+  await page.goBack();
+  await expect(page).toHaveURL('/login?view=before-session');
+  await expect(page.locator('#staff-content')).toHaveCount(0);
+  await expect(page.getByText('Pemesan sintetis privat')).toHaveCount(0);
 });

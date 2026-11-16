@@ -63,10 +63,10 @@ test('audit authentication failure clears private overview', async ({ page }) =>
   await expect(page.locator('.sela-reservation-summary')).toContainText('Tamu sintetis');
   const audit = page.getByRole('region', { name: 'Lima aktivitas terbaru', exact: true });
   await audit.getByRole('button', { name: 'Coba lagi', exact: true }).click();
-  await expect(page.getByRole('alert').filter({ hasText: 'Sesi berakhir' })).toBeVisible();
+  await expect(page).toHaveURL('/login');
   await expect(page.getByText('Tamu sintetis', { exact: true })).toHaveCount(0);
   await expect(page.locator('.sela-reservation-summary')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Masuk kembali', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Selamat datang kembali.', exact: true })).toBeVisible();
 });
 
 test('audit error retry empty state and strict pagination', async ({ page }) => {

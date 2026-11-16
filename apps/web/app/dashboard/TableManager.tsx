@@ -1,4 +1,5 @@
 "use client";
+import { staffFetch } from "./staff-fetch";
 
 import { useEffect, useRef, useState } from "react";
 interface DiningTable { id: string; name: string; capacity: number; isActive: boolean; }
@@ -11,7 +12,7 @@ export default function TableManager({ role }: { role: "owner" | "staff" }) {
   useEffect(() => { if (editing) nameInput.current?.focus(); }, [editing]);
   async function load() {
     setLoading(true); setLoadFailed(false);
-    try { const response = await fetch("/staff/tables", { cache: "no-store" }); const result = await response.json(); if (!response.ok) throw new Error(result.message); setItems(result.data); }
+    try { const response = await staffFetch("/staff/tables", { cache: "no-store" }); const result = await response.json(); if (!response.ok) throw new Error(result.message); setItems(result.data); }
     catch { setLoadFailed(true); }
     finally { setLoading(false); }
   }
@@ -22,7 +23,7 @@ export default function TableManager({ role }: { role: "owner" | "staff" }) {
     {role === "owner" && <form key={editing?.id ?? "new"} className="senja-form sela-menu-editor" onSubmit={async event => {
       event.preventDefault(); if (pending) return; const form = event.currentTarget, data = new FormData(form); setPending(true); setMessage("");
       try {
-        const response = await fetch(`/staff/tables${editing ? `?id=${editing.id}` : ""}`, { method: editing ? "PATCH" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: data.get("name"), capacity: Number(data.get("capacity")), isActive: data.get("active") === "on" }) });
+        const response = await staffFetch(`/staff/tables${editing ? `?id=${editing.id}` : ""}`, { method: editing ? "PATCH" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: data.get("name"), capacity: Number(data.get("capacity")), isActive: data.get("active") === "on" }) });
         const result = await response.json(); if (!response.ok) throw new Error(result.message); setMessage("Meja tersimpan."); form.reset(); setEditing(null); await load();
       } catch (error) { setMessage(error instanceof Error ? error.message : "Meja gagal disimpan. Coba lagi."); }
       finally { setPending(false); }

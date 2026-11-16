@@ -24,8 +24,9 @@
             "headers": {"Cache-Control": {"schema": {"type": "string", "const": "no-store"}}},
             "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "required": ["data"], "properties": {"data": {"type": "object", "additionalProperties": false, "required": ["paymentsEnabled"], "properties": {"paymentsEnabled": {"type": "boolean"}}}}}}}
           },
-          "403": {"description": "Session or request origin rejected", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}}}},
-          "429": {"description": "Session read limit exceeded", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}}}}
+          "403": {"description": "Session or request origin rejected", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}, "example": {"error":{"code":"FORBIDDEN","message":"Akses ditolak."}}}}},
+          "429": {"description": "Session read limit exceeded", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}, "example": {"error":{"code":"RATE_LIMITED","message":"Terlalu banyak permintaan."}}}}},
+          "500": {"description": "Unexpected server error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}, "example": {"error":{"code":"INTERNAL_ERROR","message":"Kesalahan internal."}}}}}
         }
       }
     },
@@ -479,6 +480,20 @@
           }
         }
       }
+    },
+    "/staff/tenants/{slug}/activity": {
+      "post": {
+        "operationId": "reportStaffActivity", "summary": "Report explicit user activity while session remains active; never extend absolute expiry", "security": [{"staffCookie": []}],
+        "parameters": [{"name":"slug","in":"path","required":true,"schema":{"type":"string"}},{"name":"Origin","in":"header","required":true,"schema":{"type":"string"}}],
+        "requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","additionalProperties":false,"maxProperties":0}}}},
+        "responses":{"200":{"description":"Activity accepted using server clock; no-store","content":{"application/json":{"schema":{"type":"object","required":["data"],"properties":{"data":{"type":"object","additionalProperties":false,"required":["active","validUntil"],"properties":{"active":{"const":true},"validUntil":{"type":"integer","description":"Server session deadline, Unix milliseconds"}}}}}}}},"400":{"description":"Invalid body","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"BAD_REQUEST","message":"Data tidak valid."}}}}},"401":{"description":"Missing, idle, absolute-expired, revoked or invalid actor","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"UNAUTHORIZED","message":"Akses tidak terverifikasi."}}}}},"403":{"description":"Untrusted Origin or non-JSON","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"FORBIDDEN","message":"Akses ditolak."}}}}},"429":{"description":"Activity rate limit","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"RATE_LIMITED","message":"Terlalu banyak permintaan."}}}}},"500":{"description":"Unexpected error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"INTERNAL_ERROR","message":"Kesalahan internal."}}}}},"503":{"description":"Dependency unavailable","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"SERVICE_UNAVAILABLE","message":"Layanan belum tersedia."}}}}}}
+      }
+    },
+    "/staff/tenants/{slug}/orders": {
+      "get": {"operationId":"listStaffOrders","summary":"Read tenant orders without customer contact or payment credentials","security":[{"staffCookie":[]}],"parameters":[{"name":"slug","in":"path","required":true,"schema":{"type":"string"}},{"name":"date","in":"query","description":"Strict calendar date in Asia/Jakarta","schema":{"type":"string","format":"date"}},{"name":"paymentStatus","in":"query","schema":{"enum":["unpaid","pending","settlement","deny","cancel","expire","failure"]}},{"name":"page","in":"query","schema":{"type":"integer","minimum":1,"maximum":999,"default":1}}],"responses":{"200":{"description":"Newest first by createdAt and id, 20 rows; no-store","content":{"application/json":{"schema":{"type":"object","required":["data","page","pageSize","total"],"properties":{"data":{"type":"array","items":{"$ref":"#/components/schemas/StaffOrder"}},"page":{"type":"integer"},"pageSize":{"const":20},"total":{"type":"integer"}}}}}},"400":{"description":"Invalid, repeated or unknown filter","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"BAD_REQUEST","message":"Data tidak valid."}}}}},"401":{"description":"Invalid staff session","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"UNAUTHORIZED","message":"Akses tidak terverifikasi."}}}}},"500":{"description":"Unexpected error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"INTERNAL_ERROR","message":"Kesalahan internal."}}}}},"503":{"description":"Dependency unavailable","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"SERVICE_UNAVAILABLE","message":"Layanan belum tersedia."}}}}}}}
+    },
+    "/staff/tenants/{slug}/orders/{id}": {
+      "get":{"operationId":"getStaffOrder","summary":"Read tenant order snapshot and stored payment transitions","security":[{"staffCookie":[]}],"parameters":[{"name":"slug","in":"path","required":true,"schema":{"type":"string"}},{"name":"id","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}],"responses":{"200":{"description":"Snapshot and payment events ordered by createdAt then id ascending; no-store","content":{"application/json":{"schema":{"type":"object","required":["data"],"properties":{"data":{"$ref":"#/components/schemas/StaffOrderDetail"}}}}}},"401":{"description":"Invalid staff session","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"UNAUTHORIZED","message":"Akses tidak terverifikasi."}}}}},"404":{"description":"Missing or foreign order","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"NOT_FOUND","message":"Informasi tidak ditemukan."}}}}},"500":{"description":"Unexpected error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"INTERNAL_ERROR","message":"Kesalahan internal."}}}}},"503":{"description":"Dependency unavailable","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiError"},"example":{"error":{"code":"SERVICE_UNAVAILABLE","message":"Layanan belum tersedia."}}}}}}}
     },
     "/staff/tenants/{slug}/session": {
       "get": {
@@ -4104,6 +4119,8 @@
       }
     },
     "schemas": {
+      "StaffOrder": {"type":"object","additionalProperties":false,"required":["id","code","createdAt","orderTotal","status","paymentStatus"],"properties":{"id":{"type":"string","format":"uuid"},"code":{"type":"string"},"createdAt":{"type":"string","format":"date-time"},"orderTotal":{"type":"integer"},"status":{"type":"string"},"paymentStatus":{"type":"string"}}},
+      "StaffOrderDetail": {"type":"object","additionalProperties":false,"required":["id","code","createdAt","orderTotal","status","paymentStatus","customerName","items","paymentEvents"],"properties":{"id":{"type":"string","format":"uuid"},"code":{"type":"string"},"createdAt":{"type":"string","format":"date-time"},"orderTotal":{"type":"integer"},"status":{"type":"string"},"paymentStatus":{"type":"string"},"customerName":{"type":"string"},"items":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["name","price","quantity","subtotal"],"properties":{"name":{"type":"string"},"price":{"type":"integer"},"quantity":{"type":"integer"},"subtotal":{"type":"integer"}}}},"paymentEvents":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["id","fromStatus","toStatus","createdAt"],"properties":{"id":{"type":"string","format":"uuid"},"fromStatus":{"type":"string"},"toStatus":{"type":"string"},"createdAt":{"type":"string","format":"date-time"}}}}}},
       "StaffIdentityResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -4121,6 +4138,7 @@
               "role"
             ],
             "properties": {
+              "validUntil": {"type":"integer","description":"Active-session deadline in Unix milliseconds; present for session reads"},
               "id": {
                 "type": "string",
                 "format": "uuid"

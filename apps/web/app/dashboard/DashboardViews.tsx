@@ -1,4 +1,5 @@
 "use client";
+import { staffFetch } from "./staff-fetch";
 
 import Link from "next/link";
 import AuditManager from "./AuditManager";
@@ -32,7 +33,7 @@ export default function DashboardViews({ view }: { view: "overview" | "outlets" 
     activeRequest.current = controller;
     setLoading(true); setFailed(false);
     async function read(resource: string) {
-      const response = await fetch(`/staff/${resource}`, { cache: "no-store", signal: controller.signal });
+      const response = await staffFetch(`/staff/${resource}`, { cache: "no-store", signal: controller.signal });
       if (response.status === 401 || response.status === 403) { clearSession(); throw new Error("Session expired"); }
       if (!response.ok) throw new Error("Data unavailable");
       const body = await response.json();

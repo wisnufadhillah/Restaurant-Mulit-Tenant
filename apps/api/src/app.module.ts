@@ -37,6 +37,8 @@ import { ReservationController } from "./restaurant/reservation.controller";
 import { ReservationService } from "./restaurant/reservation.service";
 import { ReservationRepository } from "./restaurant/reservation.repository";
 import { OrdersController } from "./restaurant/orders.controller";
+import { StaffOrdersController } from "./restaurant/staff-orders.controller";
+import { StaffOrdersService } from "./restaurant/staff-orders.service";
 
-@Module({ controllers: [OrdersController, StaffReservationsController, KnowledgeController, ReservationController, AvailabilityController, ChatMessageController, ChatCatalogueController, ChatSessionController, InternalToolsController, HealthController, RestaurantController, StaffController, MenuController, TableController, HoursController, ProfileController, SpecialHoursController], providers: [StaffReservationsService, KnowledgeRepository, ReservationService, ReservationRepository, AvailabilityService, AvailabilityRepository, ConversationTransport, ChatSessionsService, RestaurantService, StaffService, StaffRepository, MenuService, TableService, HoursService, ProfileService, SpecialHoursService] })
+@Module({ controllers: [StaffOrdersController, OrdersController, StaffReservationsController, KnowledgeController, ReservationController, AvailabilityController, ChatMessageController, ChatCatalogueController, ChatSessionController, InternalToolsController, HealthController, RestaurantController, StaffController, MenuController, TableController, HoursController, ProfileController, SpecialHoursController], providers: [StaffOrdersService, StaffReservationsService, KnowledgeRepository, ReservationService, ReservationRepository, AvailabilityService, AvailabilityRepository, ConversationTransport, ChatSessionsService, RestaurantService, StaffService, StaffRepository, MenuService, TableService, HoursService, ProfileService, SpecialHoursService] })
 export class AppModule {}

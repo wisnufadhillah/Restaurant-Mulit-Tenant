@@ -1,5 +1,9 @@
 .sela-admin { display: grid; grid-template-columns: 272px minmax(0, 1fr); grid-template-rows: auto 1fr; min-height: 100dvh; font-size: 14px; line-height: 1.5; }
 .sela-admin-navigation-toggle { display: none; }
+.sela-orders-table { min-width: 760px; font-variant-numeric: tabular-nums; }
+.sela-order-code { overflow-wrap: anywhere; max-width: 24ch; }
+.sela-order-items,.sela-order-events { display: grid; gap: 16px; padding-inline-start: 20px; margin-block: 16px 32px; font-variant-numeric: tabular-nums; }
+.sela-order-items li,.sela-order-events li { display: grid; gap: 4px; overflow-wrap: anywhere; }
 .sela-admin a[href],.sela-admin button,.sela-admin select,.sela-admin label:has(input[type="checkbox"]) { cursor: pointer; }
 .sela-admin button:disabled,.sela-admin input:disabled,.sela-admin select:disabled { cursor: not-allowed; opacity: .6; }
 .sela-admin button:active:not(:disabled),.sela-admin a:active { text-decoration: underline; text-underline-offset: 4px; }

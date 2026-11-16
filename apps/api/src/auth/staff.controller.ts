@@ -62,6 +62,14 @@ export class StaffController {
     return { data: await this.staff.authenticate(cookieToken(request), slug) };
   }
 
+  @Post("tenants/:slug/activity")
+  @HttpCode(200)
+  async activity(@Param("slug") slug: string, @Body() body: unknown, @Req() request: StaffRequest, @Res({ passthrough: true }) response: StaffResponse) {
+    this.prepare(request, response, true);
+    if (request.headers["content-type"]?.toString().split(";")[0].trim().toLowerCase() !== "application/json") throw new ForbiddenException();
+    return { data: await this.staff.activity(cookieToken(request), slug, body) };
+  }
+
   @Post("tenants/:slug/logout")
   @HttpCode(204)
   async logout(@Param("slug") slug: string, @Req() request: StaffRequest, @Res({ passthrough: true }) response: StaffResponse) {

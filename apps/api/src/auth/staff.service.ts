@@ -3,7 +3,7 @@ import { createHmac, randomBytes } from "node:crypto";
 import { createSessionToken, hashPassword, hashSessionToken, verifyPassword } from "./crypto";
 import { StaffRepository, StaffSessionRecord } from "./staff.repository";
 
-const SESSION_MS = 8 * 60 * 60 * 1000;
+import { STAFF_ABSOLUTE_MS, staffSessionDeadline } from "./staff-session-policy";
 const WINDOW_MS = 15 * 60 * 1000;
 
 @Injectable()
@@ -45,7 +45,8 @@ export class StaffService {
       if (account && !/^scrypt\$131072\$8\$1\$[a-f0-9]{32}\$[a-f0-9]{128}$/.test(stored)) await verifyPassword(body.password, dummy);
       if (!account || !valid || !account.isActive || account.tenant.status !== "active" || !["owner", "staff"].includes(account.role)) throw new UnauthorizedException();
       const token = createSessionToken();
-      await this.repository.createSession({ tenantId: account.tenantId, staffId: account.id, tokenHash: hashSessionToken(token), expiresAt: new Date(Date.now() + SESSION_MS) });
+      const now = new Date();
+      await this.repository.createSession({ tenantId: account.tenantId, staffId: account.id, tokenHash: hashSessionToken(token), createdAt: now, lastActivityAt: now, expiresAt: new Date(now.getTime() + STAFF_ABSOLUTE_MS) });
       return { token, data: { id: account.id, tenantId: account.tenantId, username: account.username, role: account.role } };
     } catch (error) {
       if (error instanceof UnauthorizedException) throw error;
@@ -58,12 +59,25 @@ export class StaffService {
     try { hash = hashSessionToken(token!); } catch { throw new UnauthorizedException(); }
     let session: StaffSessionRecord | null;
     try { session = await this.repository.session(hash); } catch { throw new ServiceUnavailableException(); }
-    if (!session || session.revokedAt || session.expiresAt.getTime() <= Date.now() ||
+    if (!session || session.revokedAt || !session.createdAt || !session.lastActivityAt || !Number.isFinite(staffSessionDeadline(session)) || staffSessionDeadline(session) <= Date.now() ||
       !session.staff.isActive || session.staff.tenant.status !== "active" ||
       session.tenantId !== session.staff.tenantId || session.staffId !== session.staff.id ||
       session.staff.tenant.slug !== slug) throw new UnauthorizedException();
+    if (!["owner", "staff"].includes(session.staff.role)) throw new UnauthorizedException();
     if (!roles.includes(session.staff.role)) throw new ForbiddenException();
-    return { id: session.staff.id, tenantId: session.tenantId, username: session.staff.username, role: session.staff.role };
+    return { id: session.staff.id, tenantId: session.tenantId, username: session.staff.username, role: session.staff.role, validUntil: staffSessionDeadline(session) };
+  }
+
+  async activity(token: string | undefined, slug: string, input: unknown) {
+    if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).length) throw new BadRequestException();
+    await this.authenticate(token, slug);
+    this.limit(`activity:${hashSessionToken(token!)}`, 60);
+    try {
+      const updated = await this.repository.activity(hashSessionToken(token!), slug);
+      if (updated.count !== 1) await this.authenticate(token, slug);
+      const session = await this.authenticate(token, slug);
+      return { active: true, validUntil: session.validUntil };
+    } catch (error) { if (error instanceof UnauthorizedException) throw error; throw new ServiceUnavailableException(); }
   }
 
   async logout(token: string | undefined, slug: string) {

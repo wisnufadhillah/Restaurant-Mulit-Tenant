@@ -14,7 +14,7 @@ const { ApiErrorFilter } = require('../dist/http/error.filter');
 test('staff reservation HTTP authenticates role and tenant, validates filters and minimizes data', async () => {
   const token = createSessionToken(), tenantId = randomUUID(), staffId = randomUUID(), reservationId = randomUUID();
   let reads = 0, dependencyFailure = false;
-  const session = { tenantId, staffId, expiresAt: new Date(Date.now() + 60000), revokedAt: null, staff: { id: staffId, tenantId, username: 'synthetic.staff', role: 'owner', isActive: true, tenant: { slug: 'demo-a', status: 'active' } } };
+  const session = { tenantId, staffId, createdAt: new Date(), lastActivityAt: new Date(), expiresAt: new Date(Date.now() + 60000), revokedAt: null, staff: { id: staffId, tenantId, username: 'synthetic.staff', role: 'owner', isActive: true, tenant: { slug: 'demo-a', status: 'active' } } };
   const accounts = { session: async hash => hash === hashSessionToken(token) ? session : null };
   const reservations = Object.create(StaffReservationsService.prototype);
   const row = { id: reservationId, referenceCode: 'synthetic-booking', guestName: 'Synthetic Guest', partySize: 4, startAt: new Date('2026-11-10T03:00Z'), endAt: new Date('2026-11-10T04:30Z'), status: 'confirmed', table: { name: 'Synthetic table' }, outlet: { name: 'Synthetic outlet' } };
@@ -39,7 +39,7 @@ test('staff reservation HTTP authenticates role and tenant, validates filters an
     assert.equal((await send('', 'demo-b')).status, 401);
     session.revokedAt = new Date(); assert.equal((await send()).status, 401); session.revokedAt = null;
     session.expiresAt = new Date(0); assert.equal((await send()).status, 401); session.expiresAt = new Date(Date.now() + 60000);
-    session.staff.role = 'visitor'; assert.equal((await send()).status, 403);
+    session.staff.role = 'visitor'; assert.equal((await send()).status, 401);
     assert.equal(reads, 0);
     for (const role of ['owner', 'staff']) {
       session.staff.role = role;
@@ -56,7 +56,7 @@ test('staff reservation HTTP authenticates role and tenant, validates filters an
       assert.equal((await post({ headers: { origin: 'https://foreign.invalid' } })).status, 403);
       assert.equal((await post({ headers: { 'sec-fetch-site': 'cross-site' } })).status, 403);
       assert.equal((await post({ headers: { 'content-type': 'text/plain' } })).status, 403);
-      session.staff.role = 'visitor'; assert.equal((await post()).status, 403); session.staff.role = 'staff';
+      session.staff.role = 'visitor'; assert.equal((await post()).status, 401); session.staff.role = 'staff';
       assert.equal(mutations, 0);
       assert.equal((await post({ body: '{' })).status, 400);
       assert.equal((await post({ body: JSON.stringify({ status: 'no_show' }) })).status, 400);

@@ -1,4 +1,5 @@
 "use client";
+import { staffFetch } from "./staff-fetch";
 import { useEffect, useState } from "react";
 
 interface Activity { id: string; source: "operational" | "reservation"; createdAt: string; action: string; actorType: string; reservationId: string | null; fromStatus: string | null; toStatus: string | null; }
@@ -15,7 +16,7 @@ export default function AuditManager({ compact = false, refresh = 0, onAuthFailu
     setLoading(true); setError(""); setItems([]); setTotal(0);
     void (async () => {
       try {
-        const response = await fetch(`/staff/audit?page=${page}`, { cache: "no-store", signal: controller.signal });
+        const response = await staffFetch(`/staff/audit?page=${page}`, { cache: "no-store", signal: controller.signal });
         if (response.status === 401 || response.status === 403) {
           if (controller.signal.aborted) return;
           setItems([]); setTotal(0); onAuthFailure?.();

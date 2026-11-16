@@ -1,4 +1,5 @@
 "use client";
+import { staffFetch } from "./staff-fetch";
 import { useEffect, useState } from "react";
 import SpecialHoursManager from "./SpecialHoursManager";
 const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
@@ -25,7 +26,7 @@ export default function HoursManager({ role }: { role: "owner" | "staff" }) {
     setLoading(true);
     setLoadFailed(false);
     try {
-      const response = await fetch("/staff/hours", { cache: "no-store" });
+      const response = await staffFetch("/staff/hours", { cache: "no-store" });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message);
       setRows(result.data);
@@ -66,7 +67,7 @@ export default function HoursManager({ role }: { role: "owner" | "staff" }) {
                   setPending(true);
                   setMessage("");
                   try {
-                    const response = await fetch("/staff/hours", {
+                    const response = await staffFetch("/staff/hours", {
                       method: "PUT",
                       headers: { "content-type": "application/json" },
                       body: JSON.stringify({

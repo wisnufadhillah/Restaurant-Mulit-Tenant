@@ -29,7 +29,7 @@ test('session lookup and revocation failures fail closed', async () => {
   const service = new StaffService(repository);
   await assert.rejects(service.authenticate(token, 'demo-a'), status(503));
   await assert.rejects(service.authenticate(undefined, 'demo-a'), status(401));
-  repository.session = async () => ({ tenantId: 'tenant-a', staffId: 'staff-a', expiresAt: new Date(Date.now() + 60000), revokedAt: null, staff: { id: 'staff-a', tenantId: 'tenant-a', username: 'demo.staff', role: 'staff', isActive: true, tenant: { slug: 'demo-a', status: 'active' } } });
+  repository.session = async () => ({ tenantId: 'tenant-a', staffId: 'staff-a', createdAt: new Date(), lastActivityAt: new Date(), expiresAt: new Date(Date.now() + 60000), revokedAt: null, staff: { id: 'staff-a', tenantId: 'tenant-a', username: 'demo.staff', role: 'staff', isActive: true, tenant: { slug: 'demo-a', status: 'active' } } });
   repository.revoke = async () => { throw new Error('Dependency unavailable'); };
   await assert.rejects(service.logout(token, 'demo-a'), status(503));
 });

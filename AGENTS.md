@@ -32,7 +32,7 @@ Saat memakai shell pada lingkungan Pi ini, semua command dimulai dengan `rtk` at
 - Reservasi MVP: buat, lihat dan batal; satu meja per reservasi, langsung confirmed setelah persetujuan dan transaksi valid.
 - Dashboard mendukung operasional; tidak menambah billing, onboarding SaaS, banyak outlet dalam UI, WhatsApp/Telegram, ubah jadwal, atau gabung meja tanpa persetujuan scope baru.
 - Chatbot boleh membaca availability tanpa menahan meja, mengisi awal tanggal/jam/jumlah tamu pada form reservasi, dan menyiapkan usulan pesanan makanan. Konfirmasi reservasi tetap pada form privat.
-- Customer boleh membuat pesanan lewat UI privat dan membayar penuh melalui Midtrans Snap sandbox. Pembayaran live, deposit reservasi, delivery, refund, kasir/POS, voucher dan dashboard pesanan ditunda.
+- Customer boleh membuat pesanan lewat UI privat dan membayar penuh melalui Midtrans Snap sandbox. Dashboard owner/staff boleh membaca daftar/detail pesanan dan histori pembayaran tenant sendiri tanpa mutasi. Pembayaran live, deposit reservasi, delivery, refund, kasir/POS, voucher dan fulfillment pesanan ditunda.
 - Satu agent Agno. MCP read-only opsional setelah inti stabil; A2A, multi-agent dan fine-tuning bukan syarat rilis.
 - Jangan menambah fitur untuk mengejar daftar teknologi. Perubahan scope harus menyebut manfaat, biaya pengerjaan, serta fitur yang perlu ditunda.
 

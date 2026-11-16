@@ -1,7 +1,10 @@
 const { createServer } = require('node:http');
 
 function startMenuFixture() {
-  let role = 'owner';
+  let role = 'owner', expired = false, activityCount = 0, validUntil = Date.now() + 1800000;
+  let orderMode = 'ready';
+  const orderId = '50000000-0000-4000-8000-000000000001';
+  const order = { id: orderId, code: 'SYNTHETIC-ORDER', createdAt: '2026-11-10T05:00:00.000Z', orderTotal: 50000, status: 'confirmed', paymentStatus: 'settlement' };
   let items, reservationStatus = 'confirmed', events = [];
   const attempts = new Map();
   const uploads = new Map();
@@ -16,9 +19,16 @@ function startMenuFixture() {
     const reply = (status, data) => { response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }); response.end(JSON.stringify(data)); };
     if (path === '/health') return reply(200, { ready: true });
     if (path === '/api/v1/chat/orders/capabilities' && request.method === 'GET') return reply(200, { data: { paymentsEnabled: true } });
-    if (path === '/fixture/reset' && request.method === 'POST') { role = 'owner'; reservationStatus = 'confirmed'; events = []; attempts.clear(); reset(); return reply(200, { ok: true }); }
+    if (path === '/fixture/reset' && request.method === 'POST') { role = 'owner'; expired = false; activityCount = 0; validUntil = Date.now() + 1800000; orderMode = 'ready'; reservationStatus = 'confirmed'; events = []; attempts.clear(); reset(); return reply(200, { ok: true }); }
     if (path === '/fixture/staff' && request.method === 'POST') { role = 'staff'; return reply(200, { ok: true }); }
-    if (path.endsWith('/session')) return reply(200, { data: { username: `synthetic.${role}`, role } });
+    if (path === '/fixture/expire' && request.method === 'POST') { expired = true; return reply(200, { ok: true }); }
+    if (path === '/fixture/activity') return reply(200, { activityCount });
+    if (path === '/fixture/deadline' && request.method === 'POST') { validUntil = Date.now() + 60000; return reply(200, { validUntil }); }
+    if (path === '/fixture/orders-empty') { orderMode = 'empty'; return reply(200, { ok: true }); }
+    if (path === '/fixture/orders-error') { orderMode = 'error'; return reply(200, { ok: true }); }
+    if (path.startsWith('/api/v1/staff/') && expired) return reply(401, { message: 'Expired synthetic session' });
+    if (path.endsWith('/session')) return reply(200, { data: { username: `synthetic.${role}`, role, validUntil } });
+    if (path.endsWith('/activity')) { activityCount++; validUntil = Date.now() + 1800000; return reply(200, { data: { active: true, validUntil } }); }
     if (path === '/api/v1/public/tenants/demo-padang/restaurant') return reply(200, { data: { name: 'Dapur Sela', outlets: [{ address: 'Synthetic address', contactPhone: '' }] } });
     if (path === '/api/v1/public/tenants/demo-padang/hours') return reply(200, { data: [], timezone: 'Asia/Jakarta' });
     if (path === '/api/v1/public/tenants/demo-padang/menu/catalogue') return reply(200, { data: items.filter(item => item.isActive), source: 'restaurant_api' });
@@ -36,6 +46,13 @@ function startMenuFixture() {
       return reply(200, receipt);
     }
     if (request.method === 'GET') {
+      if (path === `${staffRoot}/orders`) {
+        if (orderMode === 'error') return reply(503, {});
+        const query = new URL(request.url, 'http://127.0.0.1').searchParams, page = Number(query.get('page') || 1);
+        const empty = orderMode === 'empty' || (query.get('paymentStatus') && query.get('paymentStatus') !== order.paymentStatus);
+        return reply(200, { data: empty ? [] : [{ ...order, ...(page === 2 ? { id: '50000000-0000-4000-8000-000000000002', code: 'SYNTHETIC-ORDER-PAGE-TWO' } : {}) }], page, pageSize: 20, total: empty ? 0 : 21 });
+      }
+      if (path === `${staffRoot}/orders/${orderId}`) return reply(200, { data: { ...order, customerName: 'Pemesan sintetis privat', items: [{name:'Hidangan sintetis',price:25000,quantity:2,subtotal:50000}], paymentEvents: [{id:'event-synthetic',fromStatus:'pending',toStatus:'settlement',createdAt:'2026-11-10T05:01:00.000Z'}] } });
       if (path === `${staffRoot}/audit`) { const page = Number(new URL(request.url, 'http://127.0.0.1').searchParams.get('page') || 1); return reply(200, { data: events.slice((page - 1) * 20, page * 20), page, pageSize: 20, total: events.length }); }
       if (path === `${staffRoot}/profile`) return reply(200, { data: { name: 'Dapur Sela', outletName: 'Lokasi sintetis', address: 'Alamat pengujian sintetis', contactPhone: '' } });
       if (path === `${staffRoot}/tables`) return reply(200, { data: [{ id: 'table-synthetic', name: 'Meja sintetis', capacity: 4, isActive: true }] });

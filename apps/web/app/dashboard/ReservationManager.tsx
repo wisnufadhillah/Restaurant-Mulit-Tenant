@@ -1,4 +1,5 @@
 "use client";
+import { staffFetch } from "./staff-fetch";
 import { FormEvent, useEffect, useRef, useState } from "react";
 interface Reservation { id: string; referenceCode: string; guestName: string; partySize: number; startAt: string; endAt: string; status: string; table: { name: string }; outlet: { name: string }; guestPhone?: string; }
 const format = (date: string) => new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(date));
@@ -38,7 +39,7 @@ export default function ReservationManager() {
     const current = generation.current, pending = attempt.current;
     submitting.current = true; setSaving(true); setMessage("");
     try {
-      const response = await fetch(`/staff/reservations?id=${pending.id}`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": pending.key }, body: pending.body });
+      const response = await staffFetch(`/staff/reservations?id=${pending.id}`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": pending.key }, body: pending.body });
       const body = await response.json();
       if (current !== generation.current) return;
       if (!response.ok) {
@@ -64,7 +65,7 @@ export default function ReservationManager() {
     setBusy(true); setError(""); setDetail(null);
     const params = new URLSearchParams({ page: String(nextPage), ...(filters.date ? { date: filters.date } : {}), ...(filters.status ? { status: filters.status } : {}) });
     try {
-      const response = await fetch(`/staff/reservations?${params}`, { cache: "no-store" });
+      const response = await staffFetch(`/staff/reservations?${params}`, { cache: "no-store" });
       const body = await response.json(); if (!response.ok) throw new Error(body.message);
       if (current !== generation.current) return;
       setItems(body.data); setPage(body.page); setTotal(body.total);
@@ -75,7 +76,7 @@ export default function ReservationManager() {
   async function open(id: string) {
     if (submitting.current || attempt.current) return;
     const current = ++generation.current; setBusy(true); setError(""); setDetail(null);
-    try { const response = await fetch(`/staff/reservations?id=${encodeURIComponent(id)}`, { cache: "no-store" }); const body = await response.json(); if (!response.ok) { if (current === generation.current && (response.status === 401 || response.status === 403)) { setItems([]); setTotal(0); } throw new Error(body.message); } if (current === generation.current) setDetail(body.data); }
+    try { const response = await staffFetch(`/staff/reservations?id=${encodeURIComponent(id)}`, { cache: "no-store" }); const body = await response.json(); if (!response.ok) { if (current === generation.current && (response.status === 401 || response.status === 403)) { setItems([]); setTotal(0); } throw new Error(body.message); } if (current === generation.current) setDetail(body.data); }
     catch (e) { if (current === generation.current) setError(e instanceof Error ? e.message : "Detail gagal dimuat."); }
     finally { if (current === generation.current) setBusy(false); }
   }

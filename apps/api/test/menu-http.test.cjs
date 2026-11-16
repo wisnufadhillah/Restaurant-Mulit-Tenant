@@ -18,7 +18,7 @@ const { join } = require('node:path');
 test('menu HTTP saves owner photos, preserves omitted metadata and restricts staff to availability', async () => {
   const token = createSessionToken(), id = '30000000-0000-4000-8000-000000000001';
   const origin = 'http://127.0.0.1:3000';
-  const session = { tenantId: 'tenant-a', staffId: 'staff-a', expiresAt: new Date(Date.now() + 60000), revokedAt: null, staff: { id: 'staff-a', tenantId: 'tenant-a', username: 'synthetic.owner', role: 'owner', isActive: true, tenant: { slug: 'demo-padang', status: 'active' } } };
+  const session = { tenantId: 'tenant-a', staffId: 'staff-a', createdAt: new Date(), lastActivityAt: new Date(), expiresAt: new Date(Date.now() + 60000), revokedAt: null, staff: { id: 'staff-a', tenantId: 'tenant-a', username: 'synthetic.owner', role: 'owner', isActive: true, tenant: { slug: 'demo-padang', status: 'active' } } };
   const accounts = { session: async hash => hash === hashSessionToken(token) ? session : null };
   const menu = Object.create(MenuService.prototype);
   let row, writes = 0;

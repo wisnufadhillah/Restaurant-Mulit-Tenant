@@ -1,4 +1,5 @@
 "use client";
+import { staffFetch } from "./staff-fetch";
 
 import { useEffect, useRef, useState } from "react";
 import { menuImageSource } from "../../../api/src/menu/menu-images";
@@ -44,7 +45,7 @@ export default function MenuManager({ role }: { role: "owner" | "staff" }) {
   const visible = items.filter(item => item.name.toLocaleLowerCase("id-ID").includes(query.toLocaleLowerCase("id-ID")) && (filter === "all" || (filter === "available" ? item.isAvailable && item.isActive : filter === "sold-out" ? !item.isAvailable && item.isActive : !item.isActive)));
   async function load() {
     setLoading(true); setLoadFailed(false);
-    try { const response = await fetch("/staff/menu", { cache: "no-store" }); const result = await response.json(); if (!response.ok) throw new Error(result.message); setItems(result.data); }
+    try { const response = await staffFetch("/staff/menu", { cache: "no-store" }); const result = await response.json(); if (!response.ok) throw new Error(result.message); setItems(result.data); }
     catch { setLoadFailed(true); }
     finally { setLoading(false); }
   }
@@ -53,12 +54,12 @@ export default function MenuManager({ role }: { role: "owner" | "staff" }) {
     setPending(true); setMessage("");
     try {
       if (photo && body && typeof body === "object" && "imageKey" in body) {
-        const upload = await fetch("/staff/menu/images", { method: "POST", headers: { "content-type": photo.type }, body: photo });
+        const upload = await staffFetch("/staff/menu/images", { method: "POST", headers: { "content-type": photo.type }, body: photo });
         const result = await upload.json(); if (!upload.ok) throw new Error(result.message);
         body = { ...body, imageKey: result.data.imageKey };
         setImageKey(result.data.imageKey); setPhoto(null);
       }
-      const response = await fetch(path, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); const result = await response.json(); if (!response.ok) throw new Error(result.message); setMessage("Perubahan menu tersimpan."); await load(); return true; }
+      const response = await staffFetch(path, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); const result = await response.json(); if (!response.ok) throw new Error(result.message); setMessage("Perubahan menu tersimpan."); await load(); return true; }
     catch (error) { setMessage(error instanceof Error ? error.message : "Menu gagal disimpan. Coba lagi."); return false; }
     finally { setPending(false); }
   }

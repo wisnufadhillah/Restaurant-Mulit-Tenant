@@ -62,7 +62,7 @@ Angka tersebut adalah target pengujian, bukan klaim bahwa seluruh kemungkinan se
 - Halaman publik tenant: profil, outlet, jam buka, menu aktif dan harga.
 - Cek ketersediaan meja menurut waktu dan jumlah tamu.
 - Buat reservasi, lihat status, batalkan memakai bukti akses privat.
-- Dashboard owner/staff untuk menu, meja, jam operasional, dan reservasi.
+- Dashboard owner/staff untuk menu, meja, jam operasional, reservasi, serta pembacaan pesanan dan histori pembayaran sandbox.
 - Website publik dengan navigasi beranda, tentang restoran, menu, lokasi/jam buka, serta reservasi; dapat berupa halaman terpisah atau section beranda sesuai kebutuhan konten.
 - Widget chatbot sebagai fokus fitur AI: satu assistant Agno, tools tanpa hak tulis untuk informasi restoran, menu, FAQ, availability dan usulan pesanan, kartu menu, kartu availability serta sumber jawaban. Tidak menyediakan proposal reservasi, pengumpulan kontak atau kartu reservasi privat dalam chat.
 - Pesanan makanan dari chat: draft pesanan, pembuatan pesanan oleh klik customer, dan pembayaran penuh lewat Midtrans Snap (sandbox) dengan status dari notifikasi terverifikasi. Aturan rinci ada pada bagian pesanan dan pembayaran.
@@ -77,7 +77,7 @@ Angka tersebut adalah target pengujian, bukan klaim bahwa seluruh kemungkinan se
 - Banyak outlet dalam UI, stok dan harga berbeda per outlet; migrasi ke entitas Restaurant tunggal menunggu arahan dan otorisasi terpisah.
 - Proposal dan transaksi reservasi dalam chatbot, serta editor FAQ dashboard.
 - Ubah jadwal booking, gabung meja, waitlist, deposit reservasi.
-- Chatbot WhatsApp/Telegram atau kanal eksternal lain, email/SMS OTP, notifikasi produksi, delivery, kasir/POS, refund, pembayaran parsial/cicilan, voucher/diskon, dashboard pengelolaan pesanan, pembayaran produksi (live).
+- Chatbot WhatsApp/Telegram atau kanal eksternal lain, email/SMS OTP, notifikasi produksi, delivery, kasir/POS, refund, pembayaran parsial/cicilan, voucher/diskon, pengelolaan pemenuhan pesanan dapur, pembayaran produksi (live).
 - Analitik lanjutan, personalisasi, long-term memory customer.
 - Multi-agent, protokol A2A, fine-tuning, autonomous actions.
 - Kubernetes, message broker, microservices bisnis terpisah.
@@ -92,9 +92,42 @@ Bagian ini mencatat perluasan scope chatbot yang diputuskan tim pengembang. Konf
 
 - **Manfaat:** customer dapat berpindah dari informasi ke cek meja, usulan pesanan, dan pembayaran dalam satu percakapan; alur tool calling diperagakan dengan batas izin yang jelas.
 - **Biaya:** tambahan migrasi (sesi chat dan pesanan), integrasi payment gateway, endpoint notifikasi publik, tes keamanan pembayaran, serta ketergantungan pada akun Midtrans sandbox dan tunnel HTTPS untuk uji notifikasi. Waktu pengerjaan diambil dari buffer dan fitur noninti, diukur ulang pada tinjauan mingguan.
-- **Ditunda sebagai gantinya:** MCP read-only, dashboard pengelolaan pesanan staff, refund, delivery, voucher/diskon, dan pembayaran produksi.
+- **Ditunda sebagai gantinya:** MCP read-only, pengelolaan pemenuhan pesanan dapur, refund, delivery, voucher/diskon, dan pembayaran produksi.
 - **Batas yang tidak berubah:** model tidak memiliki hak tulis; kontak dan konfirmasi reservasi hanya lewat form web privat; availability tidak menahan meja; form reservasi web tetap berjalan tanpa model; tenant dan sesi ditentukan server; satu agent Agno; demo satu tenant satu outlet.
 - **Sandbox:** demo pembayaran memakai sandbox Midtrans tanpa uang nyata. Kredensial live, aktivasi merchant, dan URL notifikasi produksi memerlukan keputusan terpisah.
+
+## Operasional pesanan dan keamanan sesi dashboard
+
+Dashboard Pesanan read-only disetujui untuk owner/staff satu tenant/outlet. Pembayaran tetap memakai Midtrans Snap sandbox yang sudah menjadi scope; ketersediaan integrasi bukan persetujuan pembayaran live atau fitur finansial tambahan.
+
+- **Manfaat:** pengelola melihat pesanan aplikasi dan histori pembayaran tanpa mengandalkan chat customer atau menyamakan audit operasional dengan daftar transaksi.
+- **Biaya:** endpoint daftar/detail tenant-scoped, filter dan pagination, proyeksi data privat, UI responsif, serta tes izin/session/konkurensi pembaruan status. Tidak ada service baru atau provider berbayar.
+- **Batas:** tidak ada aksi manual menandai lunas, refund, deposit, cicilan, POS, ekspor laporan, fulfillment dapur atau perubahan total pesanan. Status dari webhook dan API tetap sumber fakta. Fitur tertunda lain tetap ditunda.
+
+### Daftar dan detail pesanan
+
+- Daftar menampilkan kode pesanan, waktu WIB, total Rupiah, status pesanan dan pembayaran; filter tanggal/status dan pagination deterministik 20 baris.
+- Detail menampilkan snapshot item, jumlah, harga satuan/subtotal, total, serta histori transisi pembayaran yang tersimpan. Nama pemesan hanya pada detail privat bila diperlukan; kontak dan data sesi tidak ada pada daftar.
+- Query selalu memakai tenant dari sesi staff terverifikasi. ID/order tenant lain tidak membocorkan keberadaan data.
+- Token Snap, URL pembayaran, hash/token sesi, credential provider dan payload notifikasi mentah tidak dikembalikan ke dashboard. ID provider hanya ditampilkan jika kebutuhan operasional terpisah telah disetujui.
+- Audit Aktivitas tetap jejak perubahan operasional, bukan pengganti daftar pesanan atau laporan penjualan. Histori pembayaran dibaca dari event pembayaran pesanan yang sama; jangan membuat status atau event contoh saat tidak ada data.
+- Kegagalan load dibedakan dari daftar kosong. Detail dan daftar dibersihkan saat sesi invalid; request lama tidak boleh mengembalikan data privat setelahnya.
+
+### Batas sesi staff
+
+- Idle timeout 30 menit sejak aktivitas pengguna terakhir yang diterima server; batas absolut 8 jam sejak login tidak diperpanjang.
+- Server menolak sesi pada batas idle atau absolut, tidak hanya menyembunyikan halaman. Setelah laptop tidur/mati satu jam, request berikutnya harus meminta login ulang.
+- Polling, refresh otomatis, prefetch, pemeriksaan sesi dan tab tersembunyi tidak memperbarui aktivitas. Aktivitas nyata pengguna boleh dilaporkan melalui endpoint same-origin yang diautentikasi, terlindungi Origin/CSRF dan dibatasi frekuensinya; timestamp browser tidak menjadi otoritas.
+- Heartbeat aktivitas hanya dapat memperbarui sesi yang masih valid secara atomic; request bersamaan tidak boleh menghidupkan sesi expired/revoked. Multi-tab berbagi batas sesi server, bukan cookie atau expiry baru per tab.
+- Logout mencabut sesi server. Sesi habis menutup UI privat dan membersihkan daftar/detail sebelum menawarkan login; data tidak disimpan di localStorage.
+- Migrasi sesi lama harus memiliki perilaku aman dan eksplisit; tidak memberikan aktivitas palsu atau memperpanjang batas login lama.
+
+### Bukti penerimaan tambahan
+
+- Owner/staff dapat membaca pesanan sendiri; sesi hilang/expired/revoked, role invalid dan tenant lain ditolak; tidak tersedia endpoint mutasi pesanan staff.
+- Filter/pagination stabil, total sesuai snapshot tersimpan, dan histori hanya memuat event order terkait; nilai token/URL pembayaran tidak ada dalam respons atau HTML dashboard.
+- Uji sebelum/tepat/sesudah 30 menit dan 8 jam dengan clock deterministik; polling tidak memperpanjang sesi, aktivitas valid memperbarui idle tetapi bukan absolut, aktivitas terlambat ditolak, logout dan multi-tab konsisten.
+- UI diuji desktop/mobile, keyboard, loading/kosong/error, refresh, laptop wake dan respons terlambat setelah sesi berakhir. Tes provider memakai stub; sandbox smoke terpisah dengan batas request.
 
 ## Bahasa domain dan batas data
 
@@ -513,7 +546,7 @@ Agent tidak memiliki prepare_reservation, create_reservation, cancel_reservation
 
 ### Pesanan dan pembayaran Midtrans
 
-Cakupan: pesanan makanan dari menu aktif dan tersedia untuk dibungkus atau diambil, dengan pembayaran penuh satu kali. Tidak ada delivery, kasir, refund, cicilan atau voucher. Pemenuhan pesanan oleh dapur berlangsung di luar sistem ini; staff melihat transaksi melalui dashboard Midtrans.
+Cakupan: pesanan makanan dari menu aktif dan tersedia untuk dibungkus atau diambil, dengan pembayaran penuh satu kali. Tidak ada delivery, kasir, refund, cicilan atau voucher. Pemenuhan pesanan oleh dapur berlangsung di luar sistem ini; staff membaca pesanan dan histori pembayaran melalui dashboard Pesanan aplikasi, sedangkan dashboard Midtrans dipakai untuk pemeriksaan provider terpisah.
 
 ```mermaid
 sequenceDiagram

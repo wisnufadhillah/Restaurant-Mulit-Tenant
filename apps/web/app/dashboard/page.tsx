@@ -10,6 +10,7 @@ import ProfileManager from "./ProfileManager";
 import DashboardViews from "./DashboardViews";
 import AuditManager from "./AuditManager";
 import DashboardShell from "./DashboardShell";
+import OrderManager from "./OrderManager";
 import "./dashboard.css";
 
 const sections = [
@@ -17,6 +18,7 @@ const sections = [
   { key: "reservations", label: "Reservasi", description: "Kunjungan dan meja tamu", icon: "calendar" },
   { key: "outlets", label: "Lokasi restoran", description: "Lokasi, jam dan meja", icon: "building" },
   { key: "menu", label: "Menu masakan", description: "Ketersediaan dan harga", icon: "menu" },
+  { key: "orders", label: "Pesanan", description: "Pesanan dan pembayaran sandbox", icon: "audit" },
   { key: "audit", label: "Audit aktivitas", description: "Riwayat perubahan operasional", icon: "audit" },
 ];
 const titles: Record<string, [string, string]> = {
@@ -24,6 +26,7 @@ const titles: Record<string, [string, string]> = {
   reservations: ["Manajemen reservasi meja", "Daftar kunjungan, jadwal kedatangan dan penempatan meja."],
   outlets: ["Lokasi restoran", "Informasi lokasi, kontak publik, jadwal pelayanan dan konfigurasi meja."],
   menu: ["Katalog menu masakan", "Kelola harga, ketersediaan dan hidangan yang tampil di website."],
+  orders: ["Pesanan restoran", "Baca pesanan dan histori pembayaran sandbox. Tidak ada perubahan status manual."],
   audit: ["Audit dan jejak aktivitas", "Riwayat perubahan data operasional restoran."],
   tables: ["Konfigurasi meja", "Atur nama, kapasitas dan status meja pada lokasi restoran."],
   hours: ["Jam operasional", "Atur jadwal mingguan dan pengecualian tanggal khusus."],
@@ -50,7 +53,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   try { session = await staffSession(); } catch { unavailable = true; }
   if (!unavailable && !session) redirect("/login");
   const [title, description] = titles[tab];
-  return <DashboardShell navigationKey={tab} topbar={<><p>Dapur Sela <span>/</span> Operasional</p><div><span className="sela-admin-timezone">Zona waktu: WIB (UTC+7)</span><Link href="/">Lihat website</Link></div></>} sidebar={<>
+  return <DashboardShell navigationKey={tab} validUntil={session?.validUntil} topbar={<><p>Dapur Sela <span>/</span> Operasional</p><div><span className="sela-admin-timezone">Zona waktu: WIB (UTC+7)</span><Link href="/">Lihat website</Link></div></>} sidebar={<>
       <Link className="sela-admin-brand" href="/"><span className="sela-admin-monogram">DS</span><span><strong>Dapur Sela</strong><small>RUANG OPERASIONAL</small></span></Link>
       <div className="sela-admin-outlet"><span>RESTORAN</span><strong>{session?.slug ?? "Sesi belum terverifikasi"}</strong><small>{session ? "Sesi terverifikasi" : "Layanan belum terhubung"}</small></div>
       <nav aria-label="Navigasi pengelola">{sections.map(section => <Link key={section.key} href={section.key === "overview" ? "/dashboard" : `/dashboard?tab=${section.key}`} aria-current={active === section.key ? "page" : undefined}><DashboardIcon name={section.icon} /><span><strong>{section.label}</strong><small>{section.description}</small></span></Link>)}</nav>
@@ -59,7 +62,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <main id="staff-content" className="sela-admin-main" tabIndex={-1}>
         <header className="sela-admin-heading"><div><p className="sela-admin-breadcrumb">Ruang pengelola / {sections.find(section => section.key === active)?.label}</p><h1>{title}</h1><p>{description}</p></div>{tab === "overview" && <Link className="senja-button" href="/dashboard?tab=menu">Kelola menu <span aria-hidden="true">→</span></Link>}</header>
         {active === "outlets" && <nav className="sela-admin-subnav" aria-label="Pengaturan lokasi restoran">{[["outlets", "Lokasi"], ["profile", "Profil"], ["hours", "Jam & hari khusus"], ["tables", "Meja"]].map(([key, label]) => <Link key={key} href={`/dashboard?tab=${key}`} aria-current={tab === key ? "page" : undefined}>{label}</Link>)}</nav>}
-        {unavailable ? <div className="senja-service-state"><h2>Sesi belum dapat diperiksa.</h2><p role="alert">Pastikan API berjalan, lalu muat ulang halaman. Data restoran belum ditampilkan.</p><Link className="senja-text-link" href="/dashboard">Periksa sesi lagi</Link></div> : tab === "reservations" ? <ReservationManager /> : tab === "profile" ? <ProfileManager role={session!.role} /> : tab === "hours" ? <HoursManager role={session!.role} /> : tab === "tables" ? <TableManager role={session!.role} /> : tab === "menu" ? <MenuManager role={session!.role} /> : tab === "overview" || tab === "outlets" ? <DashboardViews view={tab} /> : <AuditManager />}
+        {unavailable ? <div className="senja-service-state"><h2>Sesi belum dapat diperiksa.</h2><p role="alert">Pastikan API berjalan, lalu muat ulang halaman. Data restoran belum ditampilkan.</p><Link className="senja-text-link" href="/dashboard">Periksa sesi lagi</Link></div> : tab === "orders" ? <OrderManager /> : tab === "reservations" ? <ReservationManager /> : tab === "profile" ? <ProfileManager role={session!.role} /> : tab === "hours" ? <HoursManager role={session!.role} /> : tab === "tables" ? <TableManager role={session!.role} /> : tab === "menu" ? <MenuManager role={session!.role} /> : tab === "overview" || tab === "outlets" ? <DashboardViews view={tab} /> : <AuditManager />}
       </main>
   </DashboardShell>;
 }

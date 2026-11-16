@@ -64,7 +64,7 @@ test('staff HTTP authentication binds tenant, validates origin, expires and revo
     account.role = 'owner';
     assert.equal((await service.authenticate(token, 'demo-a', ['owner'])).role, 'owner');
     account.role = 'unexpected';
-    assert.equal((await read()).status, 403);
+    assert.equal((await read()).status, 401);
     account.role = 'staff';
     account.isActive = false;
     assert.equal((await read()).status, 401);

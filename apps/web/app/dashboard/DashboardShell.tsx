@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import StaffSessionGuard from "./StaffSessionGuard";
 
-export default function DashboardShell({ sidebar, topbar, children, navigationKey }: { sidebar: ReactNode; topbar: ReactNode; children: ReactNode; navigationKey: string }) {
+export default function DashboardShell({ sidebar, topbar, children, navigationKey, validUntil }: { sidebar: ReactNode; topbar: ReactNode; children: ReactNode; navigationKey: string; validUntil?: number }) {
+  const [expired, setExpired] = useState(false);
+  const expire = useCallback(() => setExpired(true), []);
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const navigation = useRef<HTMLElement>(null);
@@ -27,7 +30,9 @@ export default function DashboardShell({ sidebar, topbar, children, navigationKe
     desktop.addEventListener("change", resize);
     return () => { document.removeEventListener("keydown", escape); desktop.removeEventListener("change", resize); };
   }, [open]);
+  if (expired) return <main className="senja-site senja-service-state"><h1>Sesi berakhir</h1><p role="alert">Sesi berakhir. Data privat telah ditutup. Masuk kembali untuk melanjutkan.</p><a className="senja-button" href="/login">Masuk kembali</a></main>;
   return <div className="senja-site sela-admin" data-navigation-open={open}>
+    {Number.isFinite(validUntil) && <StaffSessionGuard onExpired={expire} validUntil={validUntil!} />}
     <a className="senja-skip" href="#staff-content">Lewati ke konten</a>
     <header className="sela-admin-topline">
       <button ref={trigger} type="button" className="sela-admin-navigation-toggle" aria-expanded={open} aria-controls="dashboard-navigation" onClick={() => setOpen(value => !value)}>

@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, HttpException, Injectable, NotFoundException, OnModuleDestroy, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import { createDatabaseClient } from "../database/client";
 import { lockReservationTenant } from "./reservation-lock";
+import { activeStaffSessionWhere } from "../auth/staff-session-policy";
 
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 export function staffTransitionInput(input: unknown) {
@@ -57,7 +58,7 @@ export class StaffReservationsService implements OnModuleDestroy {
       return await this.db.$transaction(async tx => {
         await lockReservationTenant(tx, tenantId);
         const now = new Date();
-        const actor = await tx.staffSession.findFirst({ where: { tenantId, staffId, tokenHash: sessionHash, revokedAt: null, expiresAt: { gt: now }, staff: { isActive: true, role: { in: ["owner", "staff"] }, tenant: { status: "active" } } }, select: { staffId: true } });
+        const actor = await tx.staffSession.findFirst({ where: { tenantId, staffId, tokenHash: sessionHash, ...activeStaffSessionWhere(now) }, select: { staffId: true } });
         if (!actor) throw new UnauthorizedException();
         const reservation = await tx.reservation.findFirst({ where: { tenantId, id }, select: { id: true, status: true, endAt: true } });
         if (!reservation) throw new NotFoundException();

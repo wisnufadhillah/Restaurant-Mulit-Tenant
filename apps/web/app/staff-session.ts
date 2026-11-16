@@ -44,6 +44,6 @@ export async function staffSession() {
   if (response.status === 401 || response.status === 403) return null;
   if (!response.ok) throw new Error("Staff session unavailable");
   const result = await response.json();
-  if (!result.data || typeof result.data.username !== "string" || !["owner", "staff"].includes(result.data.role)) throw new Error("Invalid staff session response");
-  return { slug, username: result.data.username as string, role: result.data.role as "owner" | "staff" };
+  if (!result.data || typeof result.data.username !== "string" || !["owner", "staff"].includes(result.data.role) || !Number.isFinite(result.data.validUntil)) throw new Error("Invalid staff session response");
+  return { slug, username: result.data.username as string, role: result.data.role as "owner" | "staff", validUntil: Number(result.data.validUntil) };
 }

@@ -28,3 +28,20 @@ test('chat turn binds server context, redacts input and fails safely without ret
     await assert.rejects(controller.send({ message: 'Info?' }, request, response));
   } finally { if (old === undefined) delete process.env.INTERNAL_CONTEXT_SECRET; else process.env.INTERNAL_CONTEXT_SECRET = old; }
 });
+
+test('assistant outage keeps a reservation request on the reservation path', async () => {
+  const old = process.env.INTERNAL_CONTEXT_SECRET;
+  process.env.INTERNAL_CONTEXT_SECRET = randomBytes(32).toString('base64url');
+  try {
+    const sessions = new ChatSessionsService(), session = await sessions.create('demo-padang');
+    const request = { headers: { origin: 'http://127.0.0.1:3000', cookie: `restaurant_chat=${session.token}` }, socket: {} }, response = { setHeader() {} };
+    const transport = { async send() { throw new Error('Synthetic assistant outage'); } };
+    const menu = { publicList: async () => ({ data: [{ id: 'synthetic', name: 'Dendeng balado', description: 'Demo', price: 38000, isAvailable: true }] }) };
+    const controller = new ChatMessageController(sessions, transport, menu);
+    const result = await controller.send({ message: 'Saya ingin reservasi' }, request, response);
+    assert.equal(result.status, 'partial');
+    assert.match(result.message, /form reservasi/i);
+    assert.deepEqual(result.actions, [{ id: 'reservation-form', type: 'navigate', label: 'Buka form reservasi', target: '#reservasi' }]);
+    assert.deepEqual(result.cards, []);
+  } finally { if (old === undefined) delete process.env.INTERNAL_CONTEXT_SECRET; else process.env.INTERNAL_CONTEXT_SECRET = old; }
+});

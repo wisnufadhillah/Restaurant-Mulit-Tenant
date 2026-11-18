@@ -11,6 +11,9 @@ export function redactChat(message: string) {
     .replace(/\+?\d[\d ()-]{6,}\d/g, "[nomor disamarkan]")
     .replace(/[A-Za-z0-9_-]{24,}/g, "[nilai privat disamarkan]");
 }
+function isSimpleReservationRequest(message: string) {
+  return /^(?:(?:saya|aku)\s+)?(?:mau|ingin|tolong\s+)?\s*(?:reservasi|booking|pesan meja|buat reservasi|buat booking|batalkan reservasi|batalkan booking|lihat reservasi|lihat booking)[.!?]?$/i.test(message.trim());
+}
 @Injectable()
 export class ConversationTransport {
   async send(body: unknown) {
@@ -64,6 +67,7 @@ export class ChatMessageController {
       return { status: result.status, message: redactChat(result.message), cards: ["ok", "partial"].includes(result.status) ? validatedChatCards(result.cards) : [], actions: ["ok", "partial", "unavailable", "timeout"].includes(result.status) ? result.actions : [], input: safeMessage, attempted_requests: result.attempted_requests, diagnostics: result.diagnostics };
     } catch {
       try {
+        if (isSimpleReservationRequest(safeMessage)) return { status: "partial", message: "Untuk membuat, melihat atau membatalkan reservasi, gunakan form Reservasi pada website.", cards: [], actions: [{ id: "reservation-form", type: "navigate", label: "Buka form reservasi", target: "#reservasi" }], input: safeMessage };
         const catalogue = await this.menu.publicList(session.slug);
         const normalized = safeMessage.toLocaleLowerCase("id-ID");
         const item = catalogue.data.find(entry => entry.isAvailable && normalized.includes(entry.name.toLocaleLowerCase("id-ID")));

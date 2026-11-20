@@ -95,6 +95,9 @@ export class OrdersController implements OnModuleInit, OnModuleDestroy {
     this.requirePayments();
     const token = this.prepare(req, res, true);
     const session = await this.sessions.readForOrders(token);
+    const requestOrigin = typeof req.headers.origin === "string" ? new URL(req.headers.origin) : null;
+    const localReturn = process.env.NODE_ENV !== "production" && requestOrigin?.protocol === "http:" && ["localhost", "127.0.0.1"].includes(requestOrigin.hostname)
+      ? { callbacks: { finish: `${requestOrigin.origin}/payment/return` } } : {};
     const input = record(body);
     if (Object.keys(input).sort().join() !== "customerName,idempotencyKey,items" || typeof input.customerName !== "string" || !input.customerName.trim() || input.customerName.length > 120 || typeof input.idempotencyKey !== "string" || !input.idempotencyKey.trim() || input.idempotencyKey.length > 80 || !Array.isArray(input.items) || !input.items.length || input.items.length > 30) throw new BadRequestException();
     const customerName = input.customerName.trim(), idempotencyKey = input.idempotencyKey;
@@ -131,7 +134,7 @@ export class OrdersController implements OnModuleInit, OnModuleDestroy {
     const order = claim.order;
     let snap: { token: string; redirect_url: string };
     try {
-      const response = await fetch(`${SNAP_ORIGIN}/snap/v1/transactions`, { method: "POST", headers: { authorization: `Basic ${Buffer.from(`${key}:`).toString("base64")}`, "content-type": "application/json" }, body: JSON.stringify({ transaction_details: { order_id: order.midtransOrderId, gross_amount: order.orderTotal }, item_details: (order.items as { id: string; name: string; price: number; quantity: number }[]).map(item => ({ ...item, name: item.name.slice(0, 50) })) }), signal: AbortSignal.timeout(15000), redirect: "error" });
+      const response = await fetch(`${SNAP_ORIGIN}/snap/v1/transactions`, { method: "POST", headers: { authorization: `Basic ${Buffer.from(`${key}:`).toString("base64")}`, "content-type": "application/json" }, body: JSON.stringify({ ...localReturn, transaction_details: { order_id: order.midtransOrderId, gross_amount: order.orderTotal }, item_details: (order.items as { id: string; name: string; price: number; quantity: number }[]).map(item => ({ ...item, name: item.name.slice(0, 50) })) }), signal: AbortSignal.timeout(15000), redirect: "error" });
       if (response.status !== 201) throw new Error("Snap unavailable");
       const result = record(await response.json());
       if (typeof result.token !== "string" || !result.token || result.token.length > 4096 || typeof result.redirect_url !== "string" || result.redirect_url.length > 4096) throw new Error("Invalid Snap response");

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { maskedChatPreview } from "./chat-presentation";
+import { maskedChatPreview, menuDescription } from "./chat-presentation";
 interface MenuItem { id: string; name: string; description: string; price: number; isAvailable: boolean; }
 interface CartLine { item: MenuItem; quantity: number; }
 type OrderAttempt = Readonly<{ key: string; payload: Readonly<{ customerName: string; items: readonly Readonly<{ id: string; quantity: number }>[] }> }>;
@@ -29,7 +29,7 @@ function ChatCard({ card, onAdd }: { card: Card; onAdd?: (item: MenuItem) => voi
   if (card.type === "knowledge") return <div className="sela-chat-card" role="group" aria-label="Sumber jawaban"><p className="senja-note">Sumber jawaban</p>{card.data.length ? card.data.map(item => <div key={`${item.documentId}-${item.revision}-${item.position}`}><strong>{item.title}</strong><p>{item.text}</p><small>Versi sumber {item.revision}</small></div>) : <p>Belum ada sumber FAQ yang sesuai.</p>}</div>;
   if (card.type === "availability") return <div className="sela-chat-card" role="group" aria-label="Ketersediaan meja"><strong>{card.data.available ? "Ada slot yang terlihat tersedia" : "Belum ada meja yang tersedia"}</strong><p>{card.data.available ? "Slot belum ditahan. Lanjutkan ke form untuk mengisi kontak dan memeriksa ulang sebelum konfirmasi." : "Coba pilih waktu lain melalui form reservasi."}</p><small>Snapshot API · belum merupakan booking</small></div>;
   return <div className="sela-chat-card" role="group" aria-label={card.type === "menu" ? "Menu dan harga" : card.type === "hours" ? "Jadwal mingguan" : "Info restoran"}>
-    {card.type === "menu" ? (card.data.length ? card.data.map(item => <div className="sela-chat-menu-item" key={item.id}><strong>{item.name}</strong><span>{currency.format(item.price)} · {item.isAvailable ? "Tersedia" : "Habis"}</span><p>{item.description}</p>{item.isAvailable && onAdd && <button type="button" onClick={() => onAdd(item)}>Tambah</button>}</div>) : <p>Belum ada menu aktif.</p>) : card.type === "restaurant" ? <><strong>{card.data.name}</strong>{card.data.outlets.map(outlet => <div key={outlet.name}><p>{outlet.name}</p><p>{outlet.address}</p>{outlet.contactPhone && <p>{outlet.contactPhone}</p>}</div>)}</> : <><dl>{[1, 2, 3, 4, 5, 6, 0].map(day => { const row = card.data.find(item => item.weekday === day); return <div key={day}><dt>{days[day]}</dt><dd>{!row ? "Belum diatur" : row.openMinute === null || row.closeMinute === null ? "Tutup" : `${time(row.openMinute)}–${time(row.closeMinute)} WIB`}</dd></div>; })}</dl><p>Jadwal reguler; hari khusus bisa berbeda.</p></>}
+    {card.type === "menu" ? (card.data.length ? card.data.map(item => <div className="sela-chat-menu-item" key={item.id}><strong>{item.name}</strong><span>{currency.format(item.price)} · {item.isAvailable ? "Tersedia" : "Habis"}</span>{menuDescription(item.description) && <p>{menuDescription(item.description)}</p>}{item.isAvailable && onAdd && <button type="button" onClick={() => onAdd(item)}>Tambah ke Pesanan</button>}</div>) : <p>Belum ada menu aktif.</p>) : card.type === "restaurant" ? <><strong>{card.data.name}</strong>{card.data.outlets.map(outlet => <div key={outlet.name}><p>{outlet.name}</p><p>{outlet.address}</p>{outlet.contactPhone && <p>{outlet.contactPhone}</p>}</div>)}</> : <><dl>{[1, 2, 3, 4, 5, 6, 0].map(day => { const row = card.data.find(item => item.weekday === day); return <div key={day}><dt>{days[day]}</dt><dd>{!row ? "Belum diatur" : row.openMinute === null || row.closeMinute === null ? "Tutup" : `${time(row.openMinute)}–${time(row.closeMinute)} WIB`}</dd></div>; })}</dl><p>Jadwal reguler; hari khusus bisa berbeda.</p></>}
     <small>Data restoran</small>
   </div>;
 }
@@ -44,6 +44,7 @@ export default function ChatbotWidget() {
   const busy = useRef(false);
   const [ready, setReady] = useState(false), [pending, setPending] = useState(false), [error, setError] = useState("");
   const [input, setInput] = useState("");
+  const [cartNotice, setCartNotice] = useState("");
   const [open, setOpen] = useState(false);
   const wasOpen = useRef(false);
   useEffect(() => {
@@ -65,8 +66,15 @@ export default function ChatbotWidget() {
   useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [messages, pending]);
   useEffect(() => {
     if (!order || order.paymentStatus === "settlement") return;
+    const refreshOnReturn = () => { if (document.visibilityState === "visible") void refreshOrder(); };
+    window.addEventListener("focus", refreshOnReturn);
+    document.addEventListener("visibilitychange", refreshOnReturn);
     const timer = window.setInterval(() => { void refreshOrder(); }, 5000);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshOnReturn);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+    };
   }, [order?.id, order?.paymentStatus]);
   useEffect(() => {
     if (!composer.current) return;
@@ -78,10 +86,12 @@ export default function ChatbotWidget() {
   const close = () => { dialog.current?.close(); };
   const addToCart = (item: MenuItem, quantity = 1) => {
     if (orderLocked || busy.current) return;
+    setCartNotice(`${item.name} ditambahkan ke pilihan pesanan. Pesanan belum dibuat dan belum dibayar.`);
     setCart(lines => { const found = lines.find(line => line.item.id === item.id); return found ? lines.map(line => line.item.id === item.id ? { ...line, quantity: Math.min(20, line.quantity + quantity) } : line) : [...lines, { item, quantity: Math.min(20, quantity) }]; });
   };
   function reduceCartItem(id: string) {
     if (orderLocked || busy.current) return;
+    setCartNotice("");
     setCart(lines => lines.flatMap(line => line.item.id !== id ? [line] : line.quantity > 1 ? [{ ...line, quantity: line.quantity - 1 }] : []));
   }
   const paymentLabel = (status: string) => ({ pending: "Menunggu pembayaran", unpaid: "Belum dibayar", settlement: "Pembayaran berhasil", expire: "Pembayaran kedaluwarsa", cancel: "Pembayaran dibatalkan", deny: "Pembayaran ditolak" }[status] ?? "Status belum dikenal; hubungi restoran");
@@ -91,6 +101,7 @@ export default function ChatbotWidget() {
     if (!orderAttempt && (!customerName.trim() || !cart.length)) return setError("Isi nama dan pilih menu terlebih dahulu.");
     const attempt = orderAttempt ?? Object.freeze({ key: crypto.randomUUID(), payload: Object.freeze({ customerName, items: Object.freeze(cart.map(line => Object.freeze({ id: line.item.id, quantity: line.quantity }))) }) });
     const retrying = orderAttempt !== null;
+    setCartNotice("");
     setOrderAttempt(attempt);
     busy.current = true; setPending(true); setError("");
     try {
@@ -169,7 +180,7 @@ export default function ChatbotWidget() {
       if (!response.ok) { if (response.status === 403) setReady(false); throw new Error(); }
       const card = { type: resource, data: body.data } as Card;
       const label = resource === "menu" ? "Lihat menu" : resource === "hours" ? "Jam buka" : "Info restoran";
-      setMessages(previous => [...previous, { sender: "user" as const, text: label }, { sender: "assistant", text: resource === "hours" ? "Berikut jadwal reguler yang tercatat." : "Berikut informasi yang tercatat.", cards: [card] } as Message].slice(-20));
+      setMessages(previous => [...previous, { sender: "user" as const, text: label }, { sender: "assistant", text: resource === "menu" ? "Ini beberapa pilihan menu. Pilih Tambah ke Pesanan untuk menyusun pilihanmu. Pesanan belum dibuat dan belum dibayar." : resource === "hours" ? "Berikut jadwal reguler restoran. Hari khusus bisa berbeda." : "Berikut informasi restoran untuk kunjunganmu.", cards: [card] } as Message].slice(-20));
     } catch { setError("Informasi belum bisa dimuat. Coba lagi atau buka halaman menu."); }
     finally { busy.current = false; setPending(false); }
   }
@@ -204,7 +215,9 @@ export default function ChatbotWidget() {
         {pending && <div className="sela-chat-bubble sela-chat-assistant sela-chat-loading"><span>{ready ? "Sedang mengetik…" : "Menyambungkan chat…"}</span></div>}
       </div>
       <footer className="sela-chat-footer">
-        {cart.length > 0 && <div className="sela-chat-card"><div className="sela-order-heading"><strong>Draft pesanan</strong><strong>{currency.format(cartTotal)}</strong></div>{cart.map(line => <div key={line.item.id} className="sela-order-line"><p>{line.item.name} × {line.quantity} · {currency.format(line.item.price * line.quantity)}</p>{!orderLocked && !pending && <button type="button" aria-label={`${line.quantity === 1 ? "Hapus" : "Kurangi satu"} ${line.item.name}`} onClick={() => reduceCartItem(line.item.id)}>{line.quantity === 1 ? "Hapus" : "−"}</button>}</div>)}{!order && paymentsEnabled === true && <><label className="sela-order-name" htmlFor="order-customer-name">Nama pemesan</label><input id="order-customer-name" name="customerName" autoComplete="off" placeholder="Nama untuk pesanan ini" value={customerName} disabled={pending || orderLocked} onChange={event => { if (!orderLocked && !busy.current) setCustomerName(event.target.value); }} /><button type="button" disabled={pending} onClick={() => void createOrder()}>{orderAttempt ? "Coba ulang percobaan yang sama" : "Lanjut ke pembayaran"}</button></>}</div>}
+        <div className="sela-chat-order-area">
+        <p className="sela-chat-cart-notice" role="status">{cartNotice}</p>
+        {cart.length > 0 && <div className="sela-chat-card sela-order-draft"><div className="sela-order-heading"><strong>Pilihan pesanan · {cart.length} item</strong><strong>{currency.format(cartTotal)}</strong></div>{cart.map(line => <div key={line.item.id} className="sela-order-line"><p>{line.item.name} × {line.quantity} · {currency.format(line.item.price * line.quantity)}</p>{!orderLocked && !pending && <button type="button" aria-label={`${line.quantity === 1 ? "Hapus" : "Kurangi satu"} ${line.item.name}`} onClick={() => reduceCartItem(line.item.id)}>{line.quantity === 1 ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" /></svg> : "−"}</button>}</div>)}{!order && paymentsEnabled === true && <><label className="sela-order-name" htmlFor="order-customer-name">Nama pemesan</label><input id="order-customer-name" name="customerName" autoComplete="off" placeholder="Nama untuk pesanan ini" value={customerName} disabled={pending || orderLocked} onChange={event => { if (!orderLocked && !busy.current) setCustomerName(event.target.value); }} /><button type="button" disabled={pending} onClick={() => void createOrder()}>{orderAttempt ? "Coba ulang percobaan yang sama" : "Lanjut ke pembayaran"}</button></>}</div>}
         {ready && paymentsEnabled !== true && <p role="status">{paymentsEnabled === false ? "Pembayaran belum tersedia. Menu dan draft tetap bisa dilihat; pesanan belum dapat dibuat atau dibayar." : "Ketersediaan pembayaran belum dapat diperiksa. Pesanan belum dapat dibuat atau dibayar."}</p>}
         {orderAttempt && !order && <p role="status">Hasil pesanan belum pasti. Nama dan menu dikunci untuk percobaan ini. Jangan muat ulang atau tutup halaman: detail hanya tersimpan selama halaman ini terbuka. Coba ulang dengan detail yang sama tidak menjamin pemulihan; hubungi restoran jika tetap belum pasti.</p>}
         {paymentsEnabled === true && order?.redirectUrl && order.paymentStatus !== "settlement" && <button type="button" disabled={pending} onClick={() => { window.open(order.redirectUrl, "_blank", "noopener,noreferrer"); void refreshOrder(); }}>Bayar Sekarang</button>}
@@ -213,10 +226,11 @@ export default function ChatbotWidget() {
         {!ready && !pending && <button className="senja-text-button" onClick={async () => {
           if (busy.current || orderLocked) return;
           busy.current = true; setPending(true);
-          try { const response = await fetch("/chat/session", { method: "DELETE" }); if (!response.ok) throw new Error(); setMessages([]); setInput(""); busy.current = false; await initialize(); }
+          try { const response = await fetch("/chat/session", { method: "DELETE" }); if (!response.ok) throw new Error(); setMessages([]); setInput(""); setCartNotice(""); busy.current = false; await initialize(); }
           catch { setError("Sesi baru belum bisa dimulai. Coba lagi nanti."); }
           finally { busy.current = false; setPending(false); }
         }} disabled={orderLocked}>Mulai sesi baru</button>}
+        </div>
         <form className="sela-chat-composer" onSubmit={event => { event.preventDefault(); void send(); }}>
           <label className="sela-chat-sr-only" htmlFor="chat-message">Pesan untuk asisten</label>
           <textarea disabled={pending} ref={composer} id="chat-message" value={input} onChange={event => setInput(event.target.value)} maxLength={2000} required autoComplete="off" rows={1} placeholder="Tulis pertanyaan…" aria-describedby="assistant-description" onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />

@@ -30,21 +30,36 @@ async function draft(page: Page, paymentsEnabled: boolean | null = true) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Tanya restoran', exact: true }).click();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('button', { name: 'Tambah', exact: true }).click();
+  await page.getByRole('button', { name: 'Tambah ke Pesanan', exact: true }).click();
+  await expect(page.locator('.sela-chat-user').last()).toHaveCSS('background-color', 'rgb(30, 75, 56)');
+  await expect(page.locator('.sela-chat-assistant').last()).toHaveCSS('background-color', 'rgb(255, 253, 247)');
+  await expect(page.getByRole('button', { name: 'Hapus Menu Sintetis', exact: true }).locator('svg')).toHaveCount(1);
+  await expect(page.getByText('Menu Sintetis ditambahkan ke pilihan pesanan. Pesanan belum dibuat dan belum dibayar.', { exact: true })).toBeVisible();
   if (paymentsEnabled) await page.getByLabel('Nama pemesan').fill('Tamu Privat Sintetis');
   await capture(page, 'order-draft');
   return { modelRequests, sessionMethods };
 }
+
+test('payment return ignores forged payment status and directs customers back to their existing tab', async ({ page }) => {
+  let writes = 0;
+  await page.route('**/chat/orders', route => { writes++; return route.abort(); });
+  await page.goto('/payment/return?transaction_status=settlement&status_code=200');
+  await expect(page.getByRole('heading', { name: 'Kembali ke restoran' })).toBeVisible();
+  await expect(page.getByText('Proses di halaman pembayaran telah berakhir. Status pembayaran tetap diperiksa melalui server restoran.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Buka website restoran' })).toHaveAttribute('href', '/');
+  await expect(page.getByText('Pembayaran berhasil', { exact: true })).toHaveCount(0);
+  expect(writes).toBe(0);
+});
 
 test('disabled payments preserve editable draft without checkout or write requests', async ({ page }) => {
   let writes = 0;
   await page.route('**/chat/orders', route => { writes++; return route.abort(); });
   await draft(page, false);
   await expect(page.getByText('Pembayaran belum tersedia. Menu dan draft tetap bisa dilihat; pesanan belum dapat dibuat atau dibayar.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Buat Pesanan', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Lanjut ke pembayaran', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Bayar Sekarang', exact: true })).toHaveCount(0);
   await expect(page.getByLabel('Nama pemesan')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Tambah', exact: true }).click();
+  await page.getByRole('button', { name: 'Tambah ke Pesanan', exact: true }).click();
   await expect(page.getByText('Menu Sintetis × 2', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Kurangi satu Menu Sintetis' }).click();
   await expect(page.getByRole('button', { name: 'Hapus Menu Sintetis' })).toBeVisible();
@@ -55,7 +70,7 @@ test('disabled payments preserve editable draft without checkout or write reques
 test('unavailable capability leaves draft usable but checkout hidden', async ({ page }) => {
   await draft(page, null);
   await expect(page.getByText('Ketersediaan pembayaran belum dapat diperiksa. Pesanan belum dapat dibuat atau dibayar.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Buat Pesanan', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Lanjut ke pembayaran', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Bayar Sekarang', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Hapus Menu Sintetis' })).toBeVisible();
 });
@@ -63,11 +78,11 @@ test('unavailable capability leaves draft usable but checkout hidden', async ({ 
 test('definitive disabled rejection unlocks first draft', async ({ page }) => {
   await draft(page);
   await page.route('**/chat/orders', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'PAYMENTS_DISABLED', message: 'Pembayaran belum tersedia.' } }) }));
-  await page.getByRole('button', { name: 'Buat Pesanan', exact: true }).click();
+  await page.getByRole('button', { name: 'Lanjut ke pembayaran', exact: true }).click();
   await expect(page.getByText('Pembayaran belum tersedia. Pesanan tidak dibuat; draft masih bisa diubah.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Hapus Menu Sintetis' })).toBeVisible();
   await expect(page.getByText(/Hasil pesanan belum pasti/)).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Buat Pesanan', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Lanjut ke pembayaran', exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => {
     const event = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(event);
@@ -82,12 +97,12 @@ test('disabled rejection after unknown outcome never discards earlier intent', a
     attempts++;
     return attempts === 1 ? route.abort('failed') : route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'PAYMENTS_DISABLED' } }) });
   });
-  await page.getByRole('button', { name: 'Buat Pesanan', exact: true }).click();
+  await page.getByRole('button', { name: 'Lanjut ke pembayaran', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Coba ulang percobaan yang sama' })).toBeEnabled();
   await page.getByRole('button', { name: 'Coba ulang percobaan yang sama' }).click();
   await expect(page.getByText('Pembayaran belum tersedia. Hasil percobaan sebelumnya belum pasti; hubungi restoran untuk pemeriksaan manual.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Hapus Menu Sintetis' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Buat Pesanan', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Lanjut ke pembayaran', exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => {
     const event = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(event);
@@ -107,10 +122,10 @@ test('lost order response retries immutable payload while edits and session rese
     if (attempts.length <= 3) return route.fulfill({ status: attempts.length === 2 ? 503 : 409, contentType: 'application/json', body: '{}' });
     return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ data: receipt }) });
   });
-  await page.getByRole('button', { name: 'Buat Pesanan', exact: true }).click();
+  await page.getByRole('button', { name: 'Lanjut ke pembayaran', exact: true }).click();
   await expect(page.getByLabel('Nama pemesan')).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Coba ulang percobaan yang sama' })).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'Tambah', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Tambah ke Pesanan', exact: true })).toHaveCount(0);
   expect(attempts).toHaveLength(1);
   release();
   await expect(page.getByText(/Hasil pesanan belum pasti\. Coba ulang hanya/)).toBeVisible();
@@ -155,16 +170,16 @@ test('first validation rejection permits correction but later rejection never di
     attempts.push(route.request().postDataJSON());
     return route.fulfill({ status: attempts.length === 2 ? 503 : 400, contentType: 'application/json', body: '{}' });
   });
-  await page.getByRole('button', { name: 'Buat Pesanan', exact: true }).click();
+  await page.getByRole('button', { name: 'Lanjut ke pembayaran', exact: true }).click();
   await expect(page.getByLabel('Nama pemesan')).toBeEnabled();
   await expect(page.getByText(/Detail pesanan ditolak/)).toBeVisible();
   await page.getByLabel('Nama pemesan').fill('Tamu Koreksi Sintetis');
-  await page.getByRole('button', { name: 'Tambah', exact: true }).click();
-  await page.getByRole('button', { name: 'Buat Pesanan', exact: true }).click();
+  await page.getByRole('button', { name: 'Tambah ke Pesanan', exact: true }).click();
+  await page.getByRole('button', { name: 'Lanjut ke pembayaran', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Coba ulang percobaan yang sama' })).toBeEnabled();
   await page.getByRole('button', { name: 'Coba ulang percobaan yang sama' }).click();
   await expect(page.getByLabel('Nama pemesan')).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'Buat Pesanan', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Lanjut ke pembayaran', exact: true })).toHaveCount(0);
   expect(attempts).toHaveLength(3);
   expect(attempts[0].idempotencyKey).not.toBe(attempts[1].idempotencyKey);
   expect(attempts[1]).toEqual(attempts[2]);
@@ -176,9 +191,9 @@ test('lost status access retains known order and cannot reopen creation', async 
   await draft(page);
   await page.route('**/chat/orders', route => route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ data: receipt }) }));
   await page.route('**/chat/orders/*', route => route.fulfill({ status: 403, contentType: 'application/json', body: '{}' }));
-  await page.getByRole('button', { name: 'Buat Pesanan', exact: true }).click();
+  await page.getByRole('button', { name: 'Lanjut ke pembayaran', exact: true }).click();
   await expect(page.getByText(/Pesanan tetap tersimpan/)).toBeVisible({ timeout: 12000 });
-  await expect(page.getByRole('button', { name: 'Buat Pesanan', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Tambah', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Lanjut ke pembayaran', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Tambah ke Pesanan', exact: true })).toHaveCount(0);
   await expect(page.getByRole('log')).not.toContainText('Tamu Privat Sintetis');
 });

@@ -84,6 +84,7 @@ function snapFetch(b, handler) {
     assert.match(payload.transaction_details.order_id, /^[0-9a-f-]{36}$/);
     assert.equal(payload.transaction_details.order_id, row.midtransOrderId);
     assert.equal(payload.transaction_details.gross_amount, 10000);
+    assert.equal(payload.callbacks?.finish, 'http://127.0.0.1:3000/payment/return');
     assert.equal(Buffer.from(options.headers.authorization.slice(6), 'base64').toString(), `${process.env.MIDTRANS_SERVER_KEY}:`);
     if (handler) return handler(url, options);
     return new Response(JSON.stringify({ token: randomUUID(), redirect_url: 'https://app.sandbox.midtrans.com/snap/v2/vtweb/demo' }), { status: 201 });

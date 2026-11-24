@@ -28,7 +28,7 @@ const models = ['tenant', 'outlet', 'diningTable', 'staff', 'staffSession', 'men
 test('local HTTP menu storage and PostgreSQL reservation competition', { timeout: 120000 }, async t => {
   assert.equal(process.env.ALLOW_LOCAL_MENU_STATUS_WRITES, '1', 'Explicit fixture write approval required');
   const target = new URL(databaseUrl());
-  assert.ok(['postgres:', 'postgresql:'].includes(target.protocol) && target.hostname === '127.0.0.1' && target.port === '55432' && target.pathname === '/restaurant', 'Only approved local target');
+  assert.ok(['postgres:', 'postgresql:'].includes(target.protocol) && target.hostname === '127.0.0.1' && ['15432', '55432'].includes(target.port) && target.pathname === '/restaurant', 'Only approved local target');
   // All clients are created after both guards. No migration, seed or external service is loaded.
   const db = createDatabaseClient(), worker = createDatabaseClient(), customerDb = createDatabaseClient();
   const tenants = [randomUUID(), randomUUID()], actors = [], bookings = [];

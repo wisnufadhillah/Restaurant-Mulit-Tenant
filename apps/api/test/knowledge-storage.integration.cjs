@@ -8,7 +8,7 @@ const { knowledgeContentHash } = require('../dist/restaurant/knowledge-publicati
 test('local knowledge storage enforces tenant keys, immutable approval and publication pointers', async () => {
   assert.equal(process.env.ALLOW_LOCAL_KNOWLEDGE_WRITES, '1', 'Explicit knowledge write approval required');
   const url = new URL(databaseUrl());
-  assert.ok(url.hostname === '127.0.0.1' && url.port === '55432' && url.pathname === '/restaurant', 'Only approved local database permitted');
+  assert.ok(url.hostname === '127.0.0.1' && ['15432', '55432'].includes(url.port) && url.pathname === '/restaurant', 'Only approved local database permitted');
   const db = createDatabaseClient();
   const rollback = new Error('Synthetic knowledge rollback');
   const tenants = [randomUUID(), randomUUID()];

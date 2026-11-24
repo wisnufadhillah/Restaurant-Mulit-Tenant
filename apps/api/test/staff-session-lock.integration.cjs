@@ -19,7 +19,7 @@ test('independent PostgreSQL row locks cannot revive staff sessions across deadl
   const url = new URL(process.env.DATABASE_URL || 'http://invalid');
   assert.ok(['postgres:', 'postgresql:'].includes(url.protocol));
   assert.ok(['127.0.0.1', 'localhost'].includes(url.hostname));
-  assert.equal(url.port, '55432');
+  assert.ok(['15432', '55432'].includes(url.port));
   assert.match(url.pathname, /^\/session_verify_[a-f0-9]{16}$/);
   const observer = createDatabaseClient(), blocker = createDatabaseClient(), activityDb = createDatabaseClient();
   const repository = Object.create(StaffRepository.prototype);

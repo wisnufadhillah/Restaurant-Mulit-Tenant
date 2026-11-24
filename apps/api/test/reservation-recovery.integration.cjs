@@ -47,7 +47,7 @@ async function race(db, first, second) {
 test('local recovery serializes both create orders, retries lost responses and isolates fixtures', { timeout: 60000 }, async () => {
   assert.equal(process.env.ALLOW_LOCAL_RESERVATION_WRITES, '1', 'Explicit local write approval required');
   const target = new URL(databaseUrl());
-  assert.ok(target.hostname === '127.0.0.1' && target.port === '55432' && target.pathname === '/restaurant', 'Only approved local database permitted');
+  assert.ok(target.hostname === '127.0.0.1' && ['15432', '55432'].includes(target.port) && target.pathname === '/restaurant', 'Only approved local database permitted');
   const db = createDatabaseClient();
   const repo = repository(db);
   const tenantIds = [];

@@ -7,12 +7,22 @@ import { validatedChatActions, validatedChatCards } from "./chat-cards";
 import { MenuService } from "../menu/menu.service";
 
 export function redactChat(message: string) {
-  return message.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[kontak disamarkan]")
-    .replace(/\+?\d[\d ()-]{6,}\d/g, "[nomor disamarkan]")
+  const masked = message.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[kontak disamarkan]")
     .replace(/[A-Za-z0-9_-]{24,}/g, "[nilai privat disamarkan]");
+  return masked.replace(/\+?\d[\d ()-]{6,}\d/g, (candidate: string, offset: number) => {
+    const standalone = !/[\p{L}\p{N}_+./-]/u.test(masked[offset - 1] ?? "") && !/[\p{L}\p{N}_+./-]/u.test(masked[offset + candidate.length] ?? "");
+    if (standalone && /^(?:20\d{2}-\d{2}-\d{2}|\d{1,2}-\d{1,2}-20\d{2})$/.test(candidate)) {
+      const parts = candidate.split("-").map(Number);
+      const [year, month, day] = parts[0] >= 2000 ? parts : [parts[2], parts[1], parts[0]];
+      const date = new Date(Date.UTC(year, month - 1, day));
+      if (date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day) return candidate;
+    }
+    return "[nomor disamarkan]";
+  });
 }
-function isSimpleReservationRequest(message: string) {
-  return /^(?:(?:saya|aku)\s+)?(?:mau|ingin|tolong\s+)?\s*(?:reservasi|booking|pesan meja|buat reservasi|buat booking|batalkan reservasi|batalkan booking|lihat reservasi|lihat booking)[.!?]?$/i.test(message.trim());
+function isReservationRequest(message: string) {
+  return /\b(?:reservasi|booking|pesan\s+meja)\b/i.test(message)
+    && !/\b(?:menu|makanan|minuman|harga|porsi|bungkus|pesan(?!\s+meja\b)|pesanan)\b/i.test(message);
 }
 @Injectable()
 export class ConversationTransport {
@@ -67,10 +77,12 @@ export class ChatMessageController {
       return { status: result.status, message: redactChat(result.message), cards: ["ok", "partial"].includes(result.status) ? validatedChatCards(result.cards) : [], actions: ["ok", "partial", "unavailable", "timeout"].includes(result.status) ? result.actions : [], input: safeMessage, attempted_requests: result.attempted_requests, diagnostics: result.diagnostics };
     } catch {
       try {
-        if (isSimpleReservationRequest(safeMessage)) return { status: "partial", message: "Untuk membuat, melihat atau membatalkan reservasi, gunakan form Reservasi pada website.", cards: [], actions: [{ id: "reservation-form", type: "navigate", label: "Buka form reservasi", target: "#reservasi" }], input: safeMessage };
-        const catalogue = await this.menu.publicList(session.slug);
+        const catalogue = await this.menu.publicList(session.slug).catch(() => null);
         const normalized = safeMessage.toLocaleLowerCase("id-ID");
-        const item = catalogue.data.find(entry => entry.isAvailable && normalized.includes(entry.name.toLocaleLowerCase("id-ID")));
+        const item = catalogue?.data.find(entry => normalized.includes(entry.name.toLocaleLowerCase("id-ID")));
+        if (!item && isReservationRequest(safeMessage)) return { status: "partial", message: "Untuk membuat, melihat atau membatalkan reservasi, gunakan form Reservasi pada website. Isi kontak hanya pada form privat, bukan di chat.", cards: [], actions: [{ id: "reservation-form", type: "navigate", label: "Buka form reservasi", target: "#reservasi" }], input: safeMessage };
+        if (!catalogue) throw new ServiceUnavailableException();
+        if (item && (!item.isAvailable || /\b(?:tersedia|habis|ketersediaan)\b/i.test(safeMessage))) return { status: "partial", message: `${item.name} saat ini ${item.isAvailable ? "tersedia" : "habis"} menurut menu restoran.`, cards: [{ type: "menu", data: catalogue.data }], actions: [{ id: "menu-section", type: "navigate", label: "Lihat menu lengkap", target: "#menu" }], input: safeMessage };
         const match = normalized.match(/\b(\d+|satu|dua|tiga|empat|lima)\s*(?:porsi|bungkus|pcs|buah)?\b/);
         const words: Record<string, number> = { satu: 1, dua: 2, tiga: 3, empat: 4, lima: 5 };
         const rawQuantity = match?.[1] ?? "1";

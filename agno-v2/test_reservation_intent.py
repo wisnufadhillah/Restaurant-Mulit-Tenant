@@ -20,6 +20,26 @@ class ReservationIntentTests(unittest.TestCase):
             'date': '2026-11-20', 'time': '19:00', 'partySize': 2,
         })
 
+    def test_numeric_date_formats_and_calendar_boundaries(self):
+        for text in ['20/11/2026', '20-11-2026', '2026-11-20', '20 November 2026']:
+            with self.subTest(date=text):
+                self.assertEqual(parse_reservation_intent(f'reservasi {text} jam 19.30 untuk 4 pax'), {
+                    'date': '2026-11-20', 'time': '19:30', 'partySize': 4,
+                })
+        self.assertEqual(parse_reservation_intent('booking 29-02-2028 jam 19.00 2 orang')['date'], '2028-02-29')
+        for text in ['31-02-2026', '29-02-2026', '2026-02-29', '2026112000']:
+            with self.subTest(date=text):
+                self.assertIsNone(parse_reservation_intent(f'reservasi {text} jam 19.00 2 orang'))
+        self.assertIsNone(parse_reservation_intent('pesan nasi 20-11-2026 jam 19.00 2 orang'))
+
+    def test_prefill_is_read_only_with_available_or_unknown_slot(self):
+        for cards, status in [([], 'unavailable'), ([], 'ok'), ([{'type': 'availability', 'data': {'available': True}}], 'ok')]:
+            with self.subTest(cards=cards, status=status):
+                self.assertEqual(build_actions('Reservasi 2 orang 2026-11-20 jam 19.00', cards, status), [{
+                    'id': 'reservation-details', 'type': 'reservation', 'label': 'Lanjutkan reservasi', 'target': '#reservasi',
+                    'date': '2026-11-20', 'time': '19:00', 'partySize': 2,
+                }])
+
     def test_requires_complete_safe_details(self):
         for message in ['Mau reservasi', 'booking besok jam 19.00', 'reservasi 13 orang besok jam 19.00', 'reservasi 2 orang tanggal 2026-02-30 jam 19.00', 'reservasi 2 orang tanggal 31/02/2026 jam 19.00']:
             with self.subTest(message=message):

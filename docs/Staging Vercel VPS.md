@@ -2,26 +2,71 @@
 
 ## Status dan batas persiapan
 
-Konfigurasi lokal untuk frontend Vercel dan backend satu VPS Ubuntu 24.04, RAM 2 GB, disk 40 GB. Tidak ada akses server, instalasi, image build/pull, startup container, perubahan DNS, provisioning credential/akun, migrasi, seed, commit, push, deploy atau pembayaran live dalam persiapan ini. Ini bukan bukti deployment siap pakai.
+Frontend telah diterbitkan melalui Vercel; backend memakai satu VPS Ubuntu 24.04, RAM 2 GB, disk 40 GB. Operator menjalankan instalasi, build image, migrasi, bootstrap dan startup melalui terminal VPS. Pemeriksaan publik read-only juga dilakukan dari luar VPS. Bagian runbook berikut menjelaskan prosedur dan pagar keselamatan; bukan perintah untuk mengulang provisioning pada server aktif. Pembayaran tetap sandbox, bukan pembayaran live.
 
-Hostname API yang diusulkan: `api.globaltenant.co.uk`. Kepemilikan domain, provider DNS, akses VPS, firewall, A/AAAA dan hostname frontend Vercel belum dikonfirmasi. `API_DOMAIN` wajib diisi hostname final tanpa protokol/path; tidak ada domain fallback. HTTPS Caddy membutuhkan DNS yang benar serta port 80/443 masuk. Jangan menerbitkan AAAA bila IPv6 belum berfungsi.
+Domain frontend utama adalah `https://www.globaltenant.co.uk`; domain tanpa `www` mengarah ke alamat itu. API berada pada `https://api.globaltenant.co.uk`. DNS dikelola melalui names.co.uk dengan nameserver phase8.net; tidak menggunakan Cloudflare pada konfigurasi yang dilaporkan. `API_DOMAIN` wajib diisi hostname final tanpa protokol/path; tidak ada domain fallback. HTTPS Caddy membutuhkan DNS yang benar serta port 80/443 masuk. Jangan menerbitkan AAAA bila IPv6 belum berfungsi.
 
 Berkas `compose.staging.yaml` terpisah dari Compose lokal; nama project dan volume berbeda. Jangan menggabungkan kedua berkas dengan beberapa `-f`. Jangan mengubah database lokal untuk meniru staging.
 
 ## Mulai dari sini
 
-Panduan ini untuk menyiapkan akses publik terbatas bagi mentor, memakai data sintetis dan checkout Midtrans sandbox tanpa uang nyata. Startup default API memerlukan file Server Key dan Signature Secret Key sandbox terpisah. Frontend menggunakan domain bawaan Vercel; backend, runtime AI dan PostgreSQL berada di VPS. Tidak perlu memindahkan database kerja lokal ke server.
+Panduan ini untuk menyiapkan akses publik terbatas bagi mentor, memakai data sintetis dan checkout Midtrans sandbox tanpa uang nyata. Startup default API memerlukan file Server Key dan Signature Secret Key sandbox terpisah. Frontend menggunakan domain kustom di Vercel; backend, runtime AI dan PostgreSQL berada di VPS. Tidak perlu memindahkan database kerja lokal ke server.
 
 | Komponen | Target |
 | --- | --- |
 | Sistem VPS | Ubuntu 24.04, RAM 2 GB, storage 40 GB |
 | Frontend | Project Next.js Vercel, Root Directory `apps/web` |
-| Alamat frontend | URL `.vercel.app` stabil yang dipilih setelah project dibuat |
-| API HTTPS | Usulan `api.globaltenant.co.uk`; konfirmasi sebelum mengubah DNS |
+| Alamat frontend | `https://www.globaltenant.co.uk` |
+| API HTTPS | `https://api.globaltenant.co.uk` |
 | Domain cadangan | `tenantstudio.co.uk`, belum digunakan |
-| DNS | Penyedia saat ini atau Cloudflare; keputusan belum dibuat |
+| DNS | names.co.uk, nameserver ns0/ns1/ns2.phase8.net |
 | Database dan Agno | Jaringan internal container, tanpa port publik |
 | Pembayaran | Aktif (`PAYMENTS_ENABLED: "true"`), hanya sandbox; dua file secret Midtrans wajib |
+
+## Catatan pemeriksaan deployment
+
+Bukti berikut berasal dari output terminal/screenshot dan laporan operator selama pengujian staging. Ini bukan hasil akses SSH langsung oleh pemeriksa. Tidak menyertakan credential, cookie, token, detail customer atau body notifikasi pembayaran.
+
+| Area | Bukti yang tersedia | Status dan batas |
+| --- | --- | --- |
+| DNS frontend | Record A apex sesuai instruksi Vercel; CNAME www sesuai target project; jawaban authoritative dan resolver publik diperiksa | Konfigurasi dilaporkan berhasil; jangan menyalin nilai target Vercel ke project lain |
+| Redirect dan TLS | Operator menjalankan `curl -IL https://globaltenant.co.uk`: HTTP 308 ke `https://www.globaltenant.co.uk/`, lalu HTTP 200 tanpa bypass TLS | Lulus pada pemeriksaan tersebut |
+| Backend HTTPS | Health API mengembalikan HTTP 200 melalui Caddy | Membuktikan liveness dan rute HTTPS, bukan seluruh business logic |
+| Origin | Operator menyamakan `STAFF_ORIGIN=https://www.globaltenant.co.uk` di Vercel dan VPS, recreate API/Agno/Caddy, lalu melaporkan login dan mutasi berhasil | URL `.vercel.app` bukan lagi origin mutasi yang disetujui |
+| Dashboard owner | Login, ubah tersedia/habis dan pengembalian status dilaporkan berhasil; katalog publik mengikuti | Smoke nyata terbatas, bukan seluruh CRUD |
+| Foto upload | Upload, simpan, buka ulang dan tampilan publik dilaporkan berhasil sebelum pergantian domain | Persistensi setelah recreate terbaru belum dikonfirmasi secara eksplisit |
+| Reservasi | Buat reservasi dan pembatalan staff ditunjukkan; audit dikonfirmasi operator | Pembatalan mandiri customer pada booking tersebut tidak diuji karena akses privat ditutup |
+| Pesanan | Screenshot dashboard menunjukkan daftar pesanan dan satu pembayaran lunas | Pemeriksaan seluruh detail/filter/histori deployment belum didokumentasikan lengkap |
+| Midtrans sandbox | Notifikasi transaksi aplikasi menunjukkan Success dan HTTP 200, settlement dan fraud accept; dashboard menampilkan pesanan lunas | Satu smoke sandbox, bukan pembayaran live atau jaminan semua metode/urutan notifikasi |
+| Session | Operator melaporkan pengujian selesai setelah deployment redirect login | Bukan pengukuran lengkap idle/absolut di VPS; bukti batas dan race utama berasal dari tes lokal |
+| Mobile | Operator melaporkan pengujian ponsel aman dan berhasil | Model perangkat/browser dan screenshot rinci belum dicatat |
+| Hak staff | Source dan tes lokal owner/staff tersedia; operator melanjutkan checklist tanpa rincian hasil setiap aksi | Belum dicatat sebagai tes staff staging lengkap |
+| Backup | Operator membuat dump privat 83 KB; `pg_restore --list` tanpa error sebelum migrasi session | Arsip dapat dibaca; bukan uji restore; pasangan backup foto pada titik yang sama belum dibuktikan |
+| Persistensi setelah recreate | API/Agno/Caddy dibuat ulang tanpa menghapus volume | Keberadaan konfigurasi volume bukan bukti data/foto diperiksa sesudahnya |
+
+### Konfigurasi origin final
+
+```text
+API_ORIGIN=https://api.globaltenant.co.uk
+STAFF_ORIGIN=https://www.globaltenant.co.uk
+```
+
+`API_ORIGIN` berada pada server Next.js/Vercel. `STAFF_ORIGIN` harus cocok di frontend dan API; Compose menurunkan `API_ALLOWED_ORIGINS` dari nilai yang sama. Tidak ada wildcard, credential database atau provider key dalam konfigurasi browser. Setelah berpindah hostname, pengguna harus login ulang; cookie domain lama tidak dipindahkan.
+
+### Bukti versi yang masih perlu dilengkapi
+
+Source backend di VPS pernah ditunjukkan pada commit `2834461` (merge dashboard Pesanan dan idle session). Frontend kemudian diperbarui untuk redirect sesi habis melalui merge perbaikan berikutnya. Commit/digest image aktif setelah pergantian domain belum diperiksa langsung. Catat commit frontend dan backend serta image ID/digest hasil pemeriksaan metadata pada setiap release; tag `staging-initial` sendiri tidak membuktikan identitas versi immutable.
+
+### Sisa penerimaan sebelum demo
+
+- [ ] Konfirmasi foto unggahan, pesanan dan reservasi lama masih terbaca setelah recreate terakhir; tidak perlu restart ulang hanya untuk mengulangi kejadian yang sudah dilakukan.
+- [ ] Catat hasil uji staff staging per aksi yang diizinkan/ditolak.
+- [ ] Catat perangkat/browser mobile yang diuji dan bukti tampilan tersamarkan bila diperlukan.
+- [ ] Simpan backup DB dan volume foto pada titik konsisten, lalu pindahkan ke storage privat di luar VPS.
+- [ ] Uji restore pada database dan volume terpisah dengan persetujuan target; jangan menimpa staging aktif.
+- [ ] Catat commit/digest aktual release dan batas kuota/model untuk demo.
+
+Restore rehearsal belum dilakukan. Sebelum pelaksanaan, tetapkan nama DB/volume sementara, kapasitas disk, sumber pasangan backup, akses privat, kriteria penerimaan, dan cleanup fixture milik tes. Tidak ada perintah restore/reset/drop untuk server aktif yang dijalankan atau diotorisasi oleh catatan ini.
 
 ### Checklist keputusan sebelum tindakan eksternal
 
@@ -88,7 +133,7 @@ Setelah persetujuan tindakan pada project Vercel:
 
 1. Pilih Root Directory `apps/web`, framework Next.js, Node.js **22.x**. Workspace membutuhkan `>=22.22.0 <23`, pnpm **12.15.0**. Gunakan install frozen sesuai package manager workspace, build `next build` dari root project web. Jangan mengandalkan default Node provider yang dapat berubah.
 2. Pastikan sumber di luar root project disertakan pada pengaturan Vercel yang tersedia. `apps/web` mengimpor registry murni `apps/api/src/menu/menu-images.ts`; bukan aplikasi API/Prisma yang harus dijalankan di Vercel. `outputFileTracingRoot` menunjuk root repo, dua tingkat di atas web. Periksa build Vercel sungguhan sebelum menyatakan bundle lengkap.
-3. Isi server-side `API_ORIGIN=https://<API_DOMAIN-final>` dan `STAFF_ORIGIN` dengan hostname frontend stabil `https://<project>.vercel.app`, tanpa trailing slash. Jangan memakai prefix `NEXT_PUBLIC_` atau wildcard preview. Tidak ada token backend/DB/model yang perlu dikirim ke browser atau Vercel.
+3. Isi server-side `API_ORIGIN=https://<API_DOMAIN-final>` dan `STAFF_ORIGIN=https://www.globaltenant.co.uk` untuk hostname frontend utama, tanpa trailing slash. Jangan memakai prefix `NEXT_PUBLIC_` atau wildcard preview. Tidak ada token backend/DB/model yang perlu dikirim ke browser atau Vercel.
 4. Setelah hostname stabil diketahui, samakan `STAFF_ORIGIN` pada Compose; `API_ALLOWED_ORIGINS` diturunkan dari nilai yang sama. Rebuild/redeploy yang disetujui diperlukan setelah mengubah konfigurasi provider. URL preview tidak otomatis dipercaya.
 5. Verifikasi login/logout, tenant/session, CSRF Origin negatif, upload batas, public image, reservasi dan chat melalui BFF, bukan pemindahan cookie auth langsung ke cross-site API. Midtrans tetap sandbox; callback bukan bukti pembayaran.
 

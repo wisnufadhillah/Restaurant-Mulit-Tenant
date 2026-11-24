@@ -14,7 +14,7 @@ const { createDatabaseClient } = require('../dist/database/client');
 test('local PostgreSQL reservation HTTP isolates tenants and serializes fifty fixed-table attempts', { timeout: 120000 }, async () => {
   if (process.env.ALLOW_LOCAL_RESERVATION_WRITES !== '1') throw new Error('Explicit local reservation write approval is required');
   const target = new URL(databaseUrl());
-  assert.ok(target.hostname === '127.0.0.1' && target.port === '55432' && target.pathname === '/restaurant', 'Only approved local database permitted');
+  assert.ok(target.hostname === '127.0.0.1' && ['15432', '55432'].includes(target.port) && target.pathname === '/restaurant', 'Only approved local database permitted');
   const db = createDatabaseClient();
   const tenantIds = [];
   let app;

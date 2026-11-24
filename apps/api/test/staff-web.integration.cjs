@@ -8,7 +8,7 @@ const { hashPassword } = require('../dist/auth/crypto');
 test('web login verifies database session, protects dashboard and revokes logout', async () => {
   const { databaseUrl } = require('../dist/database/config');
   const target = new URL(databaseUrl());
-  assert.ok(target.hostname === '127.0.0.1' && target.port === '55432' && target.pathname === '/restaurant');
+  assert.ok(target.hostname === '127.0.0.1' && ['15432', '55432'].includes(target.port) && target.pathname === '/restaurant');
   const origin = 'http://127.0.0.1:3000';
   // Check prerequisites before creating fixture rows; never print request bodies or cookies.
   for (const url of ['http://127.0.0.1:3001/api/v1/health', `${origin}/login`]) {

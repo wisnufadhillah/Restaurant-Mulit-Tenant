@@ -20,7 +20,7 @@ const { once } = require('node:events');
 test('staff reservation HTTP uses real PostgreSQL tenant scope, pagination and private detail with rollback', { timeout: 120000 }, async () => {
   assert.equal(process.env.ALLOW_LOCAL_STAFF_RESERVATION_WRITES, '1', 'Explicit fixture write approval required');
   const url = new URL(databaseUrl());
-  assert.ok(url.hostname === '127.0.0.1' && url.port === '55432' && url.pathname === '/restaurant', 'Only approved local target');
+  assert.ok(url.hostname === '127.0.0.1' && ['15432', '55432'].includes(url.port) && url.pathname === '/restaurant', 'Only approved local target');
   const db = createDatabaseClient(), tenants = [randomUUID(), randomUUID()];
   const rollback = new Error('Synthetic staff reservation rollback');
   try {

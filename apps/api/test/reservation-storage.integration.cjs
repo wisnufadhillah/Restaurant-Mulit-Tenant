@@ -7,7 +7,7 @@ const { createDatabaseClient } = require('../dist/database/client');
 test('reservation storage enforces overlap, tenant keys and atomic event writes on local PostgreSQL', async () => {
   const { databaseUrl } = require('../dist/database/config');
   const target = new URL(databaseUrl());
-  assert.ok(target.hostname === '127.0.0.1' && target.port === '55432' && target.pathname === '/restaurant', 'Only the local synthetic database is permitted');
+  assert.ok(target.hostname === '127.0.0.1' && ['15432', '55432'].includes(target.port) && target.pathname === '/restaurant', 'Only the local synthetic database is permitted');
   const db = createDatabaseClient();
   const rollback = new Error('Synthetic transaction rollback');
   try {

@@ -6,7 +6,7 @@ const { createApp } = require('../dist/create-app');
 // Uses existing local seed data; no fixtures, migrations or business writes.
 test('availability HTTP reads existing local PostgreSQL catalogues without exposing identifiers', async () => {
   const target = new URL(databaseUrl());
-  assert.ok(target.hostname === '127.0.0.1' && target.port === '55432' && target.pathname === '/restaurant', 'Only the local synthetic database is permitted');
+  assert.ok(target.hostname === '127.0.0.1' && ['15432', '55432'].includes(target.port) && target.pathname === '/restaurant', 'Only the local synthetic database is permitted');
   const app = await createApp();
   try {
     await app.listen(0, '127.0.0.1');

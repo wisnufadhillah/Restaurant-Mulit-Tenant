@@ -13,7 +13,7 @@ const { HoursService } = require('../dist/restaurant/hours.service');
 test('local reservations roll back audit failure, preserve configuration and recover a lost HTTP response', { timeout: 60000 }, async () => {
   assert.equal(process.env.ALLOW_LOCAL_RESERVATION_WRITES, '1', 'Explicit local write approval required');
   const target = new URL(databaseUrl());
-  assert.ok(target.hostname === '127.0.0.1' && target.port === '55432' && target.pathname === '/restaurant', 'Only approved local database permitted');
+  assert.ok(target.hostname === '127.0.0.1' && ['15432', '55432'].includes(target.port) && target.pathname === '/restaurant', 'Only approved local database permitted');
   const db = createDatabaseClient();
   const repo = Object.create(ReservationRepository.prototype);
   repo.db = db;

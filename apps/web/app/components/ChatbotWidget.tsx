@@ -12,6 +12,7 @@ type Availability = { startAt: string; endAt: string; timezone: "Asia/Jakarta"; 
 type Card = { type: "knowledge"; data: KnowledgeExcerpt[] } | { type: "menu"; data: MenuItem[] } | { type: "restaurant"; data: Profile } | { type: "hours"; data: Hours[] } | { type: "availability"; data: Availability };
 type Action = { id: string; type: "navigate"; label: string; target: "#menu" | "#reservasi" } | { id: string; type: "prompt"; label: string; message: "Jam buka hari ini kapan?" | "Apa kebijakan restoran lain yang perlu saya tahu?" } | { id: string; type: "reservation"; label: string; target: "#reservasi"; date: string; time: string; partySize: number } | { id: string; type: "order"; label: string; itemId: string; quantity: number };
 interface Message { sender: "user" | "assistant"; text: string; cards?: Card[]; actions?: Action[]; }
+const CHAT_DRAFT_KEY = "restaurant_chat_draft";
 const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 const time = (n: number) => `${String(Math.floor(n / 60)).padStart(2, "0")}.${String(n % 60).padStart(2, "0")}`;
 const currency = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
@@ -53,10 +54,28 @@ export default function ChatbotWidget() {
   }, [open]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]), [customerName, setCustomerName] = useState(""), [order, setOrder] = useState<{ id: string; code: string; orderTotal: number; paymentStatus: string; redirectUrl?: string } | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const [orderAttempt, setOrderAttempt] = useState<OrderAttempt | null>(null);
   const [paymentsEnabled, setPaymentsEnabled] = useState<boolean | null>(null);
   const orderLocked = orderAttempt !== null || order !== null;
   const cartTotal = cart.reduce((sum, line) => sum + line.item.price * line.quantity, 0);
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(CHAT_DRAFT_KEY) ?? "null");
+      if (stored && Array.isArray(stored.messages)) setMessages(stored.messages.filter((item: unknown): item is Message => Boolean(item && typeof item === "object" && (item as Message).sender && typeof (item as Message).text === "string")).slice(-20));
+      if (stored && Array.isArray(stored.cart)) setCart(stored.cart.filter((line: unknown): line is CartLine => {
+        if (!line || typeof line !== "object") return false;
+        const value = line as CartLine;
+        return Number.isInteger(value.quantity) && value.quantity >= 1 && value.quantity <= 20 && Boolean(value.item) && typeof value.item.id === "string" && typeof value.item.name === "string" && typeof value.item.description === "string" && Number.isSafeInteger(value.item.price) && typeof value.item.isAvailable === "boolean";
+      }));
+      if (stored && typeof stored.customerName === "string") setCustomerName(stored.customerName.slice(0, 120));
+    } catch { /* Ignore a malformed browser draft and start clean. */ }
+    setHydrated(true);
+  }, []);
+  useEffect(() => {
+    if (!hydrated) return;
+    sessionStorage.setItem(CHAT_DRAFT_KEY, JSON.stringify({ messages: messages.map(({ sender, text }) => ({ sender, text })), cart, customerName }));
+  }, [hydrated, messages, cart, customerName]);
   useEffect(() => {
     if (!orderAttempt || order) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
@@ -96,6 +115,7 @@ export default function ChatbotWidget() {
   }
   const paymentLabel = (status: string) => ({ pending: "Menunggu pembayaran", unpaid: "Belum dibayar", settlement: "Pembayaran berhasil", expire: "Pembayaran kedaluwarsa", cancel: "Pembayaran dibatalkan", deny: "Pembayaran ditolak" }[status] ?? "Status belum dikenal; hubungi restoran");
   const scrollToSection = (target: string) => document.querySelector(target)?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
+  const showMainMenu = () => setMessages(previous => [...previous, { sender: "assistant" as const, text: "Menu utama: pilih Menu, Info restoran, atau Jam buka di bawah." }].slice(-20));
   async function createOrder() {
     if (busy.current || order || paymentsEnabled !== true) return;
     if (!orderAttempt && (!customerName.trim() || !cart.length)) return setError("Isi nama dan pilih menu terlebih dahulu.");
@@ -188,6 +208,10 @@ export default function ChatbotWidget() {
     if (!ready || busy.current || !input.trim()) return;
     const submitted = input;
     busy.current = true; setPending(true); setError("");
+    if (/^(?:menu utama|kembali(?: ke menu utama)?)$/i.test(submitted.trim())) {
+      setMessages(previous => [...previous, { sender: "user" as const, text: maskedChatPreview(submitted) }, { sender: "assistant" as const, text: "Menu utama: pilih Menu, Info restoran, atau Jam buka di bawah." }].slice(-20));
+      setInput(""); busy.current = false; setPending(false); return;
+    }
     setMessages(previous => [...previous, { sender: "user" as const, text: maskedChatPreview(submitted) }].slice(-19));
     setInput("");
     try {
@@ -211,7 +235,7 @@ export default function ChatbotWidget() {
       <div className="sela-chat-log" ref={log} role="log" aria-live="polite" aria-label="Percakapan restoran" aria-busy={pending}>
         {messages.length === 0 && <div className="sela-chat-bubble sela-chat-assistant sela-chat-welcome"><p className="sela-chat-welcome-kicker">Selamat datang di Dapur Sela</p><p>Butuh rekomendasi menu, jam buka, atau info kunjungan? Saya siap bantu.</p></div>}
         {messages.map((item, index) => <div key={index} className={`sela-chat-bubble sela-chat-${item.sender}`}><span className="sela-chat-sr-only">{item.sender === "user" ? "Kamu" : "Asisten"}:</span><p>{item.text}</p>{item.cards?.map((card, cardIndex) => <ChatCard key={cardIndex} card={card} onAdd={card.type === "menu" && !orderLocked && !pending ? addToCart : undefined} />)}{item.sender === "assistant" && <ChatActions actions={item.actions ?? []} onAction={runAction} disabled={pending || orderLocked} />}</div>)}
-        <div id="chat-shortcuts" className="sela-chat-shortcuts" hidden={messages.length > 0} role="group" aria-label="Pilihan informasi"><button type="button" disabled={!ready || pending} onClick={() => void load("menu")}>Menu</button><button type="button" disabled={!ready || pending} onClick={() => void load("restaurant")}>Info restoran</button><button type="button" disabled={!ready || pending} onClick={() => void load("hours")}>Jam buka</button></div>
+        <div id="chat-shortcuts" className="sela-chat-shortcuts" role="group" aria-label="Pilihan informasi"><button type="button" disabled={!ready || pending} onClick={showMainMenu}>Menu utama</button><button type="button" disabled={!ready || pending} onClick={() => void load("menu")}>Menu</button><button type="button" disabled={!ready || pending} onClick={() => void load("restaurant")}>Info restoran</button><button type="button" disabled={!ready || pending} onClick={() => void load("hours")}>Jam buka</button></div>
         {pending && <div className="sela-chat-bubble sela-chat-assistant sela-chat-loading"><span>{ready ? "Sedang mengetik…" : "Menyambungkan chat…"}</span></div>}
       </div>
       <footer className="sela-chat-footer">
@@ -226,7 +250,7 @@ export default function ChatbotWidget() {
         {!ready && !pending && <button className="senja-text-button" onClick={async () => {
           if (busy.current || orderLocked) return;
           busy.current = true; setPending(true);
-          try { const response = await fetch("/chat/session", { method: "DELETE" }); if (!response.ok) throw new Error(); setMessages([]); setInput(""); setCartNotice(""); busy.current = false; await initialize(); }
+          try { const response = await fetch("/chat/session", { method: "DELETE" }); if (!response.ok) throw new Error(); sessionStorage.removeItem(CHAT_DRAFT_KEY); setMessages([]); setInput(""); setCart([]); setCustomerName(""); setCartNotice(""); busy.current = false; await initialize(); }
           catch { setError("Sesi baru belum bisa dimulai. Coba lagi nanti."); }
           finally { busy.current = false; setPending(false); }
         }} disabled={orderLocked}>Mulai sesi baru</button>}

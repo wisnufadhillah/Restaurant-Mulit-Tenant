@@ -32,6 +32,26 @@ Kegagalan database atau kerusakan data pada saat demonstrasi atau operasional st
 - [ ] Data kueri sampel membuktikan akun staf, meja, katalog menu, dan jam buka berfungsi normal pasca-pemulihan.
 - [ ] Prosedur langkah-langkah pemulihan terdokumentasi jelas dan siap dipakai jika terjadi insiden saat demonstrasi.
 
+## Prosedur Pemulihan Darurat (Runbook)
+
+Skrip otomatis tersedia di [`scripts/rehearsal_backup_restore.ps1`](../scripts/rehearsal_backup_restore.ps1):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/rehearsal_backup_restore.ps1
+```
+
+Langkah manual darurat jika terjadi insiden saat demo:
+1. Pastikan database target aktif (`docker compose up -d --wait database`).
+2. Buat cadangan: `pg_dump -h 127.0.0.1 -p <port> -U restaurant -Fc -f .local/backups/restaurant.dump restaurant`.
+3. Pulihkan ke database bersih: `createdb` lalu `pg_restore -h 127.0.0.1 -p <port> -U restaurant -d <target_db> --no-owner --no-privileges .local/backups/restaurant.dump`.
+4. Pulihkan berkas foto menu ke `.local/menu-images/` dari arsip `.local/backups/menu-images_*.zip`.
+5. Verifikasi jumlah tabel, exclusion constraint (`SELECT conname FROM pg_constraint WHERE contype = 'x';`), dan kueri sampel entitas utama sebelum mengarahkan layanan.
+
+## Status Eksekusi
+
+- Skrip rehearsal `scripts/rehearsal_backup_restore.ps1` sudah dibuat dan siap dijalankan.
+- Eksekusi live terhadap database lokal (`127.0.0.1:55432`) belum dapat diselesaikan pada sesi ini karena Docker Desktop / service `multi-tenant` sedang tidak aktif dan memerlukan start oleh operator (izin admin).
+
 ## Langkah Pengerjaan
 
 1. Eksekusi perintah `pg_dump` dengan format custom/tar terkompresi pada database lokal sumber.

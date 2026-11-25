@@ -4,7 +4,7 @@ services:
     container_name: multi-tenant
     image: pgvector/pgvector:0.8.1-pg17
     ports:
-      - "127.0.0.1:15432:5432"
+      - "127.0.0.1:55432:5432"
     environment:
       POSTGRES_USER: restaurant
       POSTGRES_DB: restaurant

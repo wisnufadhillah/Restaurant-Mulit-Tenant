@@ -10,7 +10,11 @@ export function redactChat(message: string) {
   const masked = message.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[kontak disamarkan]")
     .replace(/[A-Za-z0-9_-]{24,}/g, "[nilai privat disamarkan]");
   return masked.replace(/\+?\d[\d ()-]{6,}\d/g, (candidate: string, offset: number) => {
-    const standalone = !/[\p{L}\p{N}_+./-]/u.test(masked[offset - 1] ?? "") && !/[\p{L}\p{N}_+./-]/u.test(masked[offset + candidate.length] ?? "");
+    const before = masked[offset - 1] ?? "";
+    const after = masked[offset + candidate.length] ?? "";
+    const afterNext = masked[offset + candidate.length + 1] ?? "";
+    const afterIsSentenceDot = after === "." && !/[\p{L}\p{N}]/u.test(afterNext);
+    const standalone = !/[\p{L}\p{N}_+./-]/u.test(before) && (!/[\p{L}\p{N}_+./-]/u.test(after) || afterIsSentenceDot);
     if (standalone && /^(?:20\d{2}-\d{2}-\d{2}|\d{1,2}-\d{1,2}-20\d{2})$/.test(candidate)) {
       const parts = candidate.split("-").map(Number);
       const [year, month, day] = parts[0] >= 2000 ? parts : [parts[2], parts[1], parts[0]];

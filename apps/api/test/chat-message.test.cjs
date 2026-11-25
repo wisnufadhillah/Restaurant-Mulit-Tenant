@@ -45,3 +45,23 @@ test('assistant outage keeps a reservation request on the reservation path', asy
     assert.deepEqual(result.cards, []);
   } finally { if (old === undefined) delete process.env.INTERNAL_CONTEXT_SECRET; else process.env.INTERNAL_CONTEXT_SECRET = old; }
 });
+
+test('redactChat masks phone variants, emails and long tokens while preserving valid calendar dates', () => {
+  const sample = [
+    'Hubungi +62 812-3456-7890 atau (021) 555-1234',
+    'atau 0812 3456 7890',
+    'email saya synthetic.user@example.test',
+    'token abcdefghijklmnopqrstuvwxyz123456',
+    'untuk tanggal 2026-11-25 dan 25-11-2026.',
+  ].join(' ');
+  const redacted = redactChat(sample);
+  assert.ok(!redacted.includes('812'));
+  assert.ok(!redacted.includes('555-1234'));
+  assert.ok(!redacted.includes('synthetic.user@example.test'));
+  assert.ok(!redacted.includes('abcdefghijklmnopqrstuvwxyz123456'));
+  assert.ok(redacted.includes('[nomor disamarkan]'));
+  assert.ok(redacted.includes('[kontak disamarkan]'));
+  assert.ok(redacted.includes('[nilai privat disamarkan]'));
+  assert.ok(redacted.includes('2026-11-25'));
+  assert.ok(redacted.includes('25-11-2026'));
+});

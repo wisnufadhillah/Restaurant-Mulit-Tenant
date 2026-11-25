@@ -111,6 +111,22 @@ test('expired session preserves draft and new session recovers', async ({ page }
   await expect(page.getByLabel('Pesan untuk asisten')).toHaveValue('');
 });
 
+test('chat history survives refresh and menu utama returns local shortcuts', async ({ page }) => {
+  await session(page);
+  await page.route('**/chat/messages', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ input: 'Menu?', message: 'Berikut menu restoran.', cards: [], actions: [] }) }));
+  await open(page);
+  await page.getByLabel('Pesan untuk asisten').fill('Menu?');
+  await page.getByLabel('Pesan untuk asisten').press('Enter');
+  await expect(page.getByText('Berikut menu restoran.', { exact: true })).toBeVisible();
+  await page.reload();
+  await open(page);
+  await expect(page.getByText('Berikut menu restoran.', { exact: true })).toBeVisible();
+  await page.getByLabel('Pesan untuk asisten').fill('menu utama');
+  await page.getByLabel('Pesan untuk asisten').press('Enter');
+  await expect(page.getByText('Menu utama: pilih Menu, Info restoran, atau Jam buka di bawah.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Menu utama', exact: true })).toBeVisible();
+});
+
 test('AI outage leaves private reservation form usable', async ({ page }) => {
   await session(page);
   let created = false;

@@ -25,10 +25,16 @@ Model AI dan riwayat percakapan merupakan domain data semi-publik dalam konteks 
 
 ## Kriteria Selesai
 
-- [ ] Seluruh skenario penyamaran kontak pada pengujian pesan chat lulus tanpa meloloskan nomor telepon riil.
-- [ ] Pengujian API pesanan membuktikan ketiadaan token pembayaran dan URL Snap pada data yang dikembalikan ke antarmuka staf.
-- [ ] Log server pada alur pembayaran bersih dari nilai rahasia pembayaran dan tanda tangan otentikasi.
-- [ ] Simulasi jeda waktu membuktikan penolakan permintaan mutasi setelah batas idle 30 menit terlampaui.
+- [x] Seluruh skenario penyamaran kontak pada pengujian pesan chat lulus tanpa meloloskan nomor telepon riil (`redactChat` di `apps/api/src/restaurant/chat-message.controller.ts` diperbaiki untuk tanda baca titik setelah tanggal valid kalender; diuji lewat `test/chat-message.test.cjs`).
+- [x] Pengujian API pesanan membuktikan ketiadaan token pembayaran dan URL Snap pada data yang dikembalikan ke antarmuka staf (`test/staff-orders.test.cjs`, `test/staff-orders-http.test.cjs` lulus).
+- [x] Log server pada alur pembayaran bersih dari nilai rahasia pembayaran dan tanda tangan otentikasi (`apps/api/src/create-app.ts` menonaktifkan logger NestJS, `orders.controller.ts` tidak mencatat body/header webhook, `apps/assistant/conversation_server.py` menonaktifkan logging, `infra/staging/Caddyfile` tidak mencatat body/header).
+- [x] Simulasi jeda waktu membuktikan penolakan permintaan mutasi setelah batas idle 30 menit terlampaui (`test/staff-idle.test.cjs` lulus 5/5 skenario batas exact idle 30 menit dan absolut 8 jam).
+
+## Temuan & Bukti Verifikasi
+
+1. **Perbaikan Edge Case `redactChat`**: Ditemukan bahwa tanggal valid kalender di akhir kalimat yang diikuti tanda titik (contoh `25-11-2026.`) sebelumnya ikut tersamarkan menjadi `[nomor disamarkan].` karena `.` masuk kelas karakter pengecualian `standalone`. Diperbaiki di `apps/api/src/restaurant/chat-message.controller.ts` dan diverifikasi dengan kasus uji baru di `apps/api/test/chat-message.test.cjs` (lulus).
+2. **Sanitasi API & Privasi**: `StaffOrdersService.list` dan `StaffOrdersService.detail` hanya memilih kolom aman (tanpa `snapToken`, `redirectUrl`, `midtransOrderId`, `requestHash`, `idempotencyKey`, `chatSessionId`). `AvailabilityService` hanya mengembalikan `{ startAt, endAt, timezone, held, available, reason? }`.
+3. **Catatan Lingkungan**: 155/159 unit test API lulus; 4 test (`chat-message.test.cjs` test 1-2, `chat-sessions.test.cjs`, `knowledge-http.test.cjs`) membutuhkan koneksi PostgreSQL lokal (`127.0.0.1:55432`) yang saat ini belum aktif karena Docker Desktop belum berjalan.
 
 ## Langkah Pengerjaan
 

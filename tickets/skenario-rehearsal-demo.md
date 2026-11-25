@@ -26,10 +26,10 @@ Presentasi akhir memerlukan demonstrasi yang membuktikan bahwa website restoran,
 
 ## Kriteria Selesai
 
-- [ ] Panduan tertulis skenario demonstrasi tersusun runtut dengan peran yang jelas untuk setiap pengembang.
-- [ ] Geladi bersih berhasil diselesaikan minimal satu kali tanpa kegagalan sistem.
-- [ ] Berkas rekaman demonstrasi cadangan tersimpan di direktori presentasi dengan label jelas.
-- [ ] Skenario mitigasi gangguan model siap diperagakan secara meyakinkan.
+- [x] Panduan tertulis skenario demonstrasi tersusun runtut dengan peran yang jelas untuk setiap pengembang ([`docs/Panduan Rehearsal Demo.md`](../docs/Panduan%20Rehearsal%20Demo.md)).
+- [ ] Geladi bersih berhasil diselesaikan minimal satu kali tanpa kegagalan sistem (menunggu environment database & browser aktif oleh operator).
+- [ ] Berkas rekaman demonstrasi cadangan tersimpan di direktori presentasi dengan label jelas (memerlukan perekaman layar interaktif oleh tim).
+- [x] Skenario mitigasi gangguan model siap diperagakan secara meyakinkan (terverifikasi pada `test/chat-message.test.cjs` dan panduan fallback di `docs/Panduan Rehearsal Demo.md`).
 
 ## Langkah Pengerjaan
 

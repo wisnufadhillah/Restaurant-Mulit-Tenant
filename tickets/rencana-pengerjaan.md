@@ -18,7 +18,7 @@ flowchart TD
 | --- | --- | --- | --- |
 | [Uji Konkurensi Reservasi](uji-konkurensi-reservasi.md) | Validasi exclusion constraint PostgreSQL terhadap pemesanan meja simultan | Tepat satu booking `confirmed` dari 50 request konkuren pada slot meja yang sama | Selesai |
 | [Audit Keamanan dan Privasi](audit-keamanan-privasi.md) | Pembersihan dan penyensoran data sensitif pada log, sesi, dan prompt | Nol data kontak mentah, nomor telepon, atau credential pembayaran di log/history | Selesai |
-| [Rehearsal Backup dan Restore](rehearsal-backup-restore.md) | Pengujian prosedur pencadangan dan pemulihan database serta foto menu | Restore database terpisah sukses tanpa mengganggu staging aktif | Skrip & Runbook Siap (Menunggu DB Docker Aktif) |
+| [Rehearsal Backup dan Restore](rehearsal-backup-restore.md) | Pengujian prosedur pencadangan dan pemulihan database serta foto menu | Restore database terpisah sukses tanpa mengganggu staging aktif | Selesai (Lolos Uji Live 2.16s) |
 | [Evaluasi Model AI](evaluasi-model-ai.md) | Uji 30 skenario jawaban berbasis dokumen, pembatasan tool, dan injeksi | Minimal 90% akurasi FAQ bersumber, abstain saat tidak ada rujukan, nol aksi tulis | Selesai (Offline 30/30, Live 25/30) |
 | [Skenario Rehearsal Demo](skenario-rehearsal-demo.md) | Panduan langkah demonstrasi live dan rekaman cadangan | Alur demo tervalidasi lengkap beserta video cadangan berlabel | Panduan Siap (Menunggu Rehearsal Live & Rekaman) |
 

@@ -68,14 +68,13 @@ export default function ChatbotWidget() {
         const value = line as CartLine;
         return Number.isInteger(value.quantity) && value.quantity >= 1 && value.quantity <= 20 && Boolean(value.item) && typeof value.item.id === "string" && typeof value.item.name === "string" && typeof value.item.description === "string" && Number.isSafeInteger(value.item.price) && typeof value.item.isAvailable === "boolean";
       }));
-      if (stored && typeof stored.customerName === "string") setCustomerName(stored.customerName.slice(0, 120));
     } catch { /* Ignore a malformed browser draft and start clean. */ }
     setHydrated(true);
   }, []);
   useEffect(() => {
     if (!hydrated) return;
-    sessionStorage.setItem(CHAT_DRAFT_KEY, JSON.stringify({ messages: messages.map(({ sender, text }) => ({ sender, text })), cart, customerName }));
-  }, [hydrated, messages, cart, customerName]);
+    sessionStorage.setItem(CHAT_DRAFT_KEY, JSON.stringify({ messages: messages.map(({ sender, text }) => ({ sender, text })), cart }));
+  }, [hydrated, messages, cart]);
   useEffect(() => {
     if (!orderAttempt || order) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };

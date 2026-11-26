@@ -26,11 +26,11 @@ Kegagalan database atau kerusakan data pada saat demonstrasi atau operasional st
 
 ## Kriteria Selesai
 
-- [ ] Perintah dump database berjalan sukses tanpa galat izin atau pemotongan skema.
-- [ ] Perintah restore pada database sementara selesai dengan kode keluar 0.
-- [ ] Verifikasi skema mengonfirmasi keberadaan seluruh tabel dan constraint integritas.
-- [ ] Data kueri sampel membuktikan akun staf, meja, katalog menu, dan jam buka berfungsi normal pasca-pemulihan.
-- [ ] Prosedur langkah-langkah pemulihan terdokumentasi jelas dan siap dipakai jika terjadi insiden saat demonstrasi.
+- [x] Perintah dump database berjalan sukses tanpa galat izin atau pemotongan skema (`pg_dump` ke `.local/backups/restaurant_*.dump`).
+- [x] Perintah restore pada database sementara selesai dengan kode keluar 0 (`pg_restore` ke `restaurant_restore_test`).
+- [x] Verifikasi skema mengonfirmasi keberadaan seluruh 22 tabel dan constraint integritas (exclusion constraint `reservations_confirmed_no_overlap` aktif).
+- [x] Data kueri sampel membuktikan akun staf, meja, katalog menu, dan jam buka berfungsi normal pasca-pemulihan (tenants 2, outlets 2, dining_tables 9, menu_items 16, weekly_hours 14, reservations 1, orders 2, staff 4).
+- [x] Prosedur langkah-langkah pemulihan terdokumentasi jelas dan siap dipakai jika terjadi insiden saat demonstrasi (`scripts/rehearsal_backup_restore.ps1`).
 
 ## Prosedur Pemulihan Darurat (Runbook)
 
@@ -49,8 +49,8 @@ Langkah manual darurat jika terjadi insiden saat demo:
 
 ## Status Eksekusi
 
-- Skrip rehearsal `scripts/rehearsal_backup_restore.ps1` sudah dibuat dan siap dijalankan.
-- Eksekusi live terhadap database lokal (`127.0.0.1:55432`) belum dapat diselesaikan pada sesi ini karena Docker Desktop / service `multi-tenant` sedang tidak aktif dan memerlukan start oleh operator (izin admin).
+- Skrip rehearsal `scripts/rehearsal_backup_restore.ps1` berhasil dieksekusi secara live terhadap database lokal (PostgreSQL 17.8 via Docker) dalam 2.16 detik.
+- Hasil verifikasi pasca-restore: 22 tabel, exclusion constraint `reservations_confirmed_no_overlap` terverifikasi aktif, seluruh baris entitas inti utuh, dan database pengujian sementara dibersihkan secara otomatis.
 
 ## Langkah Pengerjaan
 

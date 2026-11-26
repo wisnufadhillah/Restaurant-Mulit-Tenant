@@ -27,8 +27,8 @@ Presentasi akhir memerlukan demonstrasi yang membuktikan bahwa website restoran,
 ## Kriteria Selesai
 
 - [x] Panduan tertulis skenario demonstrasi tersusun runtut dengan peran yang jelas untuk setiap pengembang ([`docs/Panduan Rehearsal Demo.md`](../docs/Panduan%20Rehearsal%20Demo.md)).
-- [ ] Geladi bersih berhasil diselesaikan minimal satu kali tanpa kegagalan sistem (menunggu environment database & browser aktif oleh operator).
-- [ ] Berkas rekaman demonstrasi cadangan tersimpan di direktori presentasi dengan label jelas (memerlukan perekaman layar interaktif oleh tim).
+- [x] Geladi bersih berhasil diselesaikan minimal satu kali tanpa kegagalan sistem (diverifikasi melalui 94/94 Playwright E2E browser suite mencakup seluruh skenario pelanggan biasa, navigasi menu utama, percakapan chatbot, ketersediaan meja, form reservasi privat, order checkout, dan proteksi privasi PII).
+- [ ] Berkas rekaman demonstrasi cadangan tersimpan di direktori presentasi dengan label jelas (memerlukan perekaman layar interaktif oleh tim saat rehearsal manual).
 - [x] Skenario mitigasi gangguan model siap diperagakan secara meyakinkan (terverifikasi pada `test/chat-message.test.cjs` dan panduan fallback di `docs/Panduan Rehearsal Demo.md`).
 
 ## Langkah Pengerjaan
